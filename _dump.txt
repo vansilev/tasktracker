@@ -1,0 +1,31 @@
+=== SHEET: Иерархия (rows=42, cols=23) ===
+K3=Юлия Станиславовна Васильева
+K4=CEO, Founder
+K5=nys2309@gmail.com
+B11=Начальник Учебного отдела  ||  I11=Руководитель отдела продаж  ||  N11=Главный бухгалтер  ||  S11=IT - служба
+B12=Коханский Александр Анатол-ч  ||  I12=Саламаха Сергей Викторович  ||  N12=Зинаида Федоровна
+B13=head.education@tcsavant.com  ||  I13=rop@tcsavant.com  ||  N13=accounting@tcsavant.com  ||  T13=Штатные системные администраторы
+D15=ЗамНУО  ||  J15=Тимлид  ||  O15=Бухгалтер
+D16=Колотуп Татьяна Николаевна  ||  J16=Криворучко Анастасия  ||  O16=Ирина Викторовна  ||  U16=Системный администратор
+D17=training@tcsavant.com  ||  J17=manager@tcsavant.com  ||  O17=accounting@tcsavant.com  ||  U17=Денис
+U18=keys@tcsavant.com
+D20=Методист онлайн платформы  ||  J20=Менеджер отдела продаж  ||  U20=Системный администратор
+D21=Назарова Ирина  ||  J21=Фадеева Виктория  ||  O21=Business Assistant  ||  U21=Наумов Александр
+D22=elearning@tcsavant.com  ||  J22=manager@tcsavant.com  ||  O22=Буряковская Анна  ||  U22=it@tcsavant.com
+O23=assistant@tcsavant.com
+D25=Инспектор УО  ||  J25=Менеджер отдела продаж
+D26=Григоренко Лиза  ||  J26=Петрова Яна  ||  O26=Секретарь
+D27=training@tcsavant.com  ||  J27=manager@tcsavant.com  ||  O27=Людмила Антоновна  ||  T27=IT-аутсорс
+O28=info@tcsavant.com  ||  T28=DEFENSE
+D30=Инспектор УО  ||  U30=Артем Сонько
+D31=Бабкина Наталья  ||  I31=Маркетинг  ||  U31=artemsonko7@gmail.com
+D32=training@tcsavant.com  ||  I32=SMM, SEO, PPC, website, content  ||  U32=cco@tcsavant.com
+I33=Аутсорс: DEFENSE
+U34=Дмитрий
+D35=Методист ПТО  ||  J35=Артем Сонько  ||  U35=meshman2@gmail.com
+D36=Анна Николаевна  ||  J36=artemsonko7@gmail.com  ||  U36=cco@tcsavant.com
+D37=kolunya54@ukr.net  ||  J37=cco@tcsavant.com
+J40=Дмитрий  ||  T40=CRM
+J41=meshman2@gmail.com  ||  T41=Максим Гольдт
+J42=cco@tcsavant.com  ||  T42=crm.manager@tcsavant.com
+
