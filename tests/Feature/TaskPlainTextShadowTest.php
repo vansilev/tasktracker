@@ -50,11 +50,13 @@ class TaskPlainTextShadowTest extends TestCase
             'description' => 'Original plain text',
         ]);
 
+        // Plain-textarea write path escapes markup as inert text (fromPlainText),
+        // so the shadow column keeps the literal tag characters the user typed.
         app(TaskService::class)->update($task, $editor, [
             'description' => 'alpha<strong>beta</strong>gamma',
         ]);
 
-        $this->assertSame('alphabetagamma', $task->fresh()->description_text);
+        $this->assertSame('alpha<strong>beta</strong>gamma', $task->fresh()->description_text);
     }
 
     public function test_creating_a_comment_populates_body_text(): void
@@ -71,7 +73,7 @@ class TaskPlainTextShadowTest extends TestCase
             'foo<em>bar</em>baz',
         );
 
-        $this->assertSame('foobarbaz', $comment->fresh()->body_text);
+        $this->assertSame('foo<em>bar</em>baz', $comment->fresh()->body_text);
     }
 
     public function test_updating_a_comment_updates_body_text(): void
@@ -85,7 +87,7 @@ class TaskPlainTextShadowTest extends TestCase
         $comment = app(TaskService::class)->addComment($task, $assignee, 'first body');
         app(TaskService::class)->updateComment($comment, $assignee, '<p>second</p><p>body</p>');
 
-        $this->assertSame('second body', $comment->fresh()->body_text);
+        $this->assertSame('<p>second</p><p>body</p>', $comment->fresh()->body_text);
     }
 
     public function test_search_matches_via_description_text_not_raw_markup(): void

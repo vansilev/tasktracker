@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Task;
+use App\Services\HtmlContentService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -12,7 +13,7 @@ class FixEmptyTaskTitles extends Command
 
     protected $description = 'Backfill empty task titles from description';
 
-    public function handle(): int
+    public function handle(HtmlContentService $html): int
     {
         $fixed = 0;
 
@@ -20,8 +21,8 @@ class FixEmptyTaskTitles extends Command
             ->where(function ($query): void {
                 $query->where('title', '')->orWhereNull('title');
             })
-            ->eachById(function (Task $task) use (&$fixed): void {
-                $normalized = trim(preg_replace('/\s+/', ' ', $task->description ?? '') ?? '');
+            ->eachById(function (Task $task) use (&$fixed, $html): void {
+                $normalized = $html->toPlainText($task->description);
 
                 $task->update([
                     'title' => Str::limit($normalized, 120, ''),

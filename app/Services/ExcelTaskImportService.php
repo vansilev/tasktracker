@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AuthProvider;
+use App\Enums\ContentFormat;
 use App\Enums\SystemType;
 use App\Enums\TaskStatus;
 use App\Models\Category;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ExcelTaskImportService
 {
@@ -30,6 +32,11 @@ class ExcelTaskImportService
 
     /** @var array<string, Category> */
     private array $categoryCache = [];
+
+    public function __construct(
+        private TaskContentService $content,
+        private HtmlContentService $html,
+    ) {}
 
     public function import(string $path, bool $dryRun = false): array
     {
@@ -147,7 +154,7 @@ class ExcelTaskImportService
      * @param  list<array<string, mixed>>  $preview
      */
     private function importRow(
-        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        Worksheet $sheet,
         int $row,
         int $number,
         bool $useRealInitiators,
@@ -187,7 +194,7 @@ class ExcelTaskImportService
             return 1;
         }
 
-        Task::create([
+        $task = new Task([
             'number' => $number,
             'initiator_id' => $initiator->id,
             'assignee_id' => $assignee->id,
@@ -195,7 +202,9 @@ class ExcelTaskImportService
             'department_id' => $assignee->department_id,
             'category_id' => $category->id,
             'title' => $title,
-            'description' => $description,
+            // Spreadsheet cells are untrusted: escape via fromPlainText (not sanitize).
+            // TIP TAP FLIP POINT: fromUserInput → sanitize if imports ever carry HTML.
+            'description' => $this->content->fromUserInput($description),
             'priority' => 5,
             'status' => $status,
             'deadline' => $deadline,
@@ -205,6 +214,9 @@ class ExcelTaskImportService
             'created_at' => $createdAt,
             'updated_at' => $createdAt,
         ]);
+        // description_format is not mass-assignable.
+        $task->description_format = ContentFormat::Html;
+        $task->save();
 
         return 1;
     }
@@ -471,7 +483,7 @@ class ExcelTaskImportService
 
     private function titleFromDescription(string $description): string
     {
-        $normalized = trim(preg_replace('/\s+/', ' ', $description) ?? '');
+        $normalized = $this->html->toPlainText($description);
 
         return Str::limit($normalized, 120, '');
     }

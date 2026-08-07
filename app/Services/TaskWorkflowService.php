@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ContentFormat;
 use App\Enums\TaskStatus;
 use App\Models\Task;
 use App\Models\TaskHistory;
@@ -18,6 +19,7 @@ class TaskWorkflowService
         private SettingsService $settings,
         private TaskNotificationService $notifications,
         private AuditLogService $audit,
+        private TaskContentService $content,
     ) {}
 
     /** @return list<TaskStatus> */
@@ -121,10 +123,14 @@ class TaskWorkflowService
             $task->update($updates);
 
             if (filled($comment)) {
-                $task->comments()->create([
+                $statusComment = $task->comments()->make([
                     'author_id' => $user->id,
-                    'body' => trim($comment),
+                    // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
+                    'body' => $this->content->fromUserInput(trim($comment)),
                 ]);
+                // body_format is not mass-assignable.
+                $statusComment->body_format = ContentFormat::Html;
+                $statusComment->save();
             }
 
             $this->logHistory($task, 'status', $from->value, $to->value, $user);
@@ -154,7 +160,7 @@ class TaskWorkflowService
         ]);
     }
 
-  private function isDepartmentHead(User $user, Task $task): bool
+    private function isDepartmentHead(User $user, Task $task): bool
     {
         return $user->headedDepartments()
             ->where('id', $task->department_id)

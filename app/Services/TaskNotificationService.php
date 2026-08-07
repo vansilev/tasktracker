@@ -64,7 +64,7 @@ class TaskNotificationService
         $task->loadMissing(['initiator', 'assignee', 'watchers']);
 
         $mentionedIds = $mentioned->pluck('id')->all();
-        $excerpt = $this->commentExcerpt($comment->body);
+        $excerpt = $this->commentExcerpt($comment);
 
         $commentRecipients = collect([$task->initiator, $task->assignee])
             ->merge($task->watchers)
@@ -257,12 +257,15 @@ class TaskNotificationService
             });
     }
 
-    private function commentExcerpt(string $body): string
+    private function commentExcerpt(TaskComment $comment): string
     {
-        $plain = strip_tags($body);
-        $plain = preg_replace('/\[([^\]]+)\]\([^\)]+\)/', '$1', $plain) ?? $plain;
-        $plain = preg_replace('/[*_~`#>|]/', '', $plain) ?? $plain;
-        $plain = trim(preg_replace('/\s+/u', ' ', $plain) ?? $plain);
+        // Format-aware: markdown-marked legacy rows must render through CommonMark
+        // first so notification text does not leak raw `**bold**` markers.
+        $html = app(TaskContentService::class)->render(
+            $comment->body,
+            $comment->body_format,
+        );
+        $plain = app(HtmlContentService::class)->toPlainText($html);
 
         if (mb_strlen($plain) <= 120) {
             return $plain;

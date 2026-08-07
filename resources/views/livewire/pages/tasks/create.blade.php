@@ -2,7 +2,9 @@
 
 use App\Models\Category;
 use App\Models\Department;
+use App\Models\Task;
 use App\Models\User;
+use App\Rules\PlainTextLength;
 use App\Services\SettingsService;
 use App\Services\TaskAttachmentService;
 use App\Services\TaskService;
@@ -15,16 +17,27 @@ new #[Layout('components.tasks-layout')] class extends Component
     use WithFileUploads;
 
     public ?int $departmentId = null;
+
     public ?int $assigneeId = null;
+
     public ?int $categoryId = null;
+
     public string $title = '';
+
     public string $description = '';
+
     public int $priority = 5;
+
     public ?string $deadline = null;
+
     public string $specUrl = '';
+
     public string $checklistText = '';
+
     public array $watcherIds = [];
+
     public array $uploadFiles = [];
+
     public $pastedCreateFile = null;
 
     public function mount(): void
@@ -32,7 +45,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $user = auth()->user();
         $this->departmentId = $user->department_id;
 
-        abort_unless($user->can('create', \App\Models\Task::class), 403);
+        abort_unless($user->can('create', Task::class), 403);
     }
 
     public function updatedPastedCreateFile(): void
@@ -75,7 +88,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             'departmentId' => 'required|exists:departments,id',
             'categoryId' => 'required|exists:categories,id',
             'title' => 'required|string|max:120',
-            'description' => 'required|string|min:3',
+            'description' => ['required', 'string', new PlainTextLength(min: 3, max: 20000)],
             'priority' => 'required|integer|min:1|max:10',
             'deadline' => 'nullable|date',
             'specUrl' => 'nullable|url|max:500',
@@ -102,7 +115,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             }
 
             $this->redirect(route('tasks.show', $task), navigate: true);
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             $this->addError('assigneeId', $e->getMessage());
 
             return;

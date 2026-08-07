@@ -80,7 +80,10 @@ trait CreatesTaskTrackerFixtures
         Category $category,
         array $overrides = [],
     ): Task {
-        return Task::query()->create(array_merge([
+        $format = $overrides['description_format'] ?? null;
+        unset($overrides['description_format']);
+
+        $task = new Task(array_merge([
             'number' => (Task::query()->max('number') ?? 0) + 1,
             'initiator_id' => $initiator->id,
             'assignee_id' => $assignee->id,
@@ -92,6 +95,15 @@ trait CreatesTaskTrackerFixtures
             'priority' => 5,
             'status' => TaskStatus::New,
         ], $overrides));
+
+        if ($format !== null) {
+            // description_format is not mass-assignable.
+            $task->description_format = $format;
+        }
+
+        $task->save();
+
+        return $task;
     }
 
     /** @return list<string> */

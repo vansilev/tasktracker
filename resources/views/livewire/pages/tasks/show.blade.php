@@ -6,13 +6,16 @@ use App\Models\Task;
 use App\Models\TaskAttachment;
 use App\Models\TaskChecklistItem;
 use App\Models\TaskComment;
-use App\Services\TaskHistoryPresenter;
-use App\Services\MarkdownService;
+use App\Models\User;
+use App\Rules\PlainTextLength;
 use App\Services\MentionService;
 use App\Services\SettingsService;
 use App\Services\TaskAttachmentService;
+use App\Services\TaskContentService;
+use App\Services\TaskHistoryPresenter;
 use App\Services\TaskService;
 use App\Services\TaskWorkflowService;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Features\SupportFileUploads\WithFileUploads;
 use Livewire\Volt\Component;
@@ -22,30 +25,55 @@ new #[Layout('components.tasks-layout')] class extends Component
     use WithFileUploads;
 
     public Task $task;
+
     public string $commentBody = '';
+
     public bool $editing = false;
+
     public string $editTitle = '';
+
     public string $editDescription = '';
+
     public int $editPriority = 5;
+
     public ?string $editDeadline = null;
+
     public string $editSpecUrl = '';
+
     public string $editResultUrl = '';
+
     public string $resultUrl = '';
+
     public ?string $resultUrlSaved = null;
+
     public ?int $editAssigneeId = null;
+
     public ?int $editAssigneeDepartmentId = null;
+
     public string $reassignComment = '';
+
     public string $newChecklistItem = '';
+
     public ?string $pendingTransition = null;
+
     public string $transitionComment = '';
+
     public ?string $transitionError = null;
+
     public bool $editingWatchers = false;
+
     public array $watcherIds = [];
+
     public ?int $editingCommentId = null;
+
     public string $editCommentBody = '';
+
     public array $uploadFiles = [];
+
     public array $commentFiles = [];
+
     public $pastedCommentFile = null;
+
     public $pastedTaskFile = null;
 
     public function mount(Task $task): void
@@ -60,7 +88,10 @@ new #[Layout('components.tasks-layout')] class extends Component
         abort_unless(auth()->user()->can('view', $this->task), 403);
 
         $this->editTitle = $this->task->title;
-        $this->editDescription = $this->task->description;
+        $this->editDescription = app(TaskContentService::class)->toEditablePlainText(
+            $this->task->description,
+            $this->task->description_format,
+        );
         $this->editPriority = $this->task->priority;
         $this->editDeadline = $this->task->deadline?->format('Y-m-d');
         $this->editSpecUrl = $this->task->spec_url ?? '';
@@ -115,7 +146,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     {
         return [
             'transitions' => app(TaskWorkflowService::class)->allowedTransitions(auth()->user(), $this->task),
-            'assignees' => \App\Models\User::query()
+            'assignees' => User::query()
                 ->where('is_active', true)
                 ->where('department_id', $this->editAssigneeDepartmentId ?? $this->task->department_id)
                 ->orderBy('name')
@@ -133,8 +164,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             'canUploadAttachment' => auth()->user()->can('uploadAttachment', $this->task),
             'canEditResultUrl' => auth()->user()->can('updateResultUrl', $this->task),
             'canDeleteTask' => auth()->user()->can('delete', $this->task),
-            'markdown' => app(MarkdownService::class),
-            'allUsers' => \App\Models\User::query()
+            'allUsers' => User::query()
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -197,7 +227,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     public function confirmTransition(TaskWorkflowService $workflow): void
     {
         $this->validate([
-            'transitionComment' => 'required|string|min:1',
+            'transitionComment' => ['required', 'string', new PlainTextLength(min: 1, max: 20000)],
         ], [], [
             'transitionComment' => __('Transition comment'),
         ]);
@@ -229,7 +259,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             $this->pendingTransition = null;
             $this->transitionComment = '';
             $this->transitionError = null;
-        } catch (\InvalidArgumentException $e) {
+        } catch (InvalidArgumentException $e) {
             $this->transitionError = $e->getMessage();
         }
 
@@ -254,7 +284,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             $this->resultUrlSaved = __('Saved');
             $this->task->refresh();
             $this->editResultUrl = $this->task->result_url ?? '';
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             throw $e;
         }
     }
@@ -262,7 +292,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     public function addComment(TaskService $tasks, TaskAttachmentService $attachments, SettingsService $settings): void
     {
         $this->validate([
-            'commentBody' => 'required|string|min:1',
+            'commentBody' => ['required', 'string', new PlainTextLength(min: 1, max: 20000)],
             'commentFiles.*' => 'nullable|file|max:'.(int) $settings->get('attachment_max_kb', 10240),
         ]);
 
@@ -287,7 +317,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $rules = [
             'editTitle' => 'required|string|max:120',
-            'editDescription' => 'required|string|min:3',
+            'editDescription' => ['required', 'string', new PlainTextLength(min: 3, max: 20000)],
             'editPriority' => 'integer|min:1|max:10',
             'editDeadline' => 'nullable|date',
             'editSpecUrl' => 'nullable|url|max:500',
@@ -295,7 +325,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         ];
 
         if ($assigneeChanging) {
-            $rules['reassignComment'] = 'required|string|min:1';
+            $rules['reassignComment'] = ['required', 'string', new PlainTextLength(min: 1, max: 20000)];
         }
 
         $this->validate($rules, [], [
@@ -365,11 +395,18 @@ new #[Layout('components.tasks-layout')] class extends Component
         $comment = TaskComment::query()->where('task_id', $this->task->id)->findOrFail($commentId);
         abort_unless($comment->canBeEditedBy(auth()->user()), 403);
         $this->editingCommentId = $comment->id;
-        $this->editCommentBody = $comment->body;
+        $this->editCommentBody = app(TaskContentService::class)->toEditablePlainText(
+            $comment->body,
+            $comment->body_format,
+        );
     }
 
     public function saveCommentEdit(TaskService $tasks): void
     {
+        $this->validate([
+            'editCommentBody' => ['required', 'string', new PlainTextLength(min: 1, max: 20000)],
+        ]);
+
         $comment = TaskComment::query()->where('task_id', $this->task->id)->findOrFail($this->editingCommentId);
         $tasks->updateComment($comment, auth()->user(), $this->editCommentBody);
         $this->editingCommentId = null;
@@ -616,7 +653,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('Description') }}</h2>
                     </x-slot>
                     <div class="prose prose-sm max-w-none text-gray-800">
-                        {!! $markdown->toHtml($task->description) !!}
+                        {!! $task->renderedDescription() !!}
                     </div>
                 </x-card>
 
@@ -706,7 +743,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             </div>
                                         </form>
                                     @else
-                                        <div class="prose prose-sm max-w-none text-gray-800 mt-1">{!! $markdown->toHtml($comment->body) !!}</div>
+                                        <div class="prose prose-sm max-w-none text-gray-800 mt-1">{!! $comment->renderedBody() !!}</div>
                                         @if ($comment->attachments->isNotEmpty())
                                             <ul class="mt-2 space-y-2">
                                                 @foreach ($comment->attachments as $attachment)

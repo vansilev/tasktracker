@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ContentFormat;
 use App\Enums\Permission;
 use App\Enums\TaskStatus;
 use App\Models\Category;
@@ -24,6 +25,7 @@ class TaskService
         private MentionService $mentions,
         private TaskNotificationService $notifications,
         private AuditLogService $audit,
+        private TaskContentService $content,
     ) {}
 
     /**
@@ -72,7 +74,7 @@ class TaskService
         $task = DB::transaction(function () use ($initiator, $data, $assignee, $checklistTexts, $watcherIds, $category) {
             $number = (int) Task::query()->lockForUpdate()->max('number') + 1;
 
-            $task = Task::create([
+            $task = new Task([
                 'number' => $number,
                 'initiator_id' => $initiator->id,
                 'assignee_id' => $assignee->id,
@@ -80,13 +82,17 @@ class TaskService
                 'department_id' => $assignee->department_id,
                 'category_id' => $category->id,
                 'title' => $data['title'],
-                'description' => $data['description'],
+                // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
+                'description' => $this->content->fromUserInput($data['description'] ?? ''),
                 'priority' => (int) $data['priority'],
                 'status' => TaskStatus::New,
                 'deadline' => $data['deadline'] ?? null,
                 'spec_url' => $data['spec_url'] ?? null,
                 'result_url' => $data['result_url'] ?? null,
             ]);
+            // description_format is not mass-assignable.
+            $task->description_format = ContentFormat::Html;
+            $task->save();
 
             foreach ($checklistTexts as $i => $text) {
                 $text = trim($text);
@@ -195,19 +201,31 @@ class TaskService
         DB::transaction(function () use ($task, $user, $data, &$assigneeChanged, &$auditOld, &$auditNew) {
             $updates = [];
 
-            foreach (['title', 'description'] as $field) {
-                if (! array_key_exists($field, $data) || $data[$field] === null) {
-                    continue;
-                }
-
-                $old = (string) ($task->{$field} ?? '');
-                $new = (string) $data[$field];
+            if (array_key_exists('title', $data) && $data['title'] !== null) {
+                $old = (string) ($task->title ?? '');
+                $new = (string) $data['title'];
 
                 if ($old !== $new) {
-                    $updates[$field] = $data[$field];
-                    $auditOld[$field] = $old ?: null;
-                    $auditNew[$field] = $new ?: null;
-                    $this->workflow->logHistory($task, $field, $old ?: null, $new ?: null, $user);
+                    $updates['title'] = $data['title'];
+                    $auditOld['title'] = $old ?: null;
+                    $auditNew['title'] = $new ?: null;
+                    $this->workflow->logHistory($task, 'title', $old ?: null, $new ?: null, $user);
+                }
+            }
+
+            $setDescriptionFormatHtml = false;
+
+            if (array_key_exists('description', $data) && $data['description'] !== null) {
+                // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
+                $old = (string) ($task->description ?? '');
+                $new = $this->content->fromUserInput((string) $data['description']);
+
+                if ($old !== $new || $task->description_format !== ContentFormat::Html) {
+                    $updates['description'] = $new;
+                    $setDescriptionFormatHtml = true;
+                    $auditOld['description'] = $old ?: null;
+                    $auditNew['description'] = $new ?: null;
+                    $this->workflow->logHistory($task, 'description', $old ?: null, $new ?: null, $user);
                 }
             }
 
@@ -307,8 +325,13 @@ class TaskService
                 }
             }
 
-            if ($updates !== []) {
-                $task->update($updates);
+            if ($updates !== [] || $setDescriptionFormatHtml) {
+                $task->fill($updates);
+                if ($setDescriptionFormatHtml) {
+                    // description_format is not mass-assignable.
+                    $task->description_format = ContentFormat::Html;
+                }
+                $task->save();
             }
         });
 
@@ -355,10 +378,14 @@ class TaskService
     {
         Gate::forUser($user)->authorize('comment', $task);
 
-        $comment = $task->comments()->create([
+        $comment = $task->comments()->make([
             'author_id' => $user->id,
-            'body' => trim($body),
+            // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
+            'body' => $this->content->fromUserInput(trim($body)),
         ]);
+        // body_format is not mass-assignable.
+        $comment->body_format = ContentFormat::Html;
+        $comment->save();
 
         $mentioned = $this->mentions->processCommentMentions($task, $comment);
 
@@ -381,10 +408,14 @@ class TaskService
 
         Gate::forUser($user)->authorize('comment', $task);
 
-        $comment->update([
-            'body' => trim($body),
+        $comment->fill([
+            // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
+            'body' => $this->content->fromUserInput(trim($body)),
             'edited_at' => now(),
         ]);
+        // body_format is not mass-assignable.
+        $comment->body_format = ContentFormat::Html;
+        $comment->save();
 
         $comment->mentionedUsers()->detach();
         $mentioned = $this->mentions->processCommentMentions($task, $comment->fresh());
