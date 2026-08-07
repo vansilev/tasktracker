@@ -2,7 +2,9 @@
 
 use App\Models\Category;
 use App\Models\Department;
+use App\Models\Task;
 use App\Models\User;
+use App\Rules\PlainTextLength;
 use App\Services\SettingsService;
 use App\Services\TaskAttachmentService;
 use App\Services\TaskService;
@@ -15,16 +17,27 @@ new #[Layout('components.tasks-layout')] class extends Component
     use WithFileUploads;
 
     public ?int $departmentId = null;
+
     public ?int $assigneeId = null;
+
     public ?int $categoryId = null;
+
     public string $title = '';
+
     public string $description = '';
+
     public int $priority = 5;
+
     public ?string $deadline = null;
+
     public string $specUrl = '';
+
     public string $checklistText = '';
+
     public array $watcherIds = [];
+
     public array $uploadFiles = [];
+
     public $pastedCreateFile = null;
 
     public function mount(): void
@@ -32,7 +45,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $user = auth()->user();
         $this->departmentId = $user->department_id;
 
-        abort_unless($user->can('create', \App\Models\Task::class), 403);
+        abort_unless($user->can('create', Task::class), 403);
     }
 
     public function updatedPastedCreateFile(): void
@@ -75,7 +88,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             'departmentId' => 'required|exists:departments,id',
             'categoryId' => 'required|exists:categories,id',
             'title' => 'required|string|max:120',
-            'description' => 'required|string|min:3',
+            'description' => ['required', 'string', new PlainTextLength(min: 3, max: 20000)],
             'priority' => 'required|integer|min:1|max:10',
             'deadline' => 'nullable|date',
             'specUrl' => 'nullable|url|max:500',
@@ -102,7 +115,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             }
 
             $this->redirect(route('tasks.show', $task), navigate: true);
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             $this->addError('assigneeId', $e->getMessage());
 
             return;
@@ -136,9 +149,14 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
                         <x-input-label :value="__('Description')" class="text-xs text-gray-500 font-medium" />
-                        <textarea wire:model="description" rows="6"
-                                  class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  placeholder="{{ __('Description') }}"></textarea>
+                        <x-rich-text-editor
+                            model="description"
+                            key="task-create-description"
+                            class="mt-1"
+                            min-height="10rem"
+                            :placeholder="__('Description')"
+                            :aria-label="__('Description')"
+                        />
                         <x-input-error :messages="$errors->get('description')" class="mt-1" />
                     </div>
 
@@ -251,8 +269,16 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 @script
 <script>
+    /*
+     * Create page has no task id yet, so TipTap inline insert is disabled.
+     * Clipboard paste here only fills the sidecar uploadFiles list (stored after create).
+     */
     Alpine.data('clipboardImagePaste', (wire, property) => ({
         handlePaste(event) {
+            if (event.target?.closest?.('[data-inline-attachments="true"]')) {
+                return;
+            }
+
             const items = event.clipboardData?.items;
             if (!items) {
                 return;

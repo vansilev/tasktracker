@@ -90,6 +90,8 @@ return [
     'uploaded' => 'The :attribute failed to upload.',
     'uppercase' => 'The :attribute field must be uppercase.',
     'url' => 'The :attribute field must be a valid URL.',
+    'plain_text_min' => 'The :attribute must be at least :min characters.',
+    'plain_text_max' => 'The :attribute must not be greater than :max characters.',
 
     'custom' => [
         'attribute-name' => [

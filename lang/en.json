@@ -206,6 +206,7 @@
     "Upload": "Upload",
     "No attachments yet.": "No attachments yet.",
     "Delete this attachment?": "Delete this attachment?",
+    "Mention hint": "Type @ to mention someone — suggestions appear as you type",
     "Paste image hint": "You can paste an image from the clipboard (Ctrl+V)",
     "Delete task": "Delete task",
     "Delete this task? It can be restored later from Administration.": "Delete this task? It can be restored later from Administration.",

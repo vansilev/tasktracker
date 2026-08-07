@@ -8,7 +8,7 @@
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.2",
-        "@tailwindcss/vite": "^4.0.0",
+        "@tailwindcss/typography": "^0.5.20",
         "autoprefixer": "^10.4.2",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^3.1",
@@ -17,6 +17,15 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
+        "@tiptap/core": "^3.29.2",
+        "@tiptap/extension-image": "^3.29.2",
+        "@tiptap/extension-link": "^3.29.2",
+        "@tiptap/extension-mention": "^3.29.2",
+        "@tiptap/extension-table": "^3.29.2",
+        "@tiptap/extension-underline": "^3.29.2",
+        "@tiptap/pm": "^3.29.2",
+        "@tiptap/starter-kit": "^3.29.2",
+        "@tiptap/suggestion": "^3.29.2",
         "chart.js": "^4.5.1"
     }
 }

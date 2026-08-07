@@ -3,7 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\Permission;
-use App\Enums\SystemType;
+use App\Models\Department;
+use App\Models\Role;
 use App\Models\TaskComment;
 use App\Models\TaskHistory;
 use App\Models\User;
@@ -17,7 +18,7 @@ class TaskReassignmentTest extends TestCase
 {
     use CreatesTaskTrackerFixtures;
 
-    /** @return array{0: \App\Models\Department, 1: User, 2: \App\Models\Role} */
+    /** @return array{0: Department, 1: User, 2: Role} */
     private function createEditorWithAssign(): array
     {
         $dept = $this->createDepartment();
@@ -105,7 +106,8 @@ class TaskReassignmentTest extends TestCase
             ->set('editing', true)
             ->set('editAssigneeDepartmentId', $deptB->id)
             ->set('editAssigneeId', $assigneeB->id)
-            ->set('reassignComment', 'Handing over to another department.')
+            // The reassignment box is now a TipTap editor, so the browser posts HTML.
+            ->set('reassignComment', '<p>Handing over to another department.</p>')
             ->call('saveEdit')
             ->assertHasNoErrors();
 
@@ -117,7 +119,7 @@ class TaskReassignmentTest extends TestCase
             TaskComment::query()
                 ->where('task_id', $task->id)
                 ->where('author_id', $editor->id)
-                ->where('body', 'Handing over to another department.')
+                ->where('body', '<p>Handing over to another department.</p>')
                 ->exists()
         );
     }

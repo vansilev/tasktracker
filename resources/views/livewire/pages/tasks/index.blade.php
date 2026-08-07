@@ -181,9 +181,9 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 $q->where('number', 'like', $s)
                     ->orWhere('title', 'like', $s)
-                    ->orWhere('description', 'like', $s)
+                    ->orWhereRaw('COALESCE(description_text, description) LIKE ?', [$s])
 
-                    ->orWhereHas('comments', fn ($cq) => $cq->where('body', 'like', $s));
+                    ->orWhereHas('comments', fn ($cq) => $cq->whereRaw('COALESCE(body_text, body) LIKE ?', [$s]));
 
             });
 
@@ -1071,7 +1071,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                         <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
-                                        <span class="truncate font-medium text-gray-900">{{ $task->title ?: Str::limit($task->description, 80) }}</span>
+                                        <span class="truncate font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
 
                                     </div>
 
@@ -1151,7 +1151,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
-                                            <span class="truncate text-sm font-medium text-gray-900">{{ $task->title ?: Str::limit($task->description, 80) }}</span>
+                                            <span class="truncate text-sm font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
 
                                         </div>
 

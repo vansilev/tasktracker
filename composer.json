@@ -15,6 +15,7 @@
         "league/commonmark": "^2.8",
         "livewire/livewire": "^3.6.4",
         "livewire/volt": "^1.7.0",
+        "mews/purifier": "^3.4",
         "phpoffice/phpspreadsheet": "^5.8"
     },
     "require-dev": {
@@ -83,6 +84,9 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
+        "platform": {
+            "php": "8.4.21"
+        },
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true

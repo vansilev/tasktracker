@@ -90,6 +90,8 @@ return [
     'uploaded' => 'Не вдалося завантажити файл у полі :attribute.',
     'uppercase' => 'Поле :attribute має бути у верхньому регістрі.',
     'url' => 'Поле :attribute має містити коректний URL.',
+    'plain_text_min' => 'Поле :attribute має містити не менше ніж :min символів.',
+    'plain_text_max' => 'Поле :attribute не має перевищувати :max символів.',
 
     'custom' => [
         'attribute-name' => [

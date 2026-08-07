@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\Permission;
+use App\Models\Department;
+use App\Models\Role;
 use App\Models\TaskHistory;
+use App\Models\User;
 use App\Services\TaskService;
 use Tests\Support\CreatesTaskTrackerFixtures;
 use Tests\TestCase;
@@ -12,7 +15,7 @@ class TaskUpdateFieldsTest extends TestCase
 {
     use CreatesTaskTrackerFixtures;
 
-    /** @return array{0: \App\Models\Department, 1: \App\Models\User, 2: \App\Models\Role} */
+    /** @return array{0: Department, 1: User, 2: Role} */
     private function createEditor(): array
     {
         $dept = $this->createDepartment();
@@ -149,9 +152,14 @@ class TaskUpdateFieldsTest extends TestCase
         [$dept, $editor, $role] = $this->createEditor();
         $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
         $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
-        $task = $this->createTask($initiator, $assignee, $this->createCategory(), [
+        // Create via the service so description is stored as HTML (the production write path).
+        $task = app(TaskService::class)->create($initiator, [
+            'department_id' => $dept->id,
+            'assignee_id' => $assignee->id,
+            'category_id' => $this->createCategory()->id,
             'title' => 'Same title',
             'description' => 'Same description',
+            'priority' => 5,
         ]);
 
         $before = TaskHistory::query()->where('task_id', $task->id)->count();

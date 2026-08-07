@@ -48,10 +48,14 @@ tar -czf /root/backups/nginx-before-tasktracker-$(date +%F-%H%M).tar.gz /etc/ngi
 nginx -t
 ```
 
-## 3. Установить PHP 8.3, Composer и MariaDB
+## 3. Установить PHP 8.4, Composer и MariaDB
 
 Не ставь стандартный `php-cli` из Ubuntu 22.04: это PHP 8.1, а проект требует
-PHP 8.3+.
+PHP 8.4+.
+
+Важно: PHP 8.4 или новее обязателен. Зависимости в `composer.lock`
+(в т.ч. Symfony 8.1) требуют `>=8.4.1` — ниже 8.4.1 проект не установится
+и не запустится.
 
 ```bash
 apt update
@@ -60,31 +64,31 @@ add-apt-repository ppa:ondrej/php -y
 apt update
 
 apt install -y \
-  php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml \
-  php8.3-curl php8.3-zip php8.3-gd php8.3-intl php8.3-bcmath \
-  php8.3-readline php8.3-opcache
+  php8.4-fpm php8.4-cli php8.4-mysql php8.4-mbstring php8.4-xml \
+  php8.4-curl php8.4-zip php8.4-gd php8.4-intl php8.4-bcmath \
+  php8.4-readline php8.4-opcache
 
 apt install -y mariadb-server mariadb-client
 
 curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php
-php8.3 /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+php8.4 /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
 rm /tmp/composer-setup.php
 ```
 
 Проверка:
 
 ```bash
-php8.3 -v
+php8.4 -v
 php -v || true
 composer --version
-systemctl status php8.3-fpm --no-pager
+systemctl status php8.4-fpm --no-pager
 systemctl status mariadb --no-pager
 ```
 
-Если `php` не указывает на 8.3, можно сделать:
+Если `php` не указывает на 8.4, можно сделать:
 
 ```bash
-update-alternatives --set php /usr/bin/php8.3
+update-alternatives --set php /usr/bin/php8.4
 ```
 
 ## 4. Создать базу
@@ -218,15 +222,34 @@ TELEGRAM_WEBHOOK_SECRET=
 Потом:
 
 ```bash
-php8.3 artisan key:generate
-php8.3 artisan migrate --force
-php8.3 artisan db:seed --force
-php8.3 artisan optimize:clear
-php8.3 artisan config:cache
-php8.3 artisan route:cache
-php8.3 artisan view:cache
-php8.3 artisan event:cache
+php8.4 artisan key:generate
+php8.4 artisan migrate --force
+php8.4 artisan tasks:backfill-plain-text
+php8.4 artisan tasks:convert-markdown-to-html --dry-run
+php8.4 artisan tasks:convert-markdown-to-html
+php8.4 artisan db:seed --force
+php8.4 artisan optimize:clear
+php8.4 artisan config:cache
+php8.4 artisan route:cache
+php8.4 artisan view:cache
+php8.4 artisan event:cache
 ```
+
+Миграция уже заполняет `description_text` / `body_text` при применении, но
+команду стоит прогнать после деплоя (идемпотентна; `--dry-run` покажет,
+сколько строк было бы обновлено без записи).
+
+`tasks:convert-markdown-to-html` переводит описания задач и тексты комментариев
+из Markdown в HTML — это нужно для WYSIWYG-редактора. Запускай её после
+`migrate --force` и после `tasks:backfill-plain-text`. Команда идемпотентна и
+безопасна для повторного запуска: она ориентируется на маркер формата
+(`description_format` / `body_format`) и уже сконвертированные строки
+пропускает. Сначала обязательно прогони `--dry-run` и посмотри отчет.
+
+Строки, у которых маркер `markdown`, а содержимое уже выглядит как HTML,
+команда не трогает — помещает в карантин и перечисляет их ID. Разбери их
+вручную; если уверен, что их всё равно нужно прогнать через конвертацию,
+запусти `php8.4 artisan tasks:convert-markdown-to-html --force`.
 
 `db:seed --force` запускай только на новой пустой базе.
 
@@ -258,7 +281,7 @@ server {
 
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
     }
@@ -308,23 +331,27 @@ crontab -e
 Добавь строку:
 
 ```cron
-* * * * * cd /var/www/tasktracker && /usr/bin/php8.3 artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /var/www/tasktracker && /usr/bin/php8.4 artisan schedule:run >> /dev/null 2>&1
 ```
 
 Проверка:
 
 ```bash
 cd /var/www/tasktracker
-php8.3 artisan schedule:list
-php8.3 artisan tasks:send-reminders --dry-run
+php8.4 artisan schedule:list
+php8.4 artisan tasks:send-reminders --dry-run
 ```
 
 ## 10. Финальная проверка
 
+- [ ] `php8.4 artisan tasks:backfill-plain-text` выполнен (можно сначала `--dry-run`).
+- [ ] `php8.4 artisan tasks:convert-markdown-to-html` выполнен после backfill
+      (сначала `--dry-run`; идемпотентна; строки в карантине разобраны).
+
 ```bash
 cd /var/www/tasktracker
-php8.3 artisan about
-php8.3 artisan migrate:status
+php8.4 artisan about
+php8.4 artisan migrate:status
 curl -I https://task.avant.od.ua/login
 curl -I https://task.avant.od.ua/.env
 curl -I https://task.avant.od.ua/composer.json

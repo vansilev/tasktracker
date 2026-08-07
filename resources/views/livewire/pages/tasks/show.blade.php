@@ -6,13 +6,16 @@ use App\Models\Task;
 use App\Models\TaskAttachment;
 use App\Models\TaskChecklistItem;
 use App\Models\TaskComment;
-use App\Services\TaskHistoryPresenter;
-use App\Services\MarkdownService;
+use App\Models\User;
+use App\Rules\PlainTextLength;
 use App\Services\MentionService;
 use App\Services\SettingsService;
 use App\Services\TaskAttachmentService;
+use App\Services\TaskContentService;
+use App\Services\TaskHistoryPresenter;
 use App\Services\TaskService;
 use App\Services\TaskWorkflowService;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Features\SupportFileUploads\WithFileUploads;
 use Livewire\Volt\Component;
@@ -22,31 +25,59 @@ new #[Layout('components.tasks-layout')] class extends Component
     use WithFileUploads;
 
     public Task $task;
+
     public string $commentBody = '';
+
     public bool $editing = false;
+
     public string $editTitle = '';
+
     public string $editDescription = '';
+
     public int $editPriority = 5;
+
     public ?string $editDeadline = null;
+
     public string $editSpecUrl = '';
+
     public string $editResultUrl = '';
+
     public string $resultUrl = '';
+
     public ?string $resultUrlSaved = null;
+
     public ?int $editAssigneeId = null;
+
     public ?int $editAssigneeDepartmentId = null;
+
     public string $reassignComment = '';
+
     public string $newChecklistItem = '';
+
     public ?string $pendingTransition = null;
+
     public string $transitionComment = '';
+
     public ?string $transitionError = null;
+
     public bool $editingWatchers = false;
+
     public array $watcherIds = [];
+
     public ?int $editingCommentId = null;
+
     public string $editCommentBody = '';
+
     public array $uploadFiles = [];
+
     public array $commentFiles = [];
+
     public $pastedCommentFile = null;
+
     public $pastedTaskFile = null;
+
+    /** Temporary upload slot used by TipTap inline attachment insert (show page). */
+    public $inlineAttachmentFile = null;
 
     public function mount(Task $task): void
     {
@@ -60,7 +91,10 @@ new #[Layout('components.tasks-layout')] class extends Component
         abort_unless(auth()->user()->can('view', $this->task), 403);
 
         $this->editTitle = $this->task->title;
-        $this->editDescription = $this->task->description;
+        $this->editDescription = app(TaskContentService::class)->toEditorHtml(
+            $this->task->description,
+            $this->task->description_format,
+        );
         $this->editPriority = $this->task->priority;
         $this->editDeadline = $this->task->deadline?->format('Y-m-d');
         $this->editSpecUrl = $this->task->spec_url ?? '';
@@ -115,7 +149,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     {
         return [
             'transitions' => app(TaskWorkflowService::class)->allowedTransitions(auth()->user(), $this->task),
-            'assignees' => \App\Models\User::query()
+            'assignees' => User::query()
                 ->where('is_active', true)
                 ->where('department_id', $this->editAssigneeDepartmentId ?? $this->task->department_id)
                 ->orderBy('name')
@@ -133,8 +167,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             'canUploadAttachment' => auth()->user()->can('uploadAttachment', $this->task),
             'canEditResultUrl' => auth()->user()->can('updateResultUrl', $this->task),
             'canDeleteTask' => auth()->user()->can('delete', $this->task),
-            'markdown' => app(MarkdownService::class),
-            'allUsers' => \App\Models\User::query()
+            'allUsers' => User::query()
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -197,7 +230,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     public function confirmTransition(TaskWorkflowService $workflow): void
     {
         $this->validate([
-            'transitionComment' => 'required|string|min:1',
+            'transitionComment' => ['required', 'string', new PlainTextLength(min: 1, max: 20000)],
         ], [], [
             'transitionComment' => __('Transition comment'),
         ]);
@@ -229,7 +262,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             $this->pendingTransition = null;
             $this->transitionComment = '';
             $this->transitionError = null;
-        } catch (\InvalidArgumentException $e) {
+        } catch (InvalidArgumentException $e) {
             $this->transitionError = $e->getMessage();
         }
 
@@ -254,7 +287,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             $this->resultUrlSaved = __('Saved');
             $this->task->refresh();
             $this->editResultUrl = $this->task->result_url ?? '';
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             throw $e;
         }
     }
@@ -262,7 +295,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     public function addComment(TaskService $tasks, TaskAttachmentService $attachments, SettingsService $settings): void
     {
         $this->validate([
-            'commentBody' => 'required|string|min:1',
+            'commentBody' => ['required', 'string', new PlainTextLength(min: 1, max: 20000)],
             'commentFiles.*' => 'nullable|file|max:'.(int) $settings->get('attachment_max_kb', 10240),
         ]);
 
@@ -287,7 +320,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $rules = [
             'editTitle' => 'required|string|max:120',
-            'editDescription' => 'required|string|min:3',
+            'editDescription' => ['required', 'string', new PlainTextLength(min: 3, max: 20000)],
             'editPriority' => 'integer|min:1|max:10',
             'editDeadline' => 'nullable|date',
             'editSpecUrl' => 'nullable|url|max:500',
@@ -295,7 +328,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         ];
 
         if ($assigneeChanging) {
-            $rules['reassignComment'] = 'required|string|min:1';
+            $rules['reassignComment'] = ['required', 'string', new PlainTextLength(min: 1, max: 20000)];
         }
 
         $this->validate($rules, [], [
@@ -331,6 +364,12 @@ new #[Layout('components.tasks-layout')] class extends Component
         ]);
         $this->editAssigneeDepartmentId = $this->task->department_id;
         $this->editAssigneeId = $this->task->assignee_id;
+        // Reload from storage so the next edit starts from the sanitized HTML
+        // rather than the browser's pre-sanitize version.
+        $this->editDescription = app(TaskContentService::class)->toEditorHtml(
+            $this->task->description,
+            $this->task->description_format,
+        );
         $this->editing = false;
     }
 
@@ -365,11 +404,18 @@ new #[Layout('components.tasks-layout')] class extends Component
         $comment = TaskComment::query()->where('task_id', $this->task->id)->findOrFail($commentId);
         abort_unless($comment->canBeEditedBy(auth()->user()), 403);
         $this->editingCommentId = $comment->id;
-        $this->editCommentBody = $comment->body;
+        $this->editCommentBody = app(TaskContentService::class)->toEditorHtml(
+            $comment->body,
+            $comment->body_format,
+        );
     }
 
     public function saveCommentEdit(TaskService $tasks): void
     {
+        $this->validate([
+            'editCommentBody' => ['required', 'string', new PlainTextLength(min: 1, max: 20000)],
+        ]);
+
         $comment = TaskComment::query()->where('task_id', $this->task->id)->findOrFail($this->editingCommentId);
         $tasks->updateComment($comment, auth()->user(), $this->editCommentBody);
         $this->editingCommentId = null;
@@ -397,6 +443,43 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $this->uploadFiles = [];
         $this->task->load('attachments.uploader');
+    }
+
+    /**
+     * Store a file already uploaded into $inlineAttachmentFile and return the
+     * payload TipTap needs to insert an inline image or document chip.
+     *
+     * New-comment bodies have no comment_id yet, so the row is stored as a
+     * task-level attachment (comment_id null). It still appears in the sidecar
+     * list and keeps a stable view/download URL for the content HTML.
+     *
+     * @return array{id: int, filename: string, mime: string, isImage: bool, viewUrl: string, downloadUrl: string}
+     */
+    public function storeInlineAttachment(TaskAttachmentService $attachments, SettingsService $settings): array
+    {
+        abort_unless(auth()->user()->can('uploadAttachment', $this->task), 403);
+
+        $this->validate([
+            'inlineAttachmentFile' => 'required|file|max:'.(int) $settings->get('attachment_max_kb', 10240),
+        ]);
+
+        $attachment = $attachments->store(
+            $this->task,
+            auth()->user(),
+            $this->inlineAttachmentFile,
+        );
+
+        $this->inlineAttachmentFile = null;
+        $this->task->load(['attachments.uploader', 'comments.attachments', 'histories.changedBy']);
+
+        return [
+            'id' => $attachment->id,
+            'filename' => $attachment->filename,
+            'mime' => $attachment->mime,
+            'isImage' => $attachment->isImage(),
+            'viewUrl' => route('tasks.attachments.view', $attachment, absolute: false),
+            'downloadUrl' => route('tasks.attachments.download', $attachment, absolute: false),
+        ];
     }
 
     public function deleteAttachment(int $attachmentId, TaskAttachmentService $attachments): void
@@ -524,18 +607,25 @@ new #[Layout('components.tasks-layout')] class extends Component
     @if ($pendingTransition)
         <div class="rounded-xl bg-amber-50 border border-amber-200 p-4 space-y-3">
             <p class="text-sm font-medium text-amber-900">{{ __('Add a comment for this status change') }}</p>
-            <textarea wire:model="transitionComment" rows="3"
-                      class="w-full border-amber-200 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      placeholder="{{ __('task.transition_comment_placeholder') }}"></textarea>
-            <x-input-error :messages="$errors->get('transitionComment')" class="mt-1" />
-            <div class="flex flex-wrap gap-2">
-                <x-action-button variant="primary" wire:click="confirmTransition">
-                    {{ __('task.confirm_transition') }}: {{ $this->transitionLabel(\App\Enums\TaskStatus::from($pendingTransition)) }}
-                </x-action-button>
-                <x-action-button variant="secondary" wire:click="cancelTransition">
-                    {{ __('task.cancel_transition') }}
-                </x-action-button>
-            </div>
+            <form wire:submit="confirmTransition" class="space-y-3">
+                <x-rich-text-editor
+                    model="transitionComment"
+                    key="task-transition-comment"
+                    min-height="5rem"
+                    :enable-inline-attachments="$canUploadAttachment"
+                    :placeholder="__('task.transition_comment_placeholder')"
+                    :aria-label="__('Transition comment')"
+                />
+                <x-input-error :messages="$errors->get('transitionComment')" class="mt-1" />
+                <div class="flex flex-wrap gap-2">
+                    <x-action-button variant="primary" type="submit">
+                        {{ __('task.confirm_transition') }}: {{ $this->transitionLabel(\App\Enums\TaskStatus::from($pendingTransition)) }}
+                    </x-action-button>
+                    <x-action-button variant="secondary" type="button" wire:click="cancelTransition">
+                        {{ __('task.cancel_transition') }}
+                    </x-action-button>
+                </div>
+            </form>
         </div>
     @endif
 
@@ -551,7 +641,15 @@ new #[Layout('components.tasks-layout')] class extends Component
                 </div>
                 <div>
                     <x-input-label :value="__('Description')" />
-                    <textarea wire:model="editDescription" rows="4" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                    <x-rich-text-editor
+                        model="editDescription"
+                        key="task-edit-description"
+                        class="mt-1"
+                        min-height="10rem"
+                        :enable-inline-attachments="$canUploadAttachment"
+                        :aria-label="__('Description')"
+                    />
+                    <x-input-error :messages="$errors->get('editDescription')" class="mt-1" />
                 </div>
                 @if ($canChangePriority)
                 <div>
@@ -594,9 +692,15 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @if ($editAssigneeId && (int) $editAssigneeId !== (int) $task->assignee_id)
                         <div>
                             <x-input-label :value="__('Reassignment comment')" />
-                            <textarea wire:model="reassignComment" rows="2"
-                                      class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                      placeholder="{{ __('Explain why the task is reassigned') }}"></textarea>
+                            <x-rich-text-editor
+                                model="reassignComment"
+                                key="task-reassign-comment"
+                                class="mt-1"
+                                min-height="4rem"
+                                :enable-inline-attachments="$canUploadAttachment"
+                                :placeholder="__('Explain why the task is reassigned')"
+                                :aria-label="__('Reassignment comment')"
+                            />
                             <x-input-error :messages="$errors->get('reassignComment')" class="mt-1" />
                         </div>
                     @endif
@@ -616,7 +720,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('Description') }}</h2>
                     </x-slot>
                     <div class="prose prose-sm max-w-none text-gray-800">
-                        {!! $markdown->toHtml($task->description) !!}
+                        {!! $task->renderedDescription() !!}
                     </div>
                 </x-card>
 
@@ -681,32 +785,22 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     </p>
                                     @if ($editingCommentId === $comment->id)
                                         <form wire:submit="saveCommentEdit" class="mt-2 space-y-2">
-                                            <div class="relative" x-data="mentionAutocomplete($wire, 'editCommentBody')">
-                                                <textarea x-ref="textarea" wire:model="editCommentBody" rows="2"
-                                                          @input="onInput()" @keydown="onKeydown($event)" @blur="onBlur()"
-                                                          class="w-full border-gray-300 rounded-lg text-sm"></textarea>
-                                                <ul x-show="open" x-cloak
-                                                    class="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg text-sm">
-                                                    <template x-for="(item, index) in suggestions" :key="item.id">
-                                                        <li>
-                                                            <button type="button"
-                                                                    @mousedown.prevent="selectSuggestion(index)"
-                                                                    class="w-full px-3 py-2 text-left hover:bg-indigo-50"
-                                                                    :class="index === activeIndex ? 'bg-indigo-50' : ''">
-                                                                <span class="font-medium text-gray-900" x-text="item.name"></span>
-                                                                <span class="ml-2 text-gray-500 text-xs" x-text="item.email"></span>
-                                                            </button>
-                                                        </li>
-                                                    </template>
-                                                </ul>
-                                            </div>
+                                            <x-rich-text-editor
+                                                model="editCommentBody"
+                                                key="task-edit-comment-{{ $comment->id }}"
+                                                min-height="4rem"
+                                                :enable-mentions="true"
+                                                :enable-inline-attachments="$canUploadAttachment"
+                                                :aria-label="__('Comments')"
+                                            />
+                                            <x-input-error :messages="$errors->get('editCommentBody')" />
                                             <div class="flex gap-2">
                                                 <x-primary-button type="submit">{{ __('Save') }}</x-primary-button>
                                                 <x-secondary-button type="button" wire:click="$set('editingCommentId', null)">{{ __('Cancel') }}</x-secondary-button>
                                             </div>
                                         </form>
                                     @else
-                                        <div class="prose prose-sm max-w-none text-gray-800 mt-1">{!! $markdown->toHtml($comment->body) !!}</div>
+                                        <div class="prose prose-sm max-w-none text-gray-800 mt-1">{!! $comment->renderedBody() !!}</div>
                                         @if ($comment->attachments->isNotEmpty())
                                             <ul class="mt-2 space-y-2">
                                                 @foreach ($comment->attachments as $attachment)
@@ -731,27 +825,21 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <form wire:submit="addComment" class="pt-4 border-t border-gray-100 space-y-2"
                           x-data="clipboardImagePaste($wire, 'pastedCommentFile')"
                           @paste="handlePaste($event)">
-                        <div class="relative" x-data="mentionAutocomplete($wire, 'commentBody')">
-                            <textarea x-ref="textarea" wire:model="commentBody" rows="2"
-                                      @input="onInput()" @keydown="onKeydown($event)" @blur="onBlur()"
-                                      class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                      placeholder="{{ __('Write a comment...') }} (@username)"></textarea>
-                            <ul x-show="open" x-cloak
-                                class="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg text-sm">
-                                <template x-for="(item, index) in suggestions" :key="item.id">
-                                    <li>
-                                        <button type="button"
-                                                @mousedown.prevent="selectSuggestion(index)"
-                                                class="w-full px-3 py-2 text-left hover:bg-indigo-50"
-                                                :class="index === activeIndex ? 'bg-indigo-50' : ''">
-                                            <span class="font-medium text-gray-900" x-text="item.name"></span>
-                                            <span class="ml-2 text-gray-500 text-xs" x-text="item.email"></span>
-                                        </button>
-                                    </li>
-                                </template>
-                            </ul>
-                        </div>
-                        <p class="text-xs text-gray-500">{{ __('Paste image hint') }}</p>
+                        <x-rich-text-editor
+                            model="commentBody"
+                            key="task-new-comment"
+                            min-height="4rem"
+                            :enable-mentions="true"
+                            :enable-inline-attachments="$canUploadAttachment"
+                            :placeholder="__('Write a comment...')"
+                            :aria-label="__('Comments')"
+                        />
+                        <x-input-error :messages="$errors->get('commentBody')" />
+                        <p class="text-xs text-gray-500">{{ __('Mention hint') }}</p>
+                        @if ($canUploadAttachment)
+                            <p class="text-xs text-gray-500">{{ __('Paste image hint') }}</p>
+                        @endif
+                        <x-input-error :messages="$errors->get('inlineAttachmentFile')" class="mt-1" />
                         @if (count($commentFiles) > 0)
                             <ul class="text-xs text-gray-600 space-y-0.5">
                                 @foreach ($commentFiles as $file)
@@ -968,8 +1056,22 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 @script
 <script>
+    /*
+     * Sidecar clipboard paste (comment file list / attachments card).
+     *
+     * TipTap editors with data-inline-attachments handle image paste themselves
+     * (upload → storeInlineAttachment → insert into the document). Skip those
+     * targets so the same paste is not uploaded twice.
+     *
+     * Comment @mention autocomplete lives in the TipTap editor (enable-mentions)
+     * and calls mentionSearch() on this component.
+     */
     Alpine.data('clipboardImagePaste', (wire, property) => ({
         handlePaste(event) {
+            if (event.target?.closest?.('[data-inline-attachments="true"]')) {
+                return;
+            }
+
             const items = event.clipboardData?.items;
             if (!items) {
                 return;
@@ -995,119 +1097,5 @@ new #[Layout('components.tasks-layout')] class extends Component
         },
     }));
 
-    Alpine.data('mentionAutocomplete', (wire, property) => ({
-        open: false,
-        suggestions: [],
-        activeIndex: 0,
-        debounceTimer: null,
-        mentionStart: -1,
-        mentionEnd: -1,
-
-        getMentionContext() {
-            const textarea = this.$refs.textarea;
-            if (!textarea) {
-                return null;
-            }
-
-            const pos = textarea.selectionStart ?? textarea.value.length;
-            const text = textarea.value.substring(0, pos);
-            const match = text.match(/@([\p{L}\p{N}._-]+)$/u);
-
-            if (!match || match[1].length < 1) {
-                return null;
-            }
-
-            return {
-                query: match[1],
-                start: pos - match[0].length,
-                end: pos,
-            };
-        },
-
-        onInput() {
-            const ctx = this.getMentionContext();
-            if (!ctx) {
-                this.close();
-                return;
-            }
-
-            this.mentionStart = ctx.start;
-            this.mentionEnd = ctx.end;
-            clearTimeout(this.debounceTimer);
-            this.debounceTimer = setTimeout(() => this.search(ctx.query), 250);
-        },
-
-        async search(query) {
-            const ctx = this.getMentionContext();
-            if (!ctx || ctx.query !== query) {
-                return;
-            }
-
-            try {
-                const results = await wire.mentionSearch(query);
-                if (!this.getMentionContext()) {
-                    this.close();
-                    return;
-                }
-
-                this.suggestions = results ?? [];
-                this.activeIndex = 0;
-                this.open = this.suggestions.length > 0;
-            } catch {
-                this.close();
-            }
-        },
-
-        onKeydown(event) {
-            if (!this.open) {
-                return;
-            }
-
-            if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                this.activeIndex = Math.min(this.activeIndex + 1, this.suggestions.length - 1);
-            } else if (event.key === 'ArrowUp') {
-                event.preventDefault();
-                this.activeIndex = Math.max(this.activeIndex - 1, 0);
-            } else if (event.key === 'Enter' && this.suggestions.length > 0) {
-                event.preventDefault();
-                this.selectSuggestion(this.activeIndex);
-            } else if (event.key === 'Escape') {
-                event.preventDefault();
-                this.close();
-            }
-        },
-
-        selectSuggestion(index) {
-            const item = this.suggestions[index];
-            if (!item) {
-                return;
-            }
-
-            const textarea = this.$refs.textarea;
-            const value = textarea.value;
-            const before = value.substring(0, this.mentionStart);
-            const after = value.substring(this.mentionEnd);
-            const insertion = '@' + item.token + ' ';
-            const newValue = before + insertion + after;
-            const cursorPos = before.length + insertion.length;
-
-            textarea.value = newValue;
-            wire.set(property, newValue);
-            textarea.setSelectionRange(cursorPos, cursorPos);
-            textarea.focus();
-            this.close();
-        },
-
-        close() {
-            this.open = false;
-            this.suggestions = [];
-            this.activeIndex = 0;
-        },
-
-        onBlur() {
-            setTimeout(() => this.close(), 200);
-        },
-    }));
 </script>
 @endscript

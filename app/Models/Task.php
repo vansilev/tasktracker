@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\ContentFormat;
 use App\Enums\TaskStatus;
+use App\Services\HtmlContentService;
+use App\Services\TaskContentService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Task extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
         'number',
         'initiator_id',
@@ -21,6 +25,8 @@ class Task extends Model
         'category_id',
         'title',
         'description',
+        // description_format is intentionally NOT fillable — set via attribute
+        // assignment / forceFill on trusted write paths only.
         'priority',
         'status',
         'deadline',
@@ -35,10 +41,49 @@ class Task extends Model
         'result_url',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Task $task): void {
+            if (! $task->isDirty('description') && ! $task->isDirty('description_format')) {
+                return;
+            }
+
+            // Sanitize-on-write for HTML rows (defence in depth; render also sanitizes).
+            // Runs before the plaintext shadow so description_text derives from the
+            // sanitized value. Triggered when content OR format is dirty so a
+            // format-only flip to html cannot leave raw markup in the column.
+            // The conversion command writes via the query builder and bypasses model
+            // events by design (CommonMark with html_input=escape is already inert).
+            if ($task->resolvedDescriptionFormat() === ContentFormat::Html) {
+                $task->description = app(HtmlContentService::class)
+                    ->sanitize($task->description);
+            }
+
+            $task->description_text = app(HtmlContentService::class)
+                ->toPlainText($task->description);
+        });
+    }
+
+    public function resolvedDescriptionFormat(): ContentFormat
+    {
+        $format = $this->description_format;
+
+        if ($format instanceof ContentFormat) {
+            return $format;
+        }
+
+        if (is_string($format) && $format !== '') {
+            return ContentFormat::tryFrom($format) ?? ContentFormat::Markdown;
+        }
+
+        return ContentFormat::Markdown;
+    }
+
     protected function casts(): array
     {
         return [
             'status' => TaskStatus::class,
+            'description_format' => ContentFormat::class,
             'deadline' => 'datetime',
             'completed_at' => 'datetime',
             'review_due_at' => 'datetime',
@@ -48,6 +93,17 @@ class Task extends Model
             'priority' => 'integer',
             'rework_count' => 'integer',
         ];
+    }
+
+    /**
+     * Format-aware HTML for display (Markdown via CommonMark; HTML via sanitize-on-render).
+     */
+    public function renderedDescription(): string
+    {
+        return app(TaskContentService::class)->render(
+            $this->description,
+            $this->description_format,
+        );
     }
 
     public function initiator(): BelongsTo
@@ -108,6 +164,16 @@ class Task extends Model
     public function isUrgent(): bool
     {
         return $this->priority >= 9;
+    }
+
+    /**
+     * Plain-text description for previews. Uses the shadow column when present;
+     * otherwise strips markup from the stored description on the fly.
+     */
+    public function plainDescription(): string
+    {
+        return $this->description_text
+            ?? app(HtmlContentService::class)->toPlainText($this->description);
     }
 
     public function checklistProgress(): string
