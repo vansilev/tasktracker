@@ -90,6 +90,8 @@ return [
     'uploaded' => 'Не удалось загрузить файл в поле :attribute.',
     'uppercase' => 'Поле :attribute должно быть в верхнем регистре.',
     'url' => 'Поле :attribute должно содержать корректный URL.',
+    'plain_text_min' => 'Поле :attribute должно содержать не менее :min символов.',
+    'plain_text_max' => 'Поле :attribute не должно превышать :max символов.',
 
     'custom' => [
         'attribute-name' => [
