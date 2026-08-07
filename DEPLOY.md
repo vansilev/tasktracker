@@ -137,7 +137,12 @@ npm run build
 
 ```powershell
 php artisan migrate --force
+php artisan tasks:backfill-plain-text
 ```
+
+Миграция уже заполняет `description_text` / `body_text` при применении, но
+команду стоит прогнать после деплоя (идемпотентна; `--dry-run` покажет,
+сколько строк было бы обновлено без записи).
 
 Только для новой пустой базы:
 
@@ -383,6 +388,7 @@ GOOGLE_SSO_ENABLED=false
 - [ ] `APP_URL` без `/public`.
 - [ ] База не под `root`, а под отдельным MySQL-пользователем.
 - [ ] `php artisan migrate --force` выполнен.
+- [ ] `php artisan tasks:backfill-plain-text` выполнен (можно сначала `--dry-run`).
 - [ ] `npm run build` выполнен.
 - [ ] `php artisan config:cache` выполнен.
 - [ ] Windows Scheduler запускает `artisan schedule:run` каждую минуту.

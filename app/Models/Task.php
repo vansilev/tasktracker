@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TaskStatus;
+use App\Services\HtmlContentService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Task extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
         'number',
         'initiator_id',
@@ -34,6 +36,18 @@ class Task extends Model
         'spec_url',
         'result_url',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Task $task): void {
+            if (! $task->isDirty('description')) {
+                return;
+            }
+
+            $task->description_text = app(HtmlContentService::class)
+                ->toPlainText($task->description);
+        });
+    }
 
     protected function casts(): array
     {
@@ -108,6 +122,16 @@ class Task extends Model
     public function isUrgent(): bool
     {
         return $this->priority >= 9;
+    }
+
+    /**
+     * Plain-text description for previews. Uses the shadow column when present;
+     * otherwise strips markup from the stored description on the fly.
+     */
+    public function plainDescription(): string
+    {
+        return $this->description_text
+            ?? app(HtmlContentService::class)->toPlainText($this->description);
     }
 
     public function checklistProgress(): string

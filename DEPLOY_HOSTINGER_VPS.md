@@ -220,6 +220,7 @@ TELEGRAM_WEBHOOK_SECRET=
 ```bash
 php8.3 artisan key:generate
 php8.3 artisan migrate --force
+php8.3 artisan tasks:backfill-plain-text
 php8.3 artisan db:seed --force
 php8.3 artisan optimize:clear
 php8.3 artisan config:cache
@@ -227,6 +228,10 @@ php8.3 artisan route:cache
 php8.3 artisan view:cache
 php8.3 artisan event:cache
 ```
+
+Миграция уже заполняет `description_text` / `body_text` при применении, но
+команду стоит прогнать после деплоя (идемпотентна; `--dry-run` покажет,
+сколько строк было бы обновлено без записи).
 
 `db:seed --force` запускай только на новой пустой базе.
 

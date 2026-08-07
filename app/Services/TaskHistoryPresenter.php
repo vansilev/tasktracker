@@ -153,10 +153,12 @@ class TaskHistoryPresenter
 
     private function truncateDescription(string $value): string
     {
-        if (mb_strlen($value) <= 80) {
-            return $value;
+        $plain = app(HtmlContentService::class)->toPlainText($value);
+
+        if (mb_strlen($plain) <= 80) {
+            return $plain;
         }
 
-        return mb_substr($value, 0, 80).'…';
+        return mb_substr($plain, 0, 80).'…';
     }
 }

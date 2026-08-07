@@ -289,7 +289,10 @@ class AuditLogPresenter
             'department_id' => $this->resolveEntityName($stringValue, $context['departments']),
             'category_id' => $this->resolveEntityName($stringValue, $context['categories']),
             'deadline' => $this->formatDeadline($stringValue),
-            'description' => $this->truncate($stringValue, 60),
+            'description' => $this->truncate(
+                app(HtmlContentService::class)->toPlainText($stringValue),
+                60,
+            ),
             'title' => $this->truncate($stringValue, 60),
             'method' => $this->formatLoginMethod($stringValue),
             'google_sso_enabled', 'password_login_enabled', 'is_active' => $value

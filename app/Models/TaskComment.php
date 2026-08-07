@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\HtmlContentService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -15,6 +16,18 @@ class TaskComment extends Model
         'body',
         'edited_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (TaskComment $comment): void {
+            if (! $comment->isDirty('body')) {
+                return;
+            }
+
+            $comment->body_text = app(HtmlContentService::class)
+                ->toPlainText($comment->body);
+        });
+    }
 
     protected function casts(): array
     {

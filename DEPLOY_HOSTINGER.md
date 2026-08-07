@@ -230,7 +230,12 @@ chmod -R 775 storage bootstrap/cache
 
 ```bash
 php artisan migrate --force
+php artisan tasks:backfill-plain-text
 ```
+
+Миграция уже заполняет `description_text` / `body_text` при применении, но
+команду стоит прогнать после деплоя (идемпотентна; `--dry-run` покажет,
+сколько строк было бы обновлено без записи).
 
 База новая и пустая — заполни базовыми данными (справочники + админ):
 
@@ -278,6 +283,7 @@ mysqldump --default-character-set=utf8mb4 -u root -p tasktracker > C:\Apache24\h
 ```bash
 mysql -h localhost -u u715639661_task -p u715639661_tasktracker < tasktracker.sql
 php artisan migrate --force
+php artisan tasks:backfill-plain-text
 ```
 
 После импорта удали SQL-файл:
@@ -432,6 +438,7 @@ https://task.avant.od.ua/vendor/autoload.php
 - [ ] MySQL база создана (`u715639661_tasktracker` / `u715639661_task`).
 - [ ] `composer install --no-dev --optimize-autoloader` выполнен.
 - [ ] `php artisan migrate --force` выполнен.
+- [ ] `php artisan tasks:backfill-plain-text` выполнен (можно сначала `--dry-run`).
 - [ ] `php artisan db:seed --force` выполнен (новая пустая база).
 - [ ] `public/build` загружен в `public_html/build`.
 - [ ] Cron `schedule:run` запускается каждую минуту.
