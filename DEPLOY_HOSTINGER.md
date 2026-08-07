@@ -1,14 +1,18 @@
 # Деплой Task Tracker AVANT на Hostinger (task.avant.od.ua)
 
 Инструкция для Hostinger Web/Cloud hosting с hPanel. Нужны SSH, MySQL,
-PHP 8.3+ и cron.
+PHP 8.4+ и cron.
+
+Важно: PHP 8.4 или новее обязателен, не рекомендуется. В `composer.lock`
+зависимости (в т.ч. Symfony 8.1) требуют `>=8.4.1` — на PHP 8.3
+`composer install` и artisan падают.
 
 Конкретика этого деплоя (уже подготовлено и проверено через Hostinger API):
 
 - Аккаунт Hostinger: `u715639661`.
 - Сайт `task.avant.od.ua` создан как отдельный сайт (тип `addon`),
   корень web root: `/home/u715639661/domains/task.avant.od.ua/public_html`.
-- PHP на сайте — 8.3.31, все нужные расширения включены.
+- PHP на сайте — 8.4.21, все нужные расширения включены.
 - MySQL база и пользователь созданы (см. раздел 2).
 - ⚠️ DNS домена `avant.od.ua` обслуживается Cloudflare, не Hostinger
   (см. раздел «DNS и SSL»).
@@ -76,7 +80,7 @@ $middleware->trustProxies(at: '*');
 
 - Сайт `task.avant.od.ua` создан, корень
   `/home/u715639661/domains/task.avant.od.ua/public_html`.
-- Выбран PHP 8.3; включены расширения `pdo_mysql`, `mbstring`, `fileinfo`,
+- Выбран PHP 8.4; включены расширения `pdo_mysql`, `mbstring`, `fileinfo`,
   `gd`, `zip`, `dom`, `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `openssl`,
   `curl` (плюс `bcmath`, `intl`).
 
@@ -197,9 +201,9 @@ cd /home/u715639661/domains/task.avant.od.ua/tasktracker_app
 php -v
 ```
 
-На этом сервере PHP 8.3 CLI обычно доступен по пути
-`/opt/alt/php83/usr/bin/php`. Если `php` в SSH показывает версию ниже 8.3,
-используй полный путь `/opt/alt/php83/usr/bin/php` вместо `php` в командах и cron.
+На этом сервере PHP 8.4 CLI обычно доступен по пути
+`/opt/alt/php84/usr/bin/php`. Если `php` в SSH показывает версию ниже 8.4,
+используй полный путь `/opt/alt/php84/usr/bin/php` вместо `php` в командах и cron.
 
 Установи зависимости:
 
@@ -326,12 +330,12 @@ Websites -> Dashboard -> Cron Jobs
 
 ```text
 Type: Custom
-Command: /opt/alt/php83/usr/bin/php /home/u715639661/domains/task.avant.od.ua/tasktracker_app/artisan schedule:run
+Command: /opt/alt/php84/usr/bin/php /home/u715639661/domains/task.avant.od.ua/tasktracker_app/artisan schedule:run
 Schedule: every minute
 ```
 
 Cron лучше создавать после заливки кода — иначе задача будет падать каждую
-минуту, пока нет `artisan`. Если путь к PHP 8.3 другой, проверь `php -v` и
+минуту, пока нет `artisan`. Если путь к PHP 8.4 другой, проверь `php -v` и
 уточни путь в hPanel.
 
 Hostinger считает расписание cron в UTC+0. Для Laravel это нормально: cron
@@ -343,7 +347,7 @@ Hostinger считает расписание cron в UTC+0. Для Laravel эт
 
 ```text
 Type: Custom
-Command: /opt/alt/php83/usr/bin/php /home/u715639661/domains/task.avant.od.ua/tasktracker_app/artisan queue:work --stop-when-empty --tries=3 --timeout=90
+Command: /opt/alt/php84/usr/bin/php /home/u715639661/domains/task.avant.od.ua/tasktracker_app/artisan queue:work --stop-when-empty --tries=3 --timeout=90
 Schedule: every minute
 ```
 
@@ -434,7 +438,7 @@ https://task.avant.od.ua/vendor/autoload.php
 - [ ] `APP_URL=https://task.avant.od.ua` без `/public`.
 - [ ] DNS-запись `task` добавлена в Cloudflare, SSL в режиме Full/Full (strict).
 - [ ] `TrustProxies` настроен (за Cloudflare).
-- [ ] PHP 8.3+ в SSH/cron (`/opt/alt/php83/usr/bin/php` при необходимости).
+- [ ] PHP 8.4+ в SSH/cron (`/opt/alt/php84/usr/bin/php` при необходимости).
 - [ ] MySQL база создана (`u715639661_tasktracker` / `u715639661_task`).
 - [ ] `composer install --no-dev --optimize-autoloader` выполнен.
 - [ ] `php artisan migrate --force` выполнен.
