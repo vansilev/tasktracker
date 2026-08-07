@@ -470,7 +470,12 @@ new #[Layout('components.tasks-layout')] class extends Component
         );
 
         $this->inlineAttachmentFile = null;
-        $this->task->load(['attachments.uploader', 'comments.attachments', 'histories.changedBy']);
+
+        // TipTap inserts the returned markup on the client right after this call.
+        // A full Livewire re-render here races that insert (and can reject the
+        // round-trip even though the file was stored). Refresh the sidecar list
+        // separately via refreshAttachments().
+        $this->skipRender();
 
         return [
             'id' => $attachment->id,
@@ -480,6 +485,11 @@ new #[Layout('components.tasks-layout')] class extends Component
             'viewUrl' => route('tasks.attachments.view', $attachment, absolute: false),
             'downloadUrl' => route('tasks.attachments.download', $attachment, absolute: false),
         ];
+    }
+
+    public function refreshAttachments(): void
+    {
+        $this->task->load(['attachments.uploader', 'comments.attachments']);
     }
 
     public function deleteAttachment(int $attachmentId, TaskAttachmentService $attachments): void

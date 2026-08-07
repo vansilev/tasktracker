@@ -541,7 +541,11 @@ export default function richTextEditor(config = {}) {
                 }
 
                 this.insertAttachment(payload);
-            } catch {
+
+                // Sidecar attachment list; non-blocking (store skipped render).
+                this.$wire.call('refreshAttachments').catch(() => {});
+            } catch (error) {
+                console.error('Inline attachment upload failed', error);
                 window.alert(this.labels.attachFailed || 'Upload failed');
             } finally {
                 this.uploading = false;
@@ -554,8 +558,8 @@ export default function richTextEditor(config = {}) {
             }
 
             const html = attachmentInsertHtml(payload);
-
-            this.run((chain) => chain.insertContent(html));
+            this.editor.chain().focus().insertContent(html).run();
+            this.refreshState();
             this.flushPush();
         },
 
