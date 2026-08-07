@@ -72,4 +72,60 @@
     .rte-surface .ProseMirror-gapcursor::after {
         border-top-color: theme('colors.gray.700');
     }
+
+    /* @mention suggestion popup (appended to body by TipTap Suggestion). */
+    .mention-suggestion-popup {
+        position: fixed;
+        z-index: 60;
+        min-width: 14rem;
+        max-width: 20rem;
+        max-height: 14rem;
+        overflow-y: auto;
+        border-radius: 0.5rem;
+        border: 1px solid theme('colors.gray.200');
+        background: theme('colors.white');
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+
+    .mention-suggestion-list {
+        margin: 0;
+        padding: 0.25rem;
+        list-style: none;
+    }
+
+    .mention-suggestion-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.625rem;
+        cursor: pointer;
+    }
+
+    .mention-suggestion-item.is-selected,
+    .mention-suggestion-item:hover {
+        background: theme('colors.indigo.50');
+    }
+
+    .mention-suggestion-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: theme('colors.gray.900');
+        line-height: 1.25;
+    }
+
+    .mention-suggestion-meta {
+        font-size: 0.75rem;
+        color: theme('colors.gray.500');
+        line-height: 1.25;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mention-suggestion-empty {
+        padding: 0.625rem 0.75rem;
+        font-size: 0.8125rem;
+        color: theme('colors.gray.500');
+    }
 }

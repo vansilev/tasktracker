@@ -19,10 +19,12 @@
     "dependencies": {
         "@tiptap/core": "^3.29.2",
         "@tiptap/extension-link": "^3.29.2",
+        "@tiptap/extension-mention": "^3.29.2",
         "@tiptap/extension-table": "^3.29.2",
         "@tiptap/extension-underline": "^3.29.2",
         "@tiptap/pm": "^3.29.2",
         "@tiptap/starter-kit": "^3.29.2",
+        "@tiptap/suggestion": "^3.29.2",
         "chart.js": "^4.5.1"
     }
 }

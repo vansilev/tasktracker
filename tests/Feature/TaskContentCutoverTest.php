@@ -193,13 +193,13 @@ class TaskContentCutoverTest extends TestCase
         $this->assertTrue($resolved->contains('id', $mentioned->id));
     }
 
-    public function test_mailto_autolink_can_create_phantom_mention_tokens(): void
+    public function test_mailto_autolink_does_not_create_phantom_mention_tokens(): void
     {
         [$initiator, $assignee, $category, $dept] = $this->seedActors();
         $role = $assignee->roles()->first();
 
         // After CommonMark email autolinking, href/text contain "@example.com".
-        // A user whose email local-part is that token would be falsely mentioned.
+        // A user whose email local-part is that token must not be falsely mentioned.
         $phantom = $this->createNamedUser($dept, $role, 'Phantom Example', 'example.com@tcsavant.com');
 
         $markdownBody = 'Reach me at user@example.com thanks';
@@ -209,11 +209,12 @@ class TaskContentCutoverTest extends TestCase
 
         $resolved = app(MentionService::class)->parseMentionedUsers($htmlBody);
 
-        $this->assertTrue(
+        $this->assertFalse(
             $resolved->contains('id', $phantom->id),
-            'Documenting current MentionService behaviour: mailto autolinks yield @tokens that can match unrelated users.',
+            'mailto autolinks must not yield @tokens that match unrelated users.',
         );
         $this->assertFalse($resolved->contains('id', $assignee->id));
+        $this->assertTrue($resolved->isEmpty());
     }
 
     public function test_format_aware_rendering_for_markdown_and_html_rows(): void

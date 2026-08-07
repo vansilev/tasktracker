@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Enums\Permission;
 use App\Enums\SystemType;
 use App\Models\Department;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\MentionService;
 use App\Services\TaskService;
 use Livewire\Volt\Volt;
 use Tests\Support\CreatesTaskTrackerFixtures;
@@ -146,7 +146,142 @@ class TaskMentionTest extends TestCase
         $this->assertCount(1, $results);
         $this->assertSame($tatiana->id, $results[0]['id']);
         $this->assertSame('Татьяна', $results[0]['name']);
+        $this->assertSame('tatiana.search@tcsavant.com', $results[0]['email']);
         $this->assertSame('Татьяна', $results[0]['token']);
+        $this->assertSame(
+            ['id', 'name', 'email', 'token'],
+            array_keys($results[0]),
+        );
+    }
+
+    public function test_plain_email_text_does_not_create_phantom_mentions(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $phantom = $this->createNamedUser($dept, $role, 'Phantom Domain', 'example.com@tcsavant.com');
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        app(TaskService::class)->addComment(
+            $task,
+            $initiator,
+            '<p>Reach me at user@example.com thanks</p>',
+        );
+
+        $task->refresh();
+        $this->assertFalse($task->watchers->contains('id', $phantom->id));
+        $this->assertFalse(
+            $phantom->fresh()->notifications->contains(fn ($n) => ($n->data['event'] ?? '') === 'task.mentioned'),
+        );
+    }
+
+    public function test_mailto_link_html_does_not_create_phantom_mentions(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $phantom = $this->createNamedUser($dept, $role, 'Phantom Domain', 'example.com@tcsavant.com');
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        $html = '<p>Email <a href="mailto:user@example.com">user@example.com</a> please</p>';
+
+        $resolved = app(MentionService::class)->parseMentionedUsers($html);
+        $this->assertTrue($resolved->isEmpty());
+
+        app(TaskService::class)->addComment($task, $initiator, $html);
+
+        $task->refresh();
+        $this->assertFalse($task->watchers->contains('id', $phantom->id));
+    }
+
+    public function test_mention_adjacent_to_email_still_resolves(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $mentioned = $this->createNamedUser($dept, $role, 'Alice', 'alice.mention@tcsavant.com');
+        $phantom = $this->createNamedUser($dept, $role, 'Phantom Domain', 'example.com@tcsavant.com');
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        app(TaskService::class)->addComment(
+            $task,
+            $initiator,
+            '<p>Ping @Alice at user@example.com</p>',
+        );
+
+        $task->refresh();
+        $this->assertTrue($task->watchers->contains('id', $mentioned->id));
+        $this->assertFalse($task->watchers->contains('id', $phantom->id));
+        $this->assertTrue(
+            $mentioned->fresh()->notifications->contains(fn ($n) => ($n->data['event'] ?? '') === 'task.mentioned'),
+        );
+    }
+
+    public function test_legitimate_at_user_mention_still_works_in_html(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $mentioned = $this->createNamedUser($dept, $role, 'Bob', 'bob.mention@tcsavant.com');
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        app(TaskService::class)->addComment(
+            $task,
+            $initiator,
+            '<p>Please review @Bob</p>',
+        );
+
+        $task->refresh();
+        $this->assertTrue($task->watchers->contains('id', $mentioned->id));
+        $comment = $task->comments()->latest('id')->firstOrFail();
+        $this->assertStringContainsString('@Bob', $comment->body);
+        $this->assertTrue($comment->mentionedUsers->contains('id', $mentioned->id));
+    }
+
+    public function test_mention_on_its_own_tiptap_paragraph_still_resolves(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $mentioned = $this->createNamedUser($dept, $role, 'Alice', 'alice.paragraph@tcsavant.com');
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        // Compact TipTap markup: strip_tags alone would glue this to "Hi@Alice".
+        $html = '<p>Hi</p><p>@Alice</p>';
+
+        $resolved = app(MentionService::class)->parseMentionedUsers($html);
+        $this->assertTrue($resolved->contains('id', $mentioned->id));
+
+        app(TaskService::class)->addComment($task, $initiator, $html);
+
+        $task->refresh();
+        $this->assertTrue($task->watchers->contains('id', $mentioned->id));
+    }
+
+    public function test_at_token_inside_code_or_pre_is_not_a_mention(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $mentioned = $this->createNamedUser($dept, $role, 'Alice', 'alice.code@tcsavant.com');
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        $html = '<p>Example:</p><pre><code>ping @Alice</code></pre><p>and really @Alice</p>';
+
+        $resolved = app(MentionService::class)->parseMentionedUsers($html);
+        $this->assertCount(1, $resolved);
+        $this->assertTrue($resolved->contains('id', $mentioned->id));
+
+        app(TaskService::class)->addComment($task, $initiator, $html);
+
+        $task->refresh();
+        $this->assertTrue($task->watchers->contains('id', $mentioned->id));
     }
 
     private function createNamedUser(Department $department, Role $role, string $name, string $email): User

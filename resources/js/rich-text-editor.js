@@ -1,8 +1,10 @@
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
+import Mention from '@tiptap/extension-mention';
 import Underline from '@tiptap/extension-underline';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import { createMentionSuggestion } from './mention-suggestion';
 
 /**
  * Everything below is constrained by the server-side HTMLPurifier profile
@@ -14,13 +16,14 @@ import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table
  *    not allowlisted, so widths would be dropped anyway.
  *  - no image extension: <img> is not allowlisted.
  *  - link schemes are limited to the same four the profile accepts.
+ *  - mentions (when enabled) insert plain-text `@Token`, never span/data-* attrs.
  */
 const LINK_PROTOCOLS = ['http', 'https', 'mailto', 'tel'];
 
 const PUSH_DEBOUNCE_MS = 300;
 
-function buildExtensions() {
-    return [
+function buildExtensions({ enableMentions = false, mentionSearch = null, mentionLabels = {}, onMentionPopup = null } = {}) {
+    const extensions = [
         StarterKit.configure({
             horizontalRule: false,
             // Registered separately below so their options stay visible here.
@@ -43,6 +46,22 @@ function buildExtensions() {
         TableHeader,
         TableCell,
     ];
+
+    if (enableMentions && typeof mentionSearch === 'function') {
+        extensions.push(
+            Mention.configure({
+                // Mentions are stored as plain text via the custom suggestion
+                // command; the node type only hosts the @ trigger plugin.
+                suggestion: createMentionSuggestion({
+                    search: mentionSearch,
+                    labels: mentionLabels,
+                    onPopupEl: onMentionPopup || (() => {}),
+                }),
+            }),
+        );
+    }
+
+    return extensions;
 }
 
 function schemeOf(url) {
@@ -82,6 +101,7 @@ export default function richTextEditor(config = {}) {
         property: config.property,
         placeholder: config.placeholder || '',
         labels: config.labels || {},
+        enableMentions: Boolean(config.enableMentions),
         editor: null,
         isEmpty: true,
         inTable: false,
@@ -94,15 +114,38 @@ export default function richTextEditor(config = {}) {
         submitHandler: null,
         formElement: null,
         commitHookCleanup: null,
+        mentionPopupEl: null,
         tornDown: false,
 
         init() {
             const initial = this.$wire.get(this.property) ?? '';
             this.lastSynced = initial;
 
+            const mentionSearch = this.enableMentions
+                ? async (term) => {
+                    try {
+                        const results = await this.$wire.mentionSearch(term);
+
+                        return Array.isArray(results) ? results : [];
+                    } catch {
+                        return [];
+                    }
+                }
+                : null;
+
             this.editor = new Editor({
                 element: this.$refs.editor,
-                extensions: buildExtensions(),
+                extensions: buildExtensions({
+                    enableMentions: this.enableMentions,
+                    mentionSearch,
+                    mentionLabels: {
+                        list: this.labels.mentionList,
+                        empty: this.labels.mentionEmpty,
+                    },
+                    onMentionPopup: (el) => {
+                        this.mentionPopupEl = el;
+                    },
+                }),
                 content: initial,
                 editorProps: {
                     attributes: {
@@ -186,6 +229,11 @@ export default function richTextEditor(config = {}) {
             if (this.commitHookCleanup) {
                 this.commitHookCleanup();
                 this.commitHookCleanup = null;
+            }
+
+            if (this.mentionPopupEl) {
+                this.mentionPopupEl.remove();
+                this.mentionPopupEl = null;
             }
 
             if (this.editor && !this.editor.isDestroyed) {

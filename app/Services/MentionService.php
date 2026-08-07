@@ -31,11 +31,11 @@ class MentionService
     /** @return Collection<int, User> */
     public function parseMentionedUsers(string $body): Collection
     {
-        if (! preg_match_all('/@([\p{L}\p{N}._-]+)/u', $body, $matches)) {
+        $tokens = $this->extractMentionTokens($body);
+
+        if ($tokens === []) {
             return collect();
         }
-
-        $tokens = array_unique($matches[1]);
 
         if ($this->usesSqlite()) {
             return User::query()
@@ -57,6 +57,47 @@ class MentionService
                 }
             })
             ->get();
+    }
+
+    /**
+     * Pull mention tokens from visible text only.
+     *
+     * Tags (and their attributes, including mailto: hrefs) are stripped first so
+     * autolinked emails cannot yield phantom tokens. A lookbehind then ignores
+     * `@` that sits inside an email local-part (letter/digit/._- immediately before).
+     *
+     * @return list<string>
+     */
+    private function extractMentionTokens(string $body): array
+    {
+        $text = $this->visibleText($body);
+
+        if ($text === '' || ! preg_match_all('/(?<![\p{L}\p{N}._-])@([\p{L}\p{N}._-]+)/u', $text, $matches)) {
+            return [];
+        }
+
+        return array_values(array_unique($matches[1]));
+    }
+
+    private function visibleText(string $body): string
+    {
+        // Example snippets in code/pre should not notify anyone.
+        $text = preg_replace('#<(code|pre)\b[^>]*>.*?</\1>#isu', ' ', $body) ?? $body;
+
+        // TipTap emits compact block HTML without newlines. strip_tags alone
+        // would turn <p>Hi</p><p>@Alice</p> into "Hi@Alice" and the lookbehind
+        // would then miss the mention.
+        $text = preg_replace(
+            '#</?(?:p|br|li|ul|ol|tr|td|th|table|thead|tbody|h[1-6]|blockquote|div|hr)(?:\s[^>]*)?/?>#iu',
+            ' ',
+            $text,
+        ) ?? $text;
+
+        $text = strip_tags($text);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text) ?? '';
+
+        return trim($text);
     }
 
     /** @return list<array{id: int, name: string, email: string, token: string}> */

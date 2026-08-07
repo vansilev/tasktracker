@@ -4,6 +4,7 @@
     'ariaLabel' => null,
     'minHeight' => '8rem',
     'key' => null,
+    'enableMentions' => false,
 ])
 
 @php
@@ -30,9 +31,12 @@
         property: @js($model),
         placeholder: @js($placeholder),
         ariaLabel: @js($ariaLabel),
+        enableMentions: @js((bool) $enableMentions),
         labels: {
             linkPrompt: @js(__('editor.link_prompt')),
             linkInvalid: @js(__('editor.link_invalid')),
+            mentionList: @js(__('editor.mention_list')),
+            mentionEmpty: @js(__('editor.mention_empty')),
         },
     })"
     x-on:livewire:navigating.window="teardown()"

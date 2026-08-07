@@ -447,6 +447,26 @@ class TaskRichTextEditorTest extends TestCase
 
         // The textarea-driven mention dropdown is gone; nothing may still call it.
         $this->assertStringNotContainsString('mentionAutocomplete', $show->html());
+
+        // Mentions autocomplete is opt-in on comment editors only.
+        $this->assertEditorMentionsEnabled($show->html(), 'task-new-comment', true);
+        $this->assertEditorMentionsEnabled(
+            $editingComment->html(),
+            'task-edit-comment-'.$comment->id,
+            true,
+        );
+        $this->assertEditorMentionsEnabled($editing->html(), 'task-edit-description', false);
+        $this->assertEditorMentionsEnabled($transition->html(), 'task-transition-comment', false);
+        $this->assertEditorMentionsEnabled($reassign->html(), 'task-reassign-comment', false);
+    }
+
+    private function assertEditorMentionsEnabled(string $html, string $wireKey, bool $enabled): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/wire:key="'.preg_quote($wireKey, '/').'"[\s\S]{0,800}?enableMentions:\s*'.($enabled ? 'true' : 'false').'/',
+            $html,
+            "Editor {$wireKey} should have enableMentions: ".($enabled ? 'true' : 'false'),
+        );
     }
 
     private function assertRichMarkupIntact(string $html): void

@@ -746,6 +746,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                                 model="editCommentBody"
                                                 key="task-edit-comment-{{ $comment->id }}"
                                                 min-height="4rem"
+                                                :enable-mentions="true"
                                                 :aria-label="__('Comments')"
                                             />
                                             <x-input-error :messages="$errors->get('editCommentBody')" />
@@ -784,6 +785,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                             model="commentBody"
                             key="task-new-comment"
                             min-height="4rem"
+                            :enable-mentions="true"
                             :placeholder="__('Write a comment...')"
                             :aria-label="__('Comments')"
                         />
@@ -1007,25 +1009,12 @@ new #[Layout('components.tasks-layout')] class extends Component
 @script
 <script>
     /*
-     * TEMPORARILY DISABLED: the @mention autocomplete dropdown.
-     *
-     * It was an Alpine component driven by textarea APIs (selectionStart,
-     * .value, setSelectionRange). Those textareas are gone — comments are now
-     * edited in TipTap — so the component could not be kept working as-is and
-     * has been removed rather than left throwing on a missing $refs.textarea.
-     *
-     * What still works: mentions themselves. Typing "@Имя" by hand in the editor
-     * is parsed server-side by MentionService, links the user to the comment and
-     * notifies them exactly as before. The component's mentionSearch() method is
-     * deliberately kept for the rebuild.
-     *
-     * What is missing until the next step: the type-ahead suggestion list.
-     */
-
-    /*
      * Clipboard image paste is unchanged. The listener sits on the form / card
      * element, so paste events still bubble up from the ProseMirror surface
      * inside wire:ignore and images keep uploading as attachments.
+     *
+     * Comment @mention autocomplete lives in the TipTap editor (enable-mentions)
+     * and calls mentionSearch() on this component.
      */
     Alpine.data('clipboardImagePaste', (wire, property) => ({
         handlePaste(event) {

@@ -34,4 +34,7 @@ return [
 
     'undo' => 'Undo',
     'redo' => 'Redo',
+
+    'mention_list' => 'Mention suggestions',
+    'mention_empty' => 'No users found',
 ];
