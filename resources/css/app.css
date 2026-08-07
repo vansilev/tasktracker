@@ -128,4 +128,47 @@
         font-size: 0.8125rem;
         color: theme('colors.gray.500');
     }
+
+    /* Inline task attachments inside prose (rendered) and TipTap surface. */
+    .prose img,
+    .rte-surface .ProseMirror img {
+        display: inline-block;
+        max-width: 100%;
+        max-height: 24rem;
+        height: auto;
+        border-radius: 0.5rem;
+        border: 1px solid theme('colors.gray.200');
+        background: theme('colors.gray.50');
+        vertical-align: middle;
+    }
+
+    .prose a:has(> img),
+    .rte-surface .ProseMirror a:has(> img) {
+        display: inline-block;
+        text-decoration: none;
+    }
+
+    /* Document chips: attachment download links that are not image wrappers. */
+    .prose a[href*="/tasks/attachments/"][href$="/download"],
+    .rte-surface .ProseMirror a[href*="/tasks/attachments/"][href$="/download"] {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        max-width: 100%;
+        padding: 0.25rem 0.625rem;
+        border-radius: 0.375rem;
+        border: 1px solid theme('colors.gray.200');
+        background: theme('colors.gray.50');
+        color: theme('colors.indigo.700');
+        font-size: 0.875rem;
+        line-height: 1.25;
+        text-decoration: none;
+        vertical-align: middle;
+    }
+
+    .prose a[href*="/tasks/attachments/"][href$="/download"]:hover,
+    .rte-surface .ProseMirror a[href*="/tasks/attachments/"][href$="/download"]:hover {
+        border-color: theme('colors.indigo.300');
+        background: theme('colors.indigo.50');
+    }
 }

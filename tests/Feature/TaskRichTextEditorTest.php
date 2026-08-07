@@ -458,6 +458,11 @@ class TaskRichTextEditorTest extends TestCase
         $this->assertEditorMentionsEnabled($editing->html(), 'task-edit-description', false);
         $this->assertEditorMentionsEnabled($transition->html(), 'task-transition-comment', false);
         $this->assertEditorMentionsEnabled($reassign->html(), 'task-reassign-comment', false);
+
+        // Inline attachments are available on the show page (task already exists).
+        $this->assertEditorInlineAttachmentsEnabled($show->html(), 'task-new-comment', true);
+        $this->assertEditorInlineAttachmentsEnabled($editing->html(), 'task-edit-description', true);
+        $this->assertEditorInlineAttachmentsEnabled($create->html(), 'task-create-description', false);
     }
 
     private function assertEditorMentionsEnabled(string $html, string $wireKey, bool $enabled): void
@@ -466,6 +471,15 @@ class TaskRichTextEditorTest extends TestCase
             '/wire:key="'.preg_quote($wireKey, '/').'"[\s\S]{0,800}?enableMentions:\s*'.($enabled ? 'true' : 'false').'/',
             $html,
             "Editor {$wireKey} should have enableMentions: ".($enabled ? 'true' : 'false'),
+        );
+    }
+
+    private function assertEditorInlineAttachmentsEnabled(string $html, string $wireKey, bool $enabled): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/wire:key="'.preg_quote($wireKey, '/').'"[\s\S]{0,900}?enableInlineAttachments:\s*'.($enabled ? 'true' : 'false').'/',
+            $html,
+            "Editor {$wireKey} should have enableInlineAttachments: ".($enabled ? 'true' : 'false'),
         );
     }
 
@@ -496,6 +510,8 @@ class TaskRichTextEditorTest extends TestCase
         $this->assertStringNotContainsStringIgnoringCase('javascript:', $html);
         $this->assertStringNotContainsStringIgnoringCase('<iframe', $html);
         $this->assertStringNotContainsStringIgnoringCase('<svg', $html);
+        // Hostile / non-attachment <img> must not survive; legitimate attachment
+        // view URLs are allowlisted separately (see TaskInlineAttachmentTest).
         $this->assertStringNotContainsStringIgnoringCase('<img', $html);
     }
 

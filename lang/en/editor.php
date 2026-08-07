@@ -37,4 +37,7 @@ return [
 
     'mention_list' => 'Mention suggestions',
     'mention_empty' => 'No users found',
+
+    'attach' => 'Insert image or document',
+    'attach_failed' => 'Could not upload the file. Check the type and size, then try again.',
 ];

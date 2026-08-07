@@ -76,6 +76,9 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public $pastedTaskFile = null;
 
+    /** Temporary upload slot used by TipTap inline attachment insert (show page). */
+    public $inlineAttachmentFile = null;
+
     public function mount(Task $task): void
     {
         $this->task = $task->load([
@@ -442,6 +445,43 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->task->load('attachments.uploader');
     }
 
+    /**
+     * Store a file already uploaded into $inlineAttachmentFile and return the
+     * payload TipTap needs to insert an inline image or document chip.
+     *
+     * New-comment bodies have no comment_id yet, so the row is stored as a
+     * task-level attachment (comment_id null). It still appears in the sidecar
+     * list and keeps a stable view/download URL for the content HTML.
+     *
+     * @return array{id: int, filename: string, mime: string, isImage: bool, viewUrl: string, downloadUrl: string}
+     */
+    public function storeInlineAttachment(TaskAttachmentService $attachments, SettingsService $settings): array
+    {
+        abort_unless(auth()->user()->can('uploadAttachment', $this->task), 403);
+
+        $this->validate([
+            'inlineAttachmentFile' => 'required|file|max:'.(int) $settings->get('attachment_max_kb', 10240),
+        ]);
+
+        $attachment = $attachments->store(
+            $this->task,
+            auth()->user(),
+            $this->inlineAttachmentFile,
+        );
+
+        $this->inlineAttachmentFile = null;
+        $this->task->load(['attachments.uploader', 'comments.attachments', 'histories.changedBy']);
+
+        return [
+            'id' => $attachment->id,
+            'filename' => $attachment->filename,
+            'mime' => $attachment->mime,
+            'isImage' => $attachment->isImage(),
+            'viewUrl' => route('tasks.attachments.view', $attachment, absolute: false),
+            'downloadUrl' => route('tasks.attachments.download', $attachment, absolute: false),
+        ];
+    }
+
     public function deleteAttachment(int $attachmentId, TaskAttachmentService $attachments): void
     {
         $attachment = TaskAttachment::query()
@@ -572,6 +612,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     model="transitionComment"
                     key="task-transition-comment"
                     min-height="5rem"
+                    :enable-inline-attachments="$canUploadAttachment"
                     :placeholder="__('task.transition_comment_placeholder')"
                     :aria-label="__('Transition comment')"
                 />
@@ -605,6 +646,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         key="task-edit-description"
                         class="mt-1"
                         min-height="10rem"
+                        :enable-inline-attachments="$canUploadAttachment"
                         :aria-label="__('Description')"
                     />
                     <x-input-error :messages="$errors->get('editDescription')" class="mt-1" />
@@ -655,6 +697,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 key="task-reassign-comment"
                                 class="mt-1"
                                 min-height="4rem"
+                                :enable-inline-attachments="$canUploadAttachment"
                                 :placeholder="__('Explain why the task is reassigned')"
                                 :aria-label="__('Reassignment comment')"
                             />
@@ -747,6 +790,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                                 key="task-edit-comment-{{ $comment->id }}"
                                                 min-height="4rem"
                                                 :enable-mentions="true"
+                                                :enable-inline-attachments="$canUploadAttachment"
                                                 :aria-label="__('Comments')"
                                             />
                                             <x-input-error :messages="$errors->get('editCommentBody')" />
@@ -786,12 +830,16 @@ new #[Layout('components.tasks-layout')] class extends Component
                             key="task-new-comment"
                             min-height="4rem"
                             :enable-mentions="true"
+                            :enable-inline-attachments="$canUploadAttachment"
                             :placeholder="__('Write a comment...')"
                             :aria-label="__('Comments')"
                         />
                         <x-input-error :messages="$errors->get('commentBody')" />
                         <p class="text-xs text-gray-500">{{ __('Mention hint') }}</p>
-                        <p class="text-xs text-gray-500">{{ __('Paste image hint') }}</p>
+                        @if ($canUploadAttachment)
+                            <p class="text-xs text-gray-500">{{ __('Paste image hint') }}</p>
+                        @endif
+                        <x-input-error :messages="$errors->get('inlineAttachmentFile')" class="mt-1" />
                         @if (count($commentFiles) > 0)
                             <ul class="text-xs text-gray-600 space-y-0.5">
                                 @foreach ($commentFiles as $file)
@@ -1009,15 +1057,21 @@ new #[Layout('components.tasks-layout')] class extends Component
 @script
 <script>
     /*
-     * Clipboard image paste is unchanged. The listener sits on the form / card
-     * element, so paste events still bubble up from the ProseMirror surface
-     * inside wire:ignore and images keep uploading as attachments.
+     * Sidecar clipboard paste (comment file list / attachments card).
+     *
+     * TipTap editors with data-inline-attachments handle image paste themselves
+     * (upload → storeInlineAttachment → insert into the document). Skip those
+     * targets so the same paste is not uploaded twice.
      *
      * Comment @mention autocomplete lives in the TipTap editor (enable-mentions)
      * and calls mentionSearch() on this component.
      */
     Alpine.data('clipboardImagePaste', (wire, property) => ({
         handlePaste(event) {
+            if (event.target?.closest?.('[data-inline-attachments="true"]')) {
+                return;
+            }
+
             const items = event.clipboardData?.items;
             if (!items) {
                 return;

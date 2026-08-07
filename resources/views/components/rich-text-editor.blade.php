@@ -5,6 +5,7 @@
     'minHeight' => '8rem',
     'key' => null,
     'enableMentions' => false,
+    'enableInlineAttachments' => false,
 ])
 
 @php
@@ -27,16 +28,22 @@
 
 <div
     wire:key="{{ $editorKey }}"
+    @if ($enableInlineAttachments) data-inline-attachments="true" @endif
     x-data="richTextEditor({
         property: @js($model),
         placeholder: @js($placeholder),
         ariaLabel: @js($ariaLabel),
         enableMentions: @js((bool) $enableMentions),
+        enableInlineAttachments: @js((bool) $enableInlineAttachments),
+        uploadProperty: 'inlineAttachmentFile',
+        storeMethod: 'storeInlineAttachment',
         labels: {
             linkPrompt: @js(__('editor.link_prompt')),
             linkInvalid: @js(__('editor.link_invalid')),
             mentionList: @js(__('editor.mention_list')),
             mentionEmpty: @js(__('editor.mention_empty')),
+            attach: @js(__('editor.attach')),
+            attachFailed: @js(__('editor.attach_failed')),
         },
     })"
     x-on:livewire:navigating.window="teardown()"
@@ -130,6 +137,20 @@
                     @mousedown.prevent @click="run((c) => c.extendMarkRange('link').unsetLink())">
                 <svg class="{{ $icon }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.8 10.2a4 4 0 010 5.6l-2.8 2.9a4 4 0 01-5.7-5.7l1.5-1.4M10.2 13.8a4 4 0 010-5.6L13 5.3a4 4 0 015.7 5.7l-1.5 1.4M4 4l16 16"/></svg>
             </button>
+
+            @if ($enableInlineAttachments)
+                <button type="button" class="{{ $btn }}"
+                        title="{{ __('editor.attach') }}" aria-label="{{ __('editor.attach') }}"
+                        :disabled="uploading"
+                        @mousedown.prevent @click="pickAttachment()">
+                    <svg class="{{ $icon }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                </button>
+                <input type="file"
+                       class="hidden"
+                       x-ref="attachmentInput"
+                       accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.doc,.docx,.xls,.xlsx"
+                       @change="onAttachmentPicked($event)" />
+            @endif
 
             <span class="{{ $separator }}"></span>
 

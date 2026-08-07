@@ -1,5 +1,6 @@
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Mention from '@tiptap/extension-mention';
 import Underline from '@tiptap/extension-underline';
@@ -14,13 +15,22 @@ import { createMentionSuggestion } from './mention-suggestion';
  *  - horizontalRule is off: <hr> is not allowlisted and would vanish silently.
  *  - tables are not resizable: resizing writes a `colwidth` attribute that is
  *    not allowlisted, so widths would be dropped anyway.
- *  - no image extension: <img> is not allowlisted.
+ *  - Image extension inserts <img src="/tasks/attachments/{id}/view"> only;
+ *    HtmlContentService rejects any other img src after purify.
  *  - link schemes are limited to the same four the profile accepts.
  *  - mentions (when enabled) insert plain-text `@Token`, never span/data-* attrs.
  */
 const LINK_PROTOCOLS = ['http', 'https', 'mailto', 'tel'];
 
 const PUSH_DEBOUNCE_MS = 300;
+
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp';
+const DOCUMENT_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,application/pdf,'
+    + 'application/msword,'
+    + 'application/vnd.openxmlformats-officedocument.wordprocessingml.document,'
+    + 'application/vnd.ms-excel,'
+    + 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const ATTACHMENT_ACCEPT = `${IMAGE_ACCEPT},${DOCUMENT_ACCEPT}`;
 
 function buildExtensions({ enableMentions = false, mentionSearch = null, mentionLabels = {}, onMentionPopup = null } = {}) {
     const extensions = [
@@ -40,6 +50,10 @@ function buildExtensions({ enableMentions = false, mentionSearch = null, mention
             // schemes mutates linkify globally, and tearing one editor down would
             // reset it for the others. Scheme control lives in isAllowedUri.
             isAllowedUri: (url, ctx) => ctx.defaultValidate(url) && isAllowedScheme(url),
+        }),
+        Image.configure({
+            inline: true,
+            allowBase64: false,
         }),
         Table.configure({ resizable: false, allowTableNodeSelection: true }),
         TableRow,
@@ -88,6 +102,70 @@ function normalizeUrl(value) {
     return isAllowedScheme(value) ? value : null;
 }
 
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function toRelativeAppPath(url) {
+    if (!url || typeof url !== 'string') {
+        return url;
+    }
+
+    if (url.startsWith('/')) {
+        return url.split(/[?#]/)[0];
+    }
+
+    try {
+        const parsed = new URL(url, window.location.origin);
+        if (parsed.origin === window.location.origin) {
+            return parsed.pathname;
+        }
+    } catch {
+        // keep absolute fallback
+    }
+
+    return url;
+}
+
+function attachmentInsertHtml(payload) {
+    const filename = payload.filename || 'file';
+    const safeName = escapeHtml(filename);
+    const viewUrl = toRelativeAppPath(payload.viewUrl);
+    const downloadUrl = toRelativeAppPath(payload.downloadUrl || payload.viewUrl);
+
+    if (payload.isImage) {
+        return `<a href="${escapeHtml(viewUrl)}"><img src="${escapeHtml(viewUrl)}" alt="${safeName}"></a>`;
+    }
+
+    return `<a href="${escapeHtml(downloadUrl)}" title="${safeName}">📄 ${safeName}</a>`;
+}
+
+function clipboardImageFiles(event) {
+    const items = event.clipboardData?.items;
+    if (!items) {
+        return [];
+    }
+
+    return Array.from(items)
+        .filter((item) => item.type.startsWith('image/'))
+        .map((item, index) => {
+            const file = item.getAsFile();
+            if (!file) {
+                return null;
+            }
+
+            const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+
+            return new File([file], `paste-${Date.now()}-${index}.${ext}`, { type: file.type });
+        })
+        .filter(Boolean);
+}
+
 /**
  * Alpine component backing <x-rich-text-editor>.
  *
@@ -95,6 +173,11 @@ function normalizeUrl(value) {
  * morph never touches it, which means the editor is never rebuilt underneath the
  * user. The price is that Livewire also cannot read the value out of the DOM, so
  * the value is pushed into the property explicitly with $wire.set(..., false).
+ *
+ * Inline attachments (show page only): toolbar file pick + image paste upload via
+ * `$wire.upload` → `storeInlineAttachment`, then insert markup. Sidecar
+ * clipboardImagePaste skips editors with data-inline-attachments so paste is
+ * not double-uploaded.
  */
 export default function richTextEditor(config = {}) {
     return {
@@ -102,9 +185,13 @@ export default function richTextEditor(config = {}) {
         placeholder: config.placeholder || '',
         labels: config.labels || {},
         enableMentions: Boolean(config.enableMentions),
+        enableInlineAttachments: Boolean(config.enableInlineAttachments),
+        uploadProperty: config.uploadProperty || 'inlineAttachmentFile',
+        storeMethod: config.storeMethod || 'storeInlineAttachment',
         editor: null,
         isEmpty: true,
         inTable: false,
+        uploading: false,
         active: {},
         can: { undo: false, redo: false },
         // Last value this instance and the server agreed on. Used to recognise
@@ -116,6 +203,7 @@ export default function richTextEditor(config = {}) {
         commitHookCleanup: null,
         mentionPopupEl: null,
         tornDown: false,
+        uploadQueue: Promise.resolve(),
 
         init() {
             const initial = this.$wire.get(this.property) ?? '';
@@ -132,6 +220,8 @@ export default function richTextEditor(config = {}) {
                     }
                 }
                 : null;
+
+            const self = this;
 
             this.editor = new Editor({
                 element: this.$refs.editor,
@@ -152,6 +242,21 @@ export default function richTextEditor(config = {}) {
                         role: 'textbox',
                         'aria-multiline': 'true',
                         ...(config.ariaLabel ? { 'aria-label': config.ariaLabel } : {}),
+                    },
+                    handlePaste(view, event) {
+                        if (!self.enableInlineAttachments) {
+                            return false;
+                        }
+
+                        const files = clipboardImageFiles(event);
+                        if (files.length === 0) {
+                            return false;
+                        }
+
+                        event.preventDefault();
+                        files.forEach((file) => self.enqueueUpload(file));
+
+                        return true;
                     },
                 },
                 onSelectionUpdate: () => this.refreshState(),
@@ -385,6 +490,77 @@ export default function richTextEditor(config = {}) {
             }
 
             this.run((chain) => chain.extendMarkRange('link').setLink({ href }));
+        },
+
+        pickAttachment() {
+            if (!this.enableInlineAttachments || this.uploading) {
+                return;
+            }
+
+            this.$refs.attachmentInput?.click();
+        },
+
+        onAttachmentPicked(event) {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+
+            if (!file) {
+                return;
+            }
+
+            this.enqueueUpload(file);
+        },
+
+        enqueueUpload(file) {
+            this.uploadQueue = this.uploadQueue
+                .then(() => this.uploadAndInsert(file))
+                .catch(() => {});
+        },
+
+        async uploadAndInsert(file) {
+            if (!this.enableInlineAttachments || !this.editor || this.editor.isDestroyed) {
+                return;
+            }
+
+            this.uploading = true;
+
+            try {
+                await new Promise((resolve, reject) => {
+                    this.$wire.upload(
+                        this.uploadProperty,
+                        file,
+                        () => resolve(),
+                        () => reject(new Error('upload failed')),
+                    );
+                });
+
+                const payload = await this.$wire.call(this.storeMethod);
+
+                if (!payload || !payload.viewUrl) {
+                    throw new Error('missing attachment payload');
+                }
+
+                this.insertAttachment(payload);
+            } catch {
+                window.alert(this.labels.attachFailed || 'Upload failed');
+            } finally {
+                this.uploading = false;
+            }
+        },
+
+        insertAttachment(payload) {
+            if (!this.editor || this.editor.isDestroyed) {
+                return;
+            }
+
+            const html = attachmentInsertHtml(payload);
+
+            this.run((chain) => chain.insertContent(html));
+            this.flushPush();
+        },
+
+        attachmentAccept() {
+            return ATTACHMENT_ACCEPT;
         },
     };
 }

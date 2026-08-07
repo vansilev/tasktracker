@@ -36,7 +36,9 @@ return [
         ],
         'task_content' => [
             'HTML.Doctype' => 'HTML 4.01 Transitional',
-            'HTML.Allowed' => 'p,br,strong,em,u,s,h1,h2,h3,h4,h5,h6,ul,ol,li,a[href|title],blockquote,code,pre,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col[span],colgroup[span]',
+            // img is allowed for inline task attachments only. HtmlContentService
+            // additionally rejects any img whose src is not an attachment view URL.
+            'HTML.Allowed' => 'p,br,strong,em,u,s,h1,h2,h3,h4,h5,h6,ul,ol,li,a[href|title],blockquote,code,pre,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col[span],colgroup[span],img[src|alt|title]',
             'CSS.AllowedProperties' => [],
             'AutoFormat.AutoParagraph' => false,
             'AutoFormat.RemoveEmpty' => false,
@@ -45,6 +47,10 @@ return [
             'HTML.TargetNoreferrer' => true,
             'HTML.TargetNoopener' => true,
             'Attr.AllowedRel' => ['nofollow', 'noopener', 'noreferrer'],
+            // Block embedding images (and other resources) from other hosts.
+            // Same-host absolute URLs need URI.Host; relative /tasks/attachments/{id}/view works either way.
+            'URI.DisableExternalResources' => true,
+            'URI.Host' => parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST),
             'URI.AllowedSchemes' => [
                 'http' => true,
                 'https' => true,

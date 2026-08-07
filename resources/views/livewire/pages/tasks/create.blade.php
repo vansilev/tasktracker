@@ -269,8 +269,16 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 @script
 <script>
+    /*
+     * Create page has no task id yet, so TipTap inline insert is disabled.
+     * Clipboard paste here only fills the sidecar uploadFiles list (stored after create).
+     */
     Alpine.data('clipboardImagePaste', (wire, property) => ({
         handlePaste(event) {
+            if (event.target?.closest?.('[data-inline-attachments="true"]')) {
+                return;
+            }
+
             const items = event.clipboardData?.items;
             if (!items) {
                 return;

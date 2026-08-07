@@ -26,13 +26,135 @@ class HtmlContentServiceTest extends TestCase
         $this->assertStringContainsString('<p>safe</p>', $result);
     }
 
-    public function test_sanitize_strips_img_and_onerror(): void
+    public function test_sanitize_keeps_attachment_view_img(): void
+    {
+        $html = '<p><a href="/tasks/attachments/12/view"><img src="/tasks/attachments/12/view" alt="shot.png"></a></p>';
+        $result = $this->service->sanitize($html);
+
+        $this->assertStringContainsString('<img', $result);
+        $this->assertStringContainsString('src="/tasks/attachments/12/view"', $result);
+        $this->assertStringContainsString('alt="shot.png"', $result);
+        $this->assertStringNotContainsString('onerror', $result);
+    }
+
+    public function test_sanitize_keeps_absolute_same_host_attachment_img(): void
+    {
+        $src = rtrim((string) config('app.url'), '/').'/tasks/attachments/99/view';
+        $result = $this->service->sanitize('<img src="'.$src.'" alt="a.png">');
+
+        $this->assertStringContainsString('<img', $result);
+        $this->assertStringContainsString('/tasks/attachments/99/view', $result);
+        $this->assertTrue($this->service->isAllowedAttachmentImageSrc($src));
+    }
+
+    public function test_sanitize_strips_hostile_img_onerror_and_junk_src(): void
     {
         $result = $this->service->sanitize('<img src=x onerror=alert(1)>');
 
         $this->assertStringNotContainsString('<img', $result);
         $this->assertStringNotContainsString('onerror', $result);
-        $this->assertSame('', $result);
+        $this->assertStringNotContainsString('alert(1)', $result);
+    }
+
+    public function test_sanitize_strips_data_uri_img(): void
+    {
+        $result = $this->service->sanitize('<img src="data:image/png;base64,abc" alt="x">');
+
+        $this->assertStringNotContainsString('<img', $result);
+        $this->assertStringNotContainsString('data:', $result);
+    }
+
+    public function test_sanitize_strips_external_https_img(): void
+    {
+        $result = $this->service->sanitize('<img src="https://evil.example/track.png" alt="x">');
+
+        $this->assertStringNotContainsString('<img', $result);
+        $this->assertStringNotContainsString('evil.example', $result);
+    }
+
+    public function test_sanitize_strips_same_origin_non_attachment_img(): void
+    {
+        $result = $this->service->sanitize('<img src="/evil.png" alt="x"><p>ok</p>');
+
+        $this->assertStringNotContainsString('<img', $result);
+        $this->assertStringNotContainsString('/evil.png', $result);
+        $this->assertStringContainsString('<p>ok</p>', $result);
+    }
+
+    public function test_sanitize_strips_prefixed_path_that_ends_like_attachment_view(): void
+    {
+        $evil = '/evil/tasks/attachments/1/view';
+
+        $this->assertFalse($this->service->isAllowedAttachmentImageSrc($evil));
+
+        $result = $this->service->sanitize('<img src="'.$evil.'" alt="x">');
+
+        $this->assertStringNotContainsString('<img', $result);
+        $this->assertStringNotContainsString('/evil/', $result);
+    }
+
+    public function test_sanitize_rejects_attachment_img_src_with_query_or_hash(): void
+    {
+        $this->assertFalse(
+            $this->service->isAllowedAttachmentImageSrc('/tasks/attachments/1/view?x=1')
+        );
+        $this->assertFalse(
+            $this->service->isAllowedAttachmentImageSrc('/tasks/attachments/1/view#frag')
+        );
+
+        $withQuery = $this->service->sanitize('<img src="/tasks/attachments/1/view?x=1" alt="x">');
+        $withHash = $this->service->sanitize('<img src="/tasks/attachments/1/view#frag" alt="x">');
+
+        $this->assertStringNotContainsString('<img', $withQuery);
+        $this->assertStringNotContainsString('<img', $withHash);
+    }
+
+    public function test_sanitize_keeps_absolute_attachment_img_under_subdir_app_url(): void
+    {
+        // Keep the same host Purifier was configured with (URI.Host from APP_URL);
+        // only add a subdirectory path prefix for the allowlist check.
+        $scheme = parse_url((string) config('app.url'), PHP_URL_SCHEME) ?: 'http';
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+        config(['app.url' => $scheme.'://'.$host.'/tasktracker/public']);
+
+        $src = $scheme.'://'.$host.'/tasktracker/public/tasks/attachments/1/view';
+
+        $this->assertTrue($this->service->isAllowedAttachmentImageSrc($src));
+        $this->assertFalse(
+            $this->service->isAllowedAttachmentImageSrc('/evil/tasks/attachments/1/view')
+        );
+        $this->assertTrue(
+            $this->service->isAllowedAttachmentImageSrc('/tasks/attachments/1/view')
+        );
+
+        $result = $this->service->sanitize('<img src="'.$src.'" alt="a.png">');
+
+        $this->assertStringContainsString('<img', $result);
+        $this->assertStringContainsString('/tasks/attachments/1/view', $result);
+    }
+
+    public function test_is_empty_is_false_for_attachment_only_markup(): void
+    {
+        $html = '<p><img src="/tasks/attachments/3/view" alt="paste.png"></p>';
+
+        $this->assertTrue($this->service->hasAttachmentEmbed($html));
+        $this->assertFalse($this->service->isEmpty($html));
+    }
+
+    public function test_is_empty_is_false_for_attachment_download_link_only(): void
+    {
+        $html = '<p><a href="/tasks/attachments/4/download"></a></p>';
+
+        $this->assertTrue($this->service->hasAttachmentEmbed($html));
+        $this->assertFalse($this->service->isEmpty($html));
+    }
+
+    public function test_is_empty_is_true_for_fake_attachment_href_on_non_anchor(): void
+    {
+        $html = '<div href="/tasks/attachments/1/download"></div>';
+
+        $this->assertTrue($this->service->isEmpty($html));
+        $this->assertFalse($this->service->hasAttachmentEmbed($this->service->sanitize($html)));
     }
 
     public function test_sanitize_strips_javascript_href(): void
@@ -243,5 +365,36 @@ HTML;
         );
 
         $this->assertTrue($validator->fails());
+    }
+
+    public function test_plain_text_length_rule_accepts_attachment_only_markup(): void
+    {
+        $validator = Validator::make(
+            ['body' => '<p><img src="/tasks/attachments/7/view" alt="paste.png"></p>'],
+            ['body' => [new PlainTextLength(min: 3, max: 20000)]],
+        );
+
+        $this->assertFalse($validator->fails());
+    }
+
+    public function test_plain_text_length_rule_accepts_attachment_download_link_only(): void
+    {
+        $validator = Validator::make(
+            ['body' => '<p><a href="/tasks/attachments/8/download"></a></p>'],
+            ['body' => [new PlainTextLength(min: 3, max: 20000)]],
+        );
+
+        $this->assertFalse($validator->fails());
+    }
+
+    public function test_plain_text_length_rule_rejects_fake_attachment_href_on_non_anchor(): void
+    {
+        $validator = Validator::make(
+            ['body' => '<div href="/tasks/attachments/1/download"></div>'],
+            ['body' => [new PlainTextLength(min: 3)]],
+        );
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('body', $validator->errors()->toArray());
     }
 }
