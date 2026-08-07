@@ -1,4 +1,10 @@
 import Chart from 'chart.js/auto';
+import richTextEditor from './rich-text-editor';
+
+// Livewire 3 ships Alpine, so register before it starts rather than importing it.
+document.addEventListener('alpine:init', () => {
+    window.Alpine.data('richTextEditor', richTextEditor);
+});
 
 const chartInstances = new Map();
 

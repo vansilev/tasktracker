@@ -88,7 +88,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         abort_unless(auth()->user()->can('view', $this->task), 403);
 
         $this->editTitle = $this->task->title;
-        $this->editDescription = app(TaskContentService::class)->toEditablePlainText(
+        $this->editDescription = app(TaskContentService::class)->toEditorHtml(
             $this->task->description,
             $this->task->description_format,
         );
@@ -361,6 +361,12 @@ new #[Layout('components.tasks-layout')] class extends Component
         ]);
         $this->editAssigneeDepartmentId = $this->task->department_id;
         $this->editAssigneeId = $this->task->assignee_id;
+        // Reload from storage so the next edit starts from the sanitized HTML
+        // rather than the browser's pre-sanitize version.
+        $this->editDescription = app(TaskContentService::class)->toEditorHtml(
+            $this->task->description,
+            $this->task->description_format,
+        );
         $this->editing = false;
     }
 
@@ -395,7 +401,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $comment = TaskComment::query()->where('task_id', $this->task->id)->findOrFail($commentId);
         abort_unless($comment->canBeEditedBy(auth()->user()), 403);
         $this->editingCommentId = $comment->id;
-        $this->editCommentBody = app(TaskContentService::class)->toEditablePlainText(
+        $this->editCommentBody = app(TaskContentService::class)->toEditorHtml(
             $comment->body,
             $comment->body_format,
         );
@@ -561,18 +567,24 @@ new #[Layout('components.tasks-layout')] class extends Component
     @if ($pendingTransition)
         <div class="rounded-xl bg-amber-50 border border-amber-200 p-4 space-y-3">
             <p class="text-sm font-medium text-amber-900">{{ __('Add a comment for this status change') }}</p>
-            <textarea wire:model="transitionComment" rows="3"
-                      class="w-full border-amber-200 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      placeholder="{{ __('task.transition_comment_placeholder') }}"></textarea>
-            <x-input-error :messages="$errors->get('transitionComment')" class="mt-1" />
-            <div class="flex flex-wrap gap-2">
-                <x-action-button variant="primary" wire:click="confirmTransition">
-                    {{ __('task.confirm_transition') }}: {{ $this->transitionLabel(\App\Enums\TaskStatus::from($pendingTransition)) }}
-                </x-action-button>
-                <x-action-button variant="secondary" wire:click="cancelTransition">
-                    {{ __('task.cancel_transition') }}
-                </x-action-button>
-            </div>
+            <form wire:submit="confirmTransition" class="space-y-3">
+                <x-rich-text-editor
+                    model="transitionComment"
+                    key="task-transition-comment"
+                    min-height="5rem"
+                    :placeholder="__('task.transition_comment_placeholder')"
+                    :aria-label="__('Transition comment')"
+                />
+                <x-input-error :messages="$errors->get('transitionComment')" class="mt-1" />
+                <div class="flex flex-wrap gap-2">
+                    <x-action-button variant="primary" type="submit">
+                        {{ __('task.confirm_transition') }}: {{ $this->transitionLabel(\App\Enums\TaskStatus::from($pendingTransition)) }}
+                    </x-action-button>
+                    <x-action-button variant="secondary" type="button" wire:click="cancelTransition">
+                        {{ __('task.cancel_transition') }}
+                    </x-action-button>
+                </div>
+            </form>
         </div>
     @endif
 
@@ -588,7 +600,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                 </div>
                 <div>
                     <x-input-label :value="__('Description')" />
-                    <textarea wire:model="editDescription" rows="4" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                    <x-rich-text-editor
+                        model="editDescription"
+                        key="task-edit-description"
+                        class="mt-1"
+                        min-height="10rem"
+                        :aria-label="__('Description')"
+                    />
+                    <x-input-error :messages="$errors->get('editDescription')" class="mt-1" />
                 </div>
                 @if ($canChangePriority)
                 <div>
@@ -631,9 +650,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @if ($editAssigneeId && (int) $editAssigneeId !== (int) $task->assignee_id)
                         <div>
                             <x-input-label :value="__('Reassignment comment')" />
-                            <textarea wire:model="reassignComment" rows="2"
-                                      class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                      placeholder="{{ __('Explain why the task is reassigned') }}"></textarea>
+                            <x-rich-text-editor
+                                model="reassignComment"
+                                key="task-reassign-comment"
+                                class="mt-1"
+                                min-height="4rem"
+                                :placeholder="__('Explain why the task is reassigned')"
+                                :aria-label="__('Reassignment comment')"
+                            />
                             <x-input-error :messages="$errors->get('reassignComment')" class="mt-1" />
                         </div>
                     @endif
@@ -718,25 +742,13 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     </p>
                                     @if ($editingCommentId === $comment->id)
                                         <form wire:submit="saveCommentEdit" class="mt-2 space-y-2">
-                                            <div class="relative" x-data="mentionAutocomplete($wire, 'editCommentBody')">
-                                                <textarea x-ref="textarea" wire:model="editCommentBody" rows="2"
-                                                          @input="onInput()" @keydown="onKeydown($event)" @blur="onBlur()"
-                                                          class="w-full border-gray-300 rounded-lg text-sm"></textarea>
-                                                <ul x-show="open" x-cloak
-                                                    class="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg text-sm">
-                                                    <template x-for="(item, index) in suggestions" :key="item.id">
-                                                        <li>
-                                                            <button type="button"
-                                                                    @mousedown.prevent="selectSuggestion(index)"
-                                                                    class="w-full px-3 py-2 text-left hover:bg-indigo-50"
-                                                                    :class="index === activeIndex ? 'bg-indigo-50' : ''">
-                                                                <span class="font-medium text-gray-900" x-text="item.name"></span>
-                                                                <span class="ml-2 text-gray-500 text-xs" x-text="item.email"></span>
-                                                            </button>
-                                                        </li>
-                                                    </template>
-                                                </ul>
-                                            </div>
+                                            <x-rich-text-editor
+                                                model="editCommentBody"
+                                                key="task-edit-comment-{{ $comment->id }}"
+                                                min-height="4rem"
+                                                :aria-label="__('Comments')"
+                                            />
+                                            <x-input-error :messages="$errors->get('editCommentBody')" />
                                             <div class="flex gap-2">
                                                 <x-primary-button type="submit">{{ __('Save') }}</x-primary-button>
                                                 <x-secondary-button type="button" wire:click="$set('editingCommentId', null)">{{ __('Cancel') }}</x-secondary-button>
@@ -768,26 +780,15 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <form wire:submit="addComment" class="pt-4 border-t border-gray-100 space-y-2"
                           x-data="clipboardImagePaste($wire, 'pastedCommentFile')"
                           @paste="handlePaste($event)">
-                        <div class="relative" x-data="mentionAutocomplete($wire, 'commentBody')">
-                            <textarea x-ref="textarea" wire:model="commentBody" rows="2"
-                                      @input="onInput()" @keydown="onKeydown($event)" @blur="onBlur()"
-                                      class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                      placeholder="{{ __('Write a comment...') }} (@username)"></textarea>
-                            <ul x-show="open" x-cloak
-                                class="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg text-sm">
-                                <template x-for="(item, index) in suggestions" :key="item.id">
-                                    <li>
-                                        <button type="button"
-                                                @mousedown.prevent="selectSuggestion(index)"
-                                                class="w-full px-3 py-2 text-left hover:bg-indigo-50"
-                                                :class="index === activeIndex ? 'bg-indigo-50' : ''">
-                                            <span class="font-medium text-gray-900" x-text="item.name"></span>
-                                            <span class="ml-2 text-gray-500 text-xs" x-text="item.email"></span>
-                                        </button>
-                                    </li>
-                                </template>
-                            </ul>
-                        </div>
+                        <x-rich-text-editor
+                            model="commentBody"
+                            key="task-new-comment"
+                            min-height="4rem"
+                            :placeholder="__('Write a comment...')"
+                            :aria-label="__('Comments')"
+                        />
+                        <x-input-error :messages="$errors->get('commentBody')" />
+                        <p class="text-xs text-gray-500">{{ __('Mention hint') }}</p>
                         <p class="text-xs text-gray-500">{{ __('Paste image hint') }}</p>
                         @if (count($commentFiles) > 0)
                             <ul class="text-xs text-gray-600 space-y-0.5">
@@ -1005,6 +1006,27 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 @script
 <script>
+    /*
+     * TEMPORARILY DISABLED: the @mention autocomplete dropdown.
+     *
+     * It was an Alpine component driven by textarea APIs (selectionStart,
+     * .value, setSelectionRange). Those textareas are gone — comments are now
+     * edited in TipTap — so the component could not be kept working as-is and
+     * has been removed rather than left throwing on a missing $refs.textarea.
+     *
+     * What still works: mentions themselves. Typing "@Имя" by hand in the editor
+     * is parsed server-side by MentionService, links the user to the comment and
+     * notifies them exactly as before. The component's mentionSearch() method is
+     * deliberately kept for the rebuild.
+     *
+     * What is missing until the next step: the type-ahead suggestion list.
+     */
+
+    /*
+     * Clipboard image paste is unchanged. The listener sits on the form / card
+     * element, so paste events still bubble up from the ProseMirror surface
+     * inside wire:ignore and images keep uploading as attachments.
+     */
     Alpine.data('clipboardImagePaste', (wire, property) => ({
         handlePaste(event) {
             const items = event.clipboardData?.items;
@@ -1032,119 +1054,5 @@ new #[Layout('components.tasks-layout')] class extends Component
         },
     }));
 
-    Alpine.data('mentionAutocomplete', (wire, property) => ({
-        open: false,
-        suggestions: [],
-        activeIndex: 0,
-        debounceTimer: null,
-        mentionStart: -1,
-        mentionEnd: -1,
-
-        getMentionContext() {
-            const textarea = this.$refs.textarea;
-            if (!textarea) {
-                return null;
-            }
-
-            const pos = textarea.selectionStart ?? textarea.value.length;
-            const text = textarea.value.substring(0, pos);
-            const match = text.match(/@([\p{L}\p{N}._-]+)$/u);
-
-            if (!match || match[1].length < 1) {
-                return null;
-            }
-
-            return {
-                query: match[1],
-                start: pos - match[0].length,
-                end: pos,
-            };
-        },
-
-        onInput() {
-            const ctx = this.getMentionContext();
-            if (!ctx) {
-                this.close();
-                return;
-            }
-
-            this.mentionStart = ctx.start;
-            this.mentionEnd = ctx.end;
-            clearTimeout(this.debounceTimer);
-            this.debounceTimer = setTimeout(() => this.search(ctx.query), 250);
-        },
-
-        async search(query) {
-            const ctx = this.getMentionContext();
-            if (!ctx || ctx.query !== query) {
-                return;
-            }
-
-            try {
-                const results = await wire.mentionSearch(query);
-                if (!this.getMentionContext()) {
-                    this.close();
-                    return;
-                }
-
-                this.suggestions = results ?? [];
-                this.activeIndex = 0;
-                this.open = this.suggestions.length > 0;
-            } catch {
-                this.close();
-            }
-        },
-
-        onKeydown(event) {
-            if (!this.open) {
-                return;
-            }
-
-            if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                this.activeIndex = Math.min(this.activeIndex + 1, this.suggestions.length - 1);
-            } else if (event.key === 'ArrowUp') {
-                event.preventDefault();
-                this.activeIndex = Math.max(this.activeIndex - 1, 0);
-            } else if (event.key === 'Enter' && this.suggestions.length > 0) {
-                event.preventDefault();
-                this.selectSuggestion(this.activeIndex);
-            } else if (event.key === 'Escape') {
-                event.preventDefault();
-                this.close();
-            }
-        },
-
-        selectSuggestion(index) {
-            const item = this.suggestions[index];
-            if (!item) {
-                return;
-            }
-
-            const textarea = this.$refs.textarea;
-            const value = textarea.value;
-            const before = value.substring(0, this.mentionStart);
-            const after = value.substring(this.mentionEnd);
-            const insertion = '@' + item.token + ' ';
-            const newValue = before + insertion + after;
-            const cursorPos = before.length + insertion.length;
-
-            textarea.value = newValue;
-            wire.set(property, newValue);
-            textarea.setSelectionRange(cursorPos, cursorPos);
-            textarea.focus();
-            this.close();
-        },
-
-        close() {
-            this.open = false;
-            this.suggestions = [];
-            this.activeIndex = 0;
-        },
-
-        onBlur() {
-            setTimeout(() => this.close(), 200);
-        },
-    }));
 </script>
 @endscript

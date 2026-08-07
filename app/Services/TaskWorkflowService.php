@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ContentFormat;
+use App\Enums\ContentSource;
 use App\Enums\TaskStatus;
 use App\Models\Task;
 use App\Models\TaskHistory;
@@ -79,8 +80,16 @@ class TaskWorkflowService
         return array_values(array_unique($transitions, SORT_REGULAR));
     }
 
-    public function transition(Task $task, User $user, TaskStatus $to, ?string $comment = null): void
-    {
+    /**
+     * @param  ContentSource  $commentSource  Editor markup is sanitized; literal text is escaped.
+     */
+    public function transition(
+        Task $task,
+        User $user,
+        TaskStatus $to,
+        ?string $comment = null,
+        ContentSource $commentSource = ContentSource::Editor,
+    ): void {
         if (! Gate::forUser($user)->allows('transitionTo', [$task, $to])) {
             throw new AuthorizationException;
         }
@@ -97,7 +106,7 @@ class TaskWorkflowService
             throw new InvalidArgumentException(__('task.comment_required'));
         }
 
-        DB::transaction(function () use ($task, $user, $to, $from, $comment) {
+        DB::transaction(function () use ($task, $user, $to, $from, $comment, $commentSource) {
             $updates = ['status' => $to];
 
             if ($to === TaskStatus::Completed) {
@@ -125,8 +134,7 @@ class TaskWorkflowService
             if (filled($comment)) {
                 $statusComment = $task->comments()->make([
                     'author_id' => $user->id,
-                    // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
-                    'body' => $this->content->fromUserInput(trim($comment)),
+                    'body' => $this->content->fromSource(trim($comment), $commentSource),
                 ]);
                 // body_format is not mass-assignable.
                 $statusComment->body_format = ContentFormat::Html;

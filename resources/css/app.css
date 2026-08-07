@@ -1,3 +1,75 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+[x-cloak] {
+    display: none !important;
+}
+
+/* TipTap editing surface. Content typography comes from the `prose` classes on
+   the wrapper; these rules only cover things ProseMirror needs while editing. */
+@layer components {
+    .rte-surface .ProseMirror {
+        outline: none;
+        min-height: inherit;
+    }
+
+    /* `prose` zeroes the margin of its own first child, which here is the
+       ProseMirror container rather than the first paragraph. */
+    .rte-surface .ProseMirror > :first-child {
+        margin-top: 0;
+    }
+
+    .rte-surface .ProseMirror > :last-child {
+        margin-bottom: 0;
+    }
+
+    .rte-surface .ProseMirror table {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        overflow: hidden;
+    }
+
+    .rte-surface .ProseMirror th,
+    .rte-surface .ProseMirror td {
+        position: relative;
+        min-width: 3rem;
+        border: 1px solid theme('colors.gray.300');
+        padding: 0.25rem 0.5rem;
+        vertical-align: top;
+    }
+
+    .rte-surface .ProseMirror th {
+        background-color: theme('colors.gray.50');
+        font-weight: 600;
+        text-align: start;
+    }
+
+    .rte-surface .ProseMirror th > p,
+    .rte-surface .ProseMirror td > p {
+        margin: 0;
+    }
+
+    /* Cells inside the current table selection. */
+    .rte-surface .ProseMirror .selectedCell::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: theme('colors.indigo.200 / 40%');
+        pointer-events: none;
+    }
+
+    .rte-surface .ProseMirror pre {
+        white-space: pre-wrap;
+    }
+
+    /* Block-level selection outline for tables selected as a whole. */
+    .rte-surface .ProseMirror .ProseMirror-selectednode {
+        outline: 2px solid theme('colors.indigo.400');
+    }
+
+    .rte-surface .ProseMirror-gapcursor::after {
+        border-top-color: theme('colors.gray.700');
+    }
+}

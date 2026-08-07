@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ContentFormat;
+use App\Enums\ContentSource;
 use App\Enums\Permission;
 use App\Enums\TaskStatus;
 use App\Models\Category;
@@ -31,9 +32,15 @@ class TaskService
     /**
      * @param  array<string, mixed>  $data
      * @param  list<string>  $checklistTexts
+     * @param  ContentSource  $descriptionSource  Editor markup is sanitized; literal text is escaped.
      */
-    public function create(User $initiator, array $data, array $checklistTexts = [], array $watcherIds = []): Task
-    {
+    public function create(
+        User $initiator,
+        array $data,
+        array $checklistTexts = [],
+        array $watcherIds = [],
+        ContentSource $descriptionSource = ContentSource::Editor,
+    ): Task {
         Gate::forUser($initiator)->authorize('create', Task::class);
 
         $department = Department::query()->findOrFail($data['department_id']);
@@ -71,7 +78,7 @@ class TaskService
             ]);
         }
 
-        $task = DB::transaction(function () use ($initiator, $data, $assignee, $checklistTexts, $watcherIds, $category) {
+        $task = DB::transaction(function () use ($initiator, $data, $assignee, $checklistTexts, $watcherIds, $category, $descriptionSource) {
             $number = (int) Task::query()->lockForUpdate()->max('number') + 1;
 
             $task = new Task([
@@ -82,8 +89,7 @@ class TaskService
                 'department_id' => $assignee->department_id,
                 'category_id' => $category->id,
                 'title' => $data['title'],
-                // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
-                'description' => $this->content->fromUserInput($data['description'] ?? ''),
+                'description' => $this->content->fromSource($data['description'] ?? '', $descriptionSource),
                 'priority' => (int) $data['priority'],
                 'status' => TaskStatus::New,
                 'deadline' => $data['deadline'] ?? null,
@@ -128,9 +134,14 @@ class TaskService
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  ContentSource  $descriptionSource  Editor markup is sanitized; literal text is escaped.
      */
-    public function update(Task $task, User $user, array $data): void
-    {
+    public function update(
+        Task $task,
+        User $user,
+        array $data,
+        ContentSource $descriptionSource = ContentSource::Editor,
+    ): void {
         $hasAssign = isset($data['assignee_id']);
         $clientDepartmentId = array_key_exists('department_id', $data)
             ? (int) $data['department_id']
@@ -198,7 +209,7 @@ class TaskService
         $auditOld = [];
         $auditNew = [];
 
-        DB::transaction(function () use ($task, $user, $data, &$assigneeChanged, &$auditOld, &$auditNew) {
+        DB::transaction(function () use ($task, $user, $data, $descriptionSource, &$assigneeChanged, &$auditOld, &$auditNew) {
             $updates = [];
 
             if (array_key_exists('title', $data) && $data['title'] !== null) {
@@ -216,9 +227,8 @@ class TaskService
             $setDescriptionFormatHtml = false;
 
             if (array_key_exists('description', $data) && $data['description'] !== null) {
-                // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
                 $old = (string) ($task->description ?? '');
-                $new = $this->content->fromUserInput((string) $data['description']);
+                $new = $this->content->fromSource((string) $data['description'], $descriptionSource);
 
                 if ($old !== $new || $task->description_format !== ContentFormat::Html) {
                     $updates['description'] = $new;
@@ -374,14 +384,20 @@ class TaskService
         ]);
     }
 
-    public function addComment(Task $task, User $user, string $body): TaskComment
-    {
+    /**
+     * @param  ContentSource  $source  Editor markup is sanitized; literal text is escaped.
+     */
+    public function addComment(
+        Task $task,
+        User $user,
+        string $body,
+        ContentSource $source = ContentSource::Editor,
+    ): TaskComment {
         Gate::forUser($user)->authorize('comment', $task);
 
         $comment = $task->comments()->make([
             'author_id' => $user->id,
-            // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
-            'body' => $this->content->fromUserInput(trim($body)),
+            'body' => $this->content->fromSource(trim($body), $source),
         ]);
         // body_format is not mass-assignable.
         $comment->body_format = ContentFormat::Html;
@@ -394,8 +410,15 @@ class TaskService
         return $comment;
     }
 
-    public function updateComment(TaskComment $comment, User $user, string $body): void
-    {
+    /**
+     * @param  ContentSource  $source  Editor markup is sanitized; literal text is escaped.
+     */
+    public function updateComment(
+        TaskComment $comment,
+        User $user,
+        string $body,
+        ContentSource $source = ContentSource::Editor,
+    ): void {
         $task = $comment->task;
 
         if ($user->isAdmin()) {
@@ -409,8 +432,7 @@ class TaskService
         Gate::forUser($user)->authorize('comment', $task);
 
         $comment->fill([
-            // TIP TAP FLIP POINT: fromUserInput → sanitize when editor submits HTML.
-            'body' => $this->content->fromUserInput(trim($body)),
+            'body' => $this->content->fromSource(trim($body), $source),
             'edited_at' => now(),
         ]);
         // body_format is not mass-assignable.

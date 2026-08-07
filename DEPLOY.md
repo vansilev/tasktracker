@@ -138,11 +138,24 @@ npm run build
 ```powershell
 php artisan migrate --force
 php artisan tasks:backfill-plain-text
+php artisan tasks:convert-markdown-to-html --dry-run
+php artisan tasks:convert-markdown-to-html
 ```
 
 Миграция уже заполняет `description_text` / `body_text` при применении, но
 команду стоит прогнать после деплоя (идемпотентна; `--dry-run` покажет,
 сколько строк было бы обновлено без записи).
+
+`tasks:convert-markdown-to-html` переводит описания задач и тексты комментариев
+из Markdown в HTML — это нужно для WYSIWYG-редактора. Команда идемпотентна и
+безопасна для повторного запуска: она ориентируется на маркер формата
+(`description_format` / `body_format`) и уже сконвертированные строки
+пропускает. Сначала обязательно прогони `--dry-run` и посмотри отчет.
+
+Строки, у которых маркер `markdown`, а содержимое уже выглядит как HTML,
+команда не трогает — помещает в карантин и перечисляет их ID. Разбери их
+вручную; если уверен, что их всё равно нужно прогнать через конвертацию,
+запусти `php artisan tasks:convert-markdown-to-html --force`.
 
 Только для новой пустой базы:
 
@@ -389,6 +402,8 @@ GOOGLE_SSO_ENABLED=false
 - [ ] База не под `root`, а под отдельным MySQL-пользователем.
 - [ ] `php artisan migrate --force` выполнен.
 - [ ] `php artisan tasks:backfill-plain-text` выполнен (можно сначала `--dry-run`).
+- [ ] `php artisan tasks:convert-markdown-to-html` выполнен после backfill
+      (сначала `--dry-run`; идемпотентна; строки в карантине разобраны).
 - [ ] `npm run build` выполнен.
 - [ ] `php artisan config:cache` выполнен.
 - [ ] Windows Scheduler запускает `artisan schedule:run` каждую минуту.

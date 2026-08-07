@@ -235,11 +235,24 @@ chmod -R 775 storage bootstrap/cache
 ```bash
 php artisan migrate --force
 php artisan tasks:backfill-plain-text
+php artisan tasks:convert-markdown-to-html --dry-run
+php artisan tasks:convert-markdown-to-html
 ```
 
 Миграция уже заполняет `description_text` / `body_text` при применении, но
 команду стоит прогнать после деплоя (идемпотентна; `--dry-run` покажет,
 сколько строк было бы обновлено без записи).
+
+`tasks:convert-markdown-to-html` переводит описания задач и тексты комментариев
+из Markdown в HTML — это нужно для WYSIWYG-редактора. Команда идемпотентна и
+безопасна для повторного запуска: она ориентируется на маркер формата
+(`description_format` / `body_format`) и уже сконвертированные строки
+пропускает. Сначала обязательно прогони `--dry-run` и посмотри отчет.
+
+Строки, у которых маркер `markdown`, а содержимое уже выглядит как HTML,
+команда не трогает — помещает в карантин и перечисляет их ID. Разбери их
+вручную; если уверен, что их всё равно нужно прогнать через конвертацию,
+запусти `php artisan tasks:convert-markdown-to-html --force`.
 
 База новая и пустая — заполни базовыми данными (справочники + админ):
 
@@ -288,7 +301,14 @@ mysqldump --default-character-set=utf8mb4 -u root -p tasktracker > C:\Apache24\h
 mysql -h localhost -u u715639661_task -p u715639661_tasktracker < tasktracker.sql
 php artisan migrate --force
 php artisan tasks:backfill-plain-text
+php artisan tasks:convert-markdown-to-html --dry-run
+php artisan tasks:convert-markdown-to-html
 ```
+
+Для перенесенной базы конвертация Markdown → HTML особенно важна: это как раз
+те старые строки, которые писались до WYSIWYG-редактора. Команда идемпотентна,
+сначала прогони `--dry-run`, а строки, попавшие в карантин (маркер `markdown`,
+но содержимое похоже на HTML), разбери вручную.
 
 После импорта удали SQL-файл:
 
@@ -443,6 +463,8 @@ https://task.avant.od.ua/vendor/autoload.php
 - [ ] `composer install --no-dev --optimize-autoloader` выполнен.
 - [ ] `php artisan migrate --force` выполнен.
 - [ ] `php artisan tasks:backfill-plain-text` выполнен (можно сначала `--dry-run`).
+- [ ] `php artisan tasks:convert-markdown-to-html` выполнен после backfill
+      (сначала `--dry-run`; идемпотентна; строки в карантине разобраны).
 - [ ] `php artisan db:seed --force` выполнен (новая пустая база).
 - [ ] `public/build` загружен в `public_html/build`.
 - [ ] Cron `schedule:run` запускается каждую минуту.

@@ -225,6 +225,8 @@ TELEGRAM_WEBHOOK_SECRET=
 php8.4 artisan key:generate
 php8.4 artisan migrate --force
 php8.4 artisan tasks:backfill-plain-text
+php8.4 artisan tasks:convert-markdown-to-html --dry-run
+php8.4 artisan tasks:convert-markdown-to-html
 php8.4 artisan db:seed --force
 php8.4 artisan optimize:clear
 php8.4 artisan config:cache
@@ -236,6 +238,18 @@ php8.4 artisan event:cache
 Миграция уже заполняет `description_text` / `body_text` при применении, но
 команду стоит прогнать после деплоя (идемпотентна; `--dry-run` покажет,
 сколько строк было бы обновлено без записи).
+
+`tasks:convert-markdown-to-html` переводит описания задач и тексты комментариев
+из Markdown в HTML — это нужно для WYSIWYG-редактора. Запускай её после
+`migrate --force` и после `tasks:backfill-plain-text`. Команда идемпотентна и
+безопасна для повторного запуска: она ориентируется на маркер формата
+(`description_format` / `body_format`) и уже сконвертированные строки
+пропускает. Сначала обязательно прогони `--dry-run` и посмотри отчет.
+
+Строки, у которых маркер `markdown`, а содержимое уже выглядит как HTML,
+команда не трогает — помещает в карантин и перечисляет их ID. Разбери их
+вручную; если уверен, что их всё равно нужно прогнать через конвертацию,
+запусти `php8.4 artisan tasks:convert-markdown-to-html --force`.
 
 `db:seed --force` запускай только на новой пустой базе.
 
@@ -329,6 +343,10 @@ php8.4 artisan tasks:send-reminders --dry-run
 ```
 
 ## 10. Финальная проверка
+
+- [ ] `php8.4 artisan tasks:backfill-plain-text` выполнен (можно сначала `--dry-run`).
+- [ ] `php8.4 artisan tasks:convert-markdown-to-html` выполнен после backfill
+      (сначала `--dry-run`; идемпотентна; строки в карантине разобраны).
 
 ```bash
 cd /var/www/tasktracker

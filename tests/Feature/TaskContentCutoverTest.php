@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ContentFormat;
+use App\Enums\ContentSource;
 use App\Enums\SystemType;
 use App\Models\Category;
 use App\Models\Department;
@@ -285,6 +286,7 @@ class TaskContentCutoverTest extends TestCase
             $task,
             $assignee,
             "Line one & two\n\n<script>alert(1)</script>",
+            ContentSource::PlainText,
         );
 
         $notification = $initiator->fresh()->notifications
@@ -312,7 +314,7 @@ class TaskContentCutoverTest extends TestCase
             'title' => 'Line breaks',
             'description' => "first line\nsecond line",
             'priority' => 5,
-        ]);
+        ], descriptionSource: ContentSource::PlainText);
 
         $this->assertSame('<p>first line<br>second line</p>', $task->description);
         $this->assertStringContainsString('<br>', $task->renderedDescription());
@@ -366,42 +368,17 @@ class TaskContentCutoverTest extends TestCase
         $this->assertNotNull($taskRow->deleted_at);
     }
 
-    public function test_editable_plain_text_round_trip_loses_markdown_formatting(): void
-    {
-        $content = app(TaskContentService::class);
-        $markdown = "**bold heading**\n\n- first item\n- second item";
-        $converted = app(MarkdownService::class)->toHtml($markdown);
-
-        $editable = $content->toEditablePlainText($converted, ContentFormat::Html);
-        $resaved = $content->fromUserInput($editable);
-
-        // Bold markers and list structure are stripped; only plain text survives.
-        $this->assertStringNotContainsString('<strong>', $editable);
-        $this->assertStringNotContainsString('**', $editable);
-        $this->assertStringContainsString('bold heading', $editable);
-        $this->assertStringContainsString('first item', $editable);
-        $this->assertStringContainsString('second item', $editable);
-
-        $this->assertStringNotContainsString('<strong>', $resaved);
-        $this->assertStringNotContainsString('<ul>', $resaved);
-        $this->assertStringNotContainsString('<li>', $resaved);
-        $this->assertStringContainsString('<p>bold heading</p>', $resaved);
-        $this->assertStringContainsString('first item', $resaved);
-        $this->assertStringContainsString('second item', $resaved);
-
-        // Document the concrete current round-trip payload for the TipTap follow-up.
-        $this->assertSame(
-            $resaved,
-            $content->fromUserInput($content->toEditablePlainText($converted, ContentFormat::Html)),
-        );
-    }
-
-    public function test_new_comment_write_path_uses_from_plain_text_not_raw_storage(): void
+    public function test_plain_text_comment_source_escapes_instead_of_parsing(): void
     {
         [$initiator, $assignee, $category] = $this->seedActors();
         $task = $this->createTask($initiator, $assignee, $category);
 
-        $comment = app(TaskService::class)->addComment($task, $assignee, 'a < b & c');
+        $comment = app(TaskService::class)->addComment(
+            $task,
+            $assignee,
+            'a < b & c',
+            ContentSource::PlainText,
+        );
 
         $this->assertSame(ContentFormat::Html, $comment->body_format);
         $this->assertSame('<p>a &lt; b &amp; c</p>', $comment->body);
@@ -523,58 +500,6 @@ class TaskContentCutoverTest extends TestCase
         $this->assertStringContainsString('🚀', $stored);
         $this->assertStringContainsString($long, $stored);
         $this->assertSame($html, $stored);
-    }
-
-    public function test_editable_plain_text_preserves_link_urls(): void
-    {
-        $content = app(TaskContentService::class);
-
-        $this->assertSame(
-            'link text (https://example.com/path)',
-            $content->toEditablePlainText(
-                '<p><a href="https://example.com/path">link text</a></p>',
-                ContentFormat::Html,
-            ),
-        );
-
-        $this->assertSame(
-            'https://example.com/path',
-            $content->toEditablePlainText(
-                '<p><a href="https://example.com/path">https://example.com/path</a></p>',
-                ContentFormat::Html,
-            ),
-        );
-
-        $this->assertSame(
-            'email me (mailto:user@example.com)',
-            $content->toEditablePlainText(
-                '<p><a href="mailto:user@example.com">email me</a></p>',
-                ContentFormat::Html,
-            ),
-        );
-
-        $this->assertSame(
-            'orphan link',
-            $content->toEditablePlainText(
-                '<p><a>orphan link</a></p>',
-                ContentFormat::Html,
-            ),
-        );
-    }
-
-    public function test_editable_plain_text_separates_compact_block_boundaries(): void
-    {
-        $content = app(TaskContentService::class);
-        $compact = '<h1>Title</h1><h2>Subtitle</h2><ul><li>a</li><li>b</li></ul><table><tr><td>c</td><td>d</td></tr><tr><td>e</td><td>f</td></tr></table><blockquote>quote</blockquote>';
-
-        $editable = $content->toEditablePlainText($compact, ContentFormat::Html);
-
-        $this->assertStringContainsString("Title\nSubtitle\n", $editable);
-        $this->assertStringContainsString("a\nb", $editable);
-        $this->assertStringContainsString("d\ne", $editable);
-        $this->assertStringContainsString('quote', $editable);
-        $this->assertDoesNotMatchRegularExpression("/\n{3,}/", $editable);
-        $this->assertStringNotContainsString('ab', $editable);
     }
 
     public function test_conversion_quarantines_dishonest_html_marked_as_markdown(): void

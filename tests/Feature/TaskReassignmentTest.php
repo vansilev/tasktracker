@@ -106,7 +106,8 @@ class TaskReassignmentTest extends TestCase
             ->set('editing', true)
             ->set('editAssigneeDepartmentId', $deptB->id)
             ->set('editAssigneeId', $assigneeB->id)
-            ->set('reassignComment', 'Handing over to another department.')
+            // The reassignment box is now a TipTap editor, so the browser posts HTML.
+            ->set('reassignComment', '<p>Handing over to another department.</p>')
             ->call('saveEdit')
             ->assertHasNoErrors();
 

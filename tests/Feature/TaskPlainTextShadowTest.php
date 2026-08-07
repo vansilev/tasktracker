@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ContentSource;
 use App\Enums\Permission;
 use App\Enums\SystemType;
 use App\Models\Task;
@@ -50,11 +51,11 @@ class TaskPlainTextShadowTest extends TestCase
             'description' => 'Original plain text',
         ]);
 
-        // Plain-textarea write path escapes markup as inert text (fromPlainText),
-        // so the shadow column keeps the literal tag characters the user typed.
+        // A plain-text source escapes markup as inert text, so the shadow column
+        // keeps the literal tag characters that were in the source.
         app(TaskService::class)->update($task, $editor, [
             'description' => 'alpha<strong>beta</strong>gamma',
-        ]);
+        ], ContentSource::PlainText);
 
         $this->assertSame('alpha<strong>beta</strong>gamma', $task->fresh()->description_text);
     }
@@ -71,6 +72,7 @@ class TaskPlainTextShadowTest extends TestCase
             $task,
             $assignee,
             'foo<em>bar</em>baz',
+            ContentSource::PlainText,
         );
 
         $this->assertSame('foo<em>bar</em>baz', $comment->fresh()->body_text);
@@ -85,7 +87,12 @@ class TaskPlainTextShadowTest extends TestCase
         $task = $this->createTask($initiator, $assignee, $this->createCategory());
 
         $comment = app(TaskService::class)->addComment($task, $assignee, 'first body');
-        app(TaskService::class)->updateComment($comment, $assignee, '<p>second</p><p>body</p>');
+        app(TaskService::class)->updateComment(
+            $comment,
+            $assignee,
+            '<p>second</p><p>body</p>',
+            ContentSource::PlainText,
+        );
 
         $this->assertSame('<p>second</p><p>body</p>', $comment->fresh()->body_text);
     }

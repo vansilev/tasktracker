@@ -149,9 +149,14 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
                         <x-input-label :value="__('Description')" class="text-xs text-gray-500 font-medium" />
-                        <textarea wire:model="description" rows="6"
-                                  class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                  placeholder="{{ __('Description') }}"></textarea>
+                        <x-rich-text-editor
+                            model="description"
+                            key="task-create-description"
+                            class="mt-1"
+                            min-height="10rem"
+                            :placeholder="__('Description')"
+                            :aria-label="__('Description')"
+                        />
                         <x-input-error :messages="$errors->get('description')" class="mt-1" />
                     </div>
 

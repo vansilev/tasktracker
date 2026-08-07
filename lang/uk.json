@@ -206,6 +206,7 @@
     "Upload": "Завантажити",
     "No attachments yet.": "Вкладень поки немає.",
     "Delete this attachment?": "Видалити це вкладення?",
+    "Mention hint": "Щоб згадати людину, наберіть @Ім’я (підказки тимчасово недоступні)",
     "Paste image hint": "Можна вставити зображення з буфера (Ctrl+V)",
     "Delete task": "Видалити задачу",
     "Delete this task? It can be restored later from Administration.": "Видалити задачу? Її можна буде відновити в розділі «Адміністрування».",

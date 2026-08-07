@@ -202,9 +202,9 @@ class ExcelTaskImportService
             'department_id' => $assignee->department_id,
             'category_id' => $category->id,
             'title' => $title,
-            // Spreadsheet cells are untrusted: escape via fromPlainText (not sanitize).
-            // TIP TAP FLIP POINT: fromUserInput → sanitize if imports ever carry HTML.
-            'description' => $this->content->fromUserInput($description),
+            // Spreadsheet cells are literal text, never editor markup: a cell
+            // containing "<b>" must stay visible characters, not turn into bold.
+            'description' => $this->content->fromPlainTextSource($description),
             'priority' => 5,
             'status' => $status,
             'deadline' => $deadline,

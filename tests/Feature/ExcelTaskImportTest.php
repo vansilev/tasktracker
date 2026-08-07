@@ -71,6 +71,35 @@ class ExcelTaskImportTest extends TestCase
         @unlink($path);
     }
 
+    public function test_imported_benign_markup_stays_literal_after_the_editor_cutover(): void
+    {
+        $dept = $this->createDepartment('IT');
+        $admin = $this->createUserInDepartment($dept, 'Admin');
+        config(['tasktracker.admin_email' => $admin->email]);
+        Category::query()->create([
+            'name' => 'Прочие задачи',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        // The editor write path sanitizes, which would turn these into real
+        // markup. Spreadsheet cells must keep going through the escaping path.
+        $payload = 'Условие: a < b & <b>жирный</b>';
+        $path = $this->makeSpreadsheet($payload, number: 1002);
+
+        app(ExcelTaskImportService::class)->import($path, dryRun: false);
+
+        $task = Task::query()->where('number', 1002)->first();
+
+        $this->assertNotNull($task);
+        $this->assertSame('<p>Условие: a &lt; b &amp; &lt;b&gt;жирный&lt;/b&gt;</p>', $task->description);
+        $this->assertStringNotContainsString('<b>', $task->description);
+        $this->assertStringNotContainsString('<b>', $task->renderedDescription());
+        $this->assertSame($payload, $task->description_text);
+
+        @unlink($path);
+    }
+
     private function makeSpreadsheet(string $description, int $number = 999): string
     {
         $spreadsheet = new Spreadsheet;
