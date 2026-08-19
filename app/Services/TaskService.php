@@ -79,7 +79,9 @@ class TaskService
             ]);
         }
 
-        $task = DB::transaction(function () use ($initiator, $data, $assignee, $checklistTexts, $watcherIds, $category, $descriptionSource) {
+        $parent = $this->resolveParent($initiator, $data['parent_id'] ?? null);
+
+        $task = DB::transaction(function () use ($initiator, $data, $assignee, $checklistTexts, $watcherIds, $category, $descriptionSource, $parent) {
             // Include soft-deleted rows: numbers stay unique and must not be reused.
             $number = (int) Task::withTrashed()->lockForUpdate()->max('number') + 1;
 
@@ -93,6 +95,7 @@ class TaskService
                 'department_initiator_id' => $initiator->department_id,
                 'department_id' => $assignee->department_id,
                 'category_id' => $category->id,
+                'parent_id' => $parent?->id,
                 'title' => $data['title'],
                 'description' => '',
                 'priority' => (int) $data['priority'],
@@ -140,9 +143,99 @@ class TaskService
             'assignee_id' => $task->assignee_id,
             'department_id' => $task->department_id,
             'category_id' => $task->category_id,
+            'parent_id' => $task->parent_id,
         ]);
 
         return $task;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data  title required; department/assignee/category/priority default from actor/parent
+     * @param  list<string>  $checklistTexts
+     * @param  list<int|string>  $extraWatcherIds
+     */
+    public function createSubtask(User $actor, Task $parent, array $data, array $checklistTexts = [], array $extraWatcherIds = []): Task
+    {
+        $title = trim((string) ($data['title'] ?? ''));
+
+        if ($title === '') {
+            throw ValidationException::withMessages([
+                'title' => [__('task.subtask_title_required')],
+            ]);
+        }
+
+        if (mb_strlen($title) > 120) {
+            throw ValidationException::withMessages([
+                'title' => [__('validation.max.string', ['attribute' => __('Title'), 'max' => 120])],
+            ]);
+        }
+
+        $departmentId = $data['department_id'] ?? $actor->department_id;
+
+        if ($departmentId === null || $departmentId === '') {
+            throw ValidationException::withMessages([
+                'assignee_id' => [__('task.assignee_without_department')],
+            ]);
+        }
+
+        $assigneeId = array_key_exists('assignee_id', $data)
+            ? ($data['assignee_id'] ?: null)
+            : $actor->id;
+
+        $description = (string) ($data['description'] ?? '');
+        $descriptionSource = $data['description_source']
+            ?? ($description !== '' ? ContentSource::Editor : ContentSource::PlainText);
+
+        $watcherIds = collect([$parent->initiator_id, $parent->assignee_id, ...$extraWatcherIds])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->reject(fn ($id) => $id === (int) $actor->id)
+            ->values()
+            ->all();
+
+        return $this->create(
+            $actor,
+            [
+                'department_id' => $departmentId,
+                'category_id' => $data['category_id'] ?? $parent->category_id,
+                'title' => $title,
+                'description' => $description,
+                'priority' => (int) ($data['priority'] ?? $parent->priority),
+                'assignee_id' => $assigneeId,
+                'deadline' => $data['deadline'] ?? null,
+                'spec_url' => $data['spec_url'] ?? null,
+                'parent_id' => $parent->id,
+            ],
+            $checklistTexts,
+            $watcherIds,
+            $descriptionSource,
+        );
+    }
+
+    private function resolveParent(User $initiator, mixed $parentId): ?Task
+    {
+        if ($parentId === null || $parentId === '') {
+            return null;
+        }
+
+        $parent = Task::query()->find((int) $parentId);
+
+        if ($parent === null) {
+            throw ValidationException::withMessages([
+                'parent_id' => [__('task.parent_not_found')],
+            ]);
+        }
+
+        if ($parent->isSubtask()) {
+            throw ValidationException::withMessages([
+                'parent_id' => [__('task.parent_must_be_root')],
+            ]);
+        }
+
+        Gate::forUser($initiator)->authorize('createSubtask', $parent);
+
+        return $parent;
     }
 
     /**

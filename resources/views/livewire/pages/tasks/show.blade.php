@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\TaskStatus;
+use App\Models\Category;
 use App\Models\Department;
 use App\Models\Task;
 use App\Models\TaskAttachment;
@@ -15,6 +16,7 @@ use App\Services\TaskContentService;
 use App\Services\TaskHistoryPresenter;
 use App\Services\TaskService;
 use App\Services\TaskWorkflowService;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Features\SupportFileUploads\WithFileUploads;
@@ -54,6 +56,34 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public string $newChecklistItem = '';
 
+    public bool $creatingSubtask = false;
+
+    public int $subtaskEditorKey = 0;
+
+    public string $subtaskTitle = '';
+
+    public string $subtaskDescription = '';
+
+    public ?int $subtaskDepartmentId = null;
+
+    public ?int $subtaskAssigneeId = null;
+
+    public ?int $subtaskCategoryId = null;
+
+    public int $subtaskPriority = 5;
+
+    public ?string $subtaskDeadline = null;
+
+    public string $subtaskSpecUrl = '';
+
+    public string $subtaskChecklistText = '';
+
+    public array $subtaskWatcherIds = [];
+
+    public array $subtaskUploadFiles = [];
+
+    public $pastedSubtaskFile = null;
+
     public ?string $pendingTransition = null;
 
     public string $transitionComment = '';
@@ -83,6 +113,8 @@ new #[Layout('components.tasks-layout')] class extends Component
     {
         $this->task = $task->load([
             'initiator', 'assignee', 'department', 'category',
+            'parent:id,number,title',
+            'subtasks.assignee:id,name',
             'comments.author', 'comments.mentionedUsers', 'comments.attachments',
             'histories.changedBy',
             'checklistItems', 'watchers', 'attachments.uploader',
@@ -157,6 +189,21 @@ new #[Layout('components.tasks-layout')] class extends Component
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
             'checklistDone' => $this->task->checklistItems->where('is_done', true)->count(),
             'checklistTotal' => $this->task->checklistItems->count(),
+            'subtaskProgress' => $this->task->subtaskProgress(),
+            'openSubtasksCount' => $this->task->openSubtasksCount(),
+            'canCreateSubtask' => auth()->user()->can('createSubtask', $this->task),
+            'subtaskDepartments' => (auth()->user()->hasPermission('create_task_any_department') || auth()->user()->isAdmin())
+                ? Department::query()->active()->orderBy('name')->get(['id', 'name'])
+                : Department::query()->where('id', auth()->user()->department_id)->get(['id', 'name']),
+            'subtaskCategories' => Category::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name']),
+            'subtaskUsers' => User::query()
+                ->where('is_active', true)
+                ->when($this->subtaskDepartmentId, fn ($q) => $q->where('department_id', $this->subtaskDepartmentId))
+                ->orderBy('name')
+                ->get(['id', 'name', 'email']),
+            'pendingInlineUploadUrl' => auth()->user()->can('create', Task::class)
+                ? route('pending.attachments.inline')
+                : null,
             'canManageWatchers' => auth()->user()->can('manageWatchers', $this->task),
             'canUpdate' => auth()->user()->can('update', $this->task),
             'canChangePriority' => auth()->user()->can('changePriority', $this->task),
@@ -269,6 +316,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $this->task->refresh()->load([
             'initiator', 'assignee', 'department', 'category',
+            'parent:id,number,title',
+            'subtasks.assignee:id,name',
             'comments.author', 'comments.attachments', 'histories.changedBy', 'checklistItems', 'watchers',
         ]);
     }
@@ -361,6 +410,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $this->task->refresh()->load([
             'initiator', 'assignee', 'department', 'category',
+            'parent:id,number,title',
+            'subtasks.assignee:id,name',
             'comments.author', 'comments.mentionedUsers', 'comments.attachments',
         ]);
         $this->editAssigneeDepartmentId = $this->task->department_id;
@@ -391,6 +442,104 @@ new #[Layout('components.tasks-layout')] class extends Component
         $tasks->addChecklistItem($this->task, auth()->user(), $text);
         $this->newChecklistItem = '';
         $this->task->load('checklistItems');
+    }
+
+    public function updatedSubtaskDepartmentId(): void
+    {
+        $this->subtaskAssigneeId = null;
+    }
+
+    public function updatedPastedSubtaskFile(): void
+    {
+        if ($this->pastedSubtaskFile === null) {
+            return;
+        }
+
+        $this->subtaskUploadFiles[] = $this->pastedSubtaskFile;
+        $this->pastedSubtaskFile = null;
+    }
+
+    public function openSubtaskModal(): void
+    {
+        abort_unless(auth()->user()->can('createSubtask', $this->task), 403);
+
+        $user = auth()->user();
+        $this->subtaskTitle = '';
+        $this->subtaskDescription = '';
+        $this->subtaskDepartmentId = $user->department_id;
+        $this->subtaskAssigneeId = $user->id;
+        $this->subtaskCategoryId = $this->task->category_id;
+        $this->subtaskPriority = $this->task->priority;
+        $this->subtaskDeadline = null;
+        $this->subtaskSpecUrl = '';
+        $this->subtaskChecklistText = '';
+        $this->subtaskWatcherIds = [];
+        $this->subtaskUploadFiles = [];
+        $this->pastedSubtaskFile = null;
+        $this->subtaskEditorKey++;
+        $this->resetErrorBag();
+        $this->creatingSubtask = true;
+    }
+
+    public function closeSubtaskModal(): void
+    {
+        $this->creatingSubtask = false;
+        $this->subtaskUploadFiles = [];
+        $this->pastedSubtaskFile = null;
+        $this->resetErrorBag();
+    }
+
+    public function saveSubtask(TaskService $tasks, TaskAttachmentService $attachments, SettingsService $settings): void
+    {
+        abort_unless(auth()->user()->can('createSubtask', $this->task), 403);
+
+        $this->validate([
+            'subtaskDepartmentId' => 'required|exists:departments,id',
+            'subtaskCategoryId' => 'required|exists:categories,id',
+            'subtaskTitle' => 'required|string|max:120',
+            'subtaskDescription' => ['required', 'string', new PlainTextLength(min: 3, max: 20000)],
+            'subtaskPriority' => 'required|integer|min:1|max:10',
+            'subtaskDeadline' => 'nullable|date',
+            'subtaskSpecUrl' => 'nullable|url|max:500',
+            'subtaskAssigneeId' => 'nullable|exists:users,id',
+            'subtaskUploadFiles.*' => 'nullable|file|max:'.(int) $settings->get('attachment_max_kb', 10240),
+        ], [], [
+            'subtaskDepartmentId' => __('Department'),
+            'subtaskCategoryId' => __('Category'),
+            'subtaskTitle' => __('Title'),
+            'subtaskDescription' => __('Description'),
+            'subtaskPriority' => __('Priority'),
+            'subtaskDeadline' => __('Deadline'),
+            'subtaskSpecUrl' => __('Spec URL'),
+            'subtaskAssigneeId' => __('Assignee'),
+        ]);
+
+        $checklist = array_filter(array_map('trim', explode("\n", $this->subtaskChecklistText)));
+
+        try {
+            $child = $tasks->createSubtask(auth()->user(), $this->task, [
+                'department_id' => $this->subtaskDepartmentId,
+                'assignee_id' => $this->subtaskAssigneeId,
+                'category_id' => $this->subtaskCategoryId,
+                'title' => $this->subtaskTitle,
+                'description' => $this->subtaskDescription,
+                'priority' => $this->subtaskPriority,
+                'deadline' => $this->subtaskDeadline,
+                'spec_url' => $this->subtaskSpecUrl ?: null,
+            ], $checklist, $this->subtaskWatcherIds);
+
+            foreach ($this->subtaskUploadFiles as $file) {
+                $attachments->store($child, auth()->user(), $file, null, false);
+            }
+
+            $this->closeSubtaskModal();
+            $this->task->load(['subtasks.assignee:id,name']);
+        } catch (QueryException $e) {
+            report($e);
+            $this->addError('subtaskTitle', __('task.create_failed'));
+        } catch (RuntimeException $e) {
+            $this->addError('subtaskAssigneeId', $e->getMessage());
+        }
     }
 
     public function deleteChecklistItem(int $itemId, TaskService $tasks): void
@@ -576,6 +725,12 @@ new #[Layout('components.tasks-layout')] class extends Component
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div class="min-w-0">
+                @if ($task->parent)
+                    <a href="{{ route('tasks.show', $task->parent) }}" wire:navigate
+                       class="mb-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                        {{ __('Part of #:number · :title', ['number' => $task->parent->number, 'title' => $task->parent->title]) }}
+                    </a>
+                @endif
                 <div class="flex flex-wrap items-center gap-2">
                     <h1 class="text-lg font-semibold text-gray-900">
                         #{{ $task->number }} · {{ $task->title }}
@@ -585,6 +740,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                         <span title="{{ __('Urgent') }}">🔥</span>
                     @endif
                 </div>
+                @if ($openSubtasksCount > 0)
+                    <p class="mt-1 text-xs text-amber-700">{{ __('This task has :count open subtasks.', ['count' => $openSubtasksCount]) }}</p>
+                @endif
             </div>
             <div class="flex flex-wrap items-center gap-1.5 shrink-0">
                 @if ($canUpdate && ! $editing)
@@ -739,7 +897,41 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <div class="prose prose-sm max-w-none text-gray-800">
                         {!! $task->renderedDescription() !!}
                     </div>
+                    @if ($canCreateSubtask && ! $task->isSubtask())
+                        <div class="mt-4 pt-4 border-t border-gray-100">
+                            <x-secondary-button type="button" wire:click="openSubtaskModal">{{ __('Add subtask') }}</x-secondary-button>
+                        </div>
+                    @endif
                 </x-card>
+
+                @unless ($task->isSubtask())
+                <x-card>
+                    <x-slot name="header">
+                        <h2 class="text-sm font-semibold text-gray-900">{{ __('Subtasks') }}</h2>
+                    </x-slot>
+                    @if ($subtaskProgress !== '')
+                        <x-slot name="actions">
+                            <span class="text-xs text-gray-500">{{ $subtaskProgress }}</span>
+                        </x-slot>
+                    @endif
+                    <ul class="space-y-1.5">
+                        @forelse ($task->subtasks as $subtask)
+                            <li>
+                                <a href="{{ route('tasks.show', $subtask) }}" wire:navigate
+                                   class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                                    <span class="shrink-0 text-xs text-gray-500 mt-0.5">#{{ $subtask->number }}</span>
+                                    <span class="flex-1 min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
+                                    <x-status-badge :status="$subtask->status" class="shrink-0" />
+                                    <span class="shrink-0 text-xs text-gray-500 max-w-[7rem] truncate">{{ $subtask->assignee?->name }}</span>
+                                    <span class="shrink-0 text-xs text-gray-500">{{ $subtask->deadline?->timezone(config('app.timezone'))->format('d.m.Y') ?? '—' }}</span>
+                                </a>
+                            </li>
+                        @empty
+                            <p class="text-sm text-gray-500 py-2 text-center">{{ __('No subtasks yet.') }}</p>
+                        @endforelse
+                    </ul>
+                </x-card>
+                @endunless
 
                 <x-card>
                     <x-slot name="header">
@@ -1071,6 +1263,149 @@ new #[Layout('components.tasks-layout')] class extends Component
             </ul>
         </div>
     </x-card>
+
+    @if ($creatingSubtask)
+        <div
+            class="fixed inset-0 z-50 overflow-y-auto"
+            wire:keydown.escape.window="closeSubtaskModal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-subtask-title"
+        >
+            <div class="fixed inset-0 bg-gray-500/75" wire:click="closeSubtaskModal"></div>
+            <div class="relative mx-auto my-6 w-full max-w-5xl px-4">
+                <form wire:submit="saveSubtask" class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                    <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+                        <h2 id="create-subtask-title" class="text-sm font-semibold text-gray-900">{{ __('Add subtask') }}</h2>
+                        <button type="button" wire:click="closeSubtaskModal" class="text-gray-400 hover:text-gray-700 text-lg leading-none" aria-label="{{ __('Cancel') }}">✕</button>
+                    </div>
+
+                    <div class="p-5 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start max-h-[calc(100vh-10rem)] overflow-y-auto">
+                        <div class="space-y-4 min-w-0">
+                            <div>
+                                <x-input-label :value="__('Title')" class="text-xs text-gray-500 font-medium" />
+                                <x-text-input wire:model="subtaskTitle" class="mt-1 w-full rounded-lg text-sm" maxlength="120" />
+                                <x-input-error :messages="$errors->get('subtaskTitle')" class="mt-1" />
+                            </div>
+
+                            <div>
+                                <x-input-label :value="__('Description')" class="text-xs text-gray-500 font-medium" />
+                                <x-rich-text-editor
+                                    model="subtaskDescription"
+                                    key="task-subtask-description-{{ $task->id }}-{{ $subtaskEditorKey }}"
+                                    class="mt-1"
+                                    min-height="10rem"
+                                    :placeholder="__('Description')"
+                                    :aria-label="__('Description')"
+                                    :enable-inline-attachments="true"
+                                    :inline-upload-url="$pendingInlineUploadUrl"
+                                />
+                                <x-input-error :messages="$errors->get('subtaskDescription')" class="mt-1" />
+                            </div>
+
+                            <div>
+                                <x-input-label :value="__('Checklist')" class="text-xs text-gray-500 font-medium" />
+                                <textarea wire:model="subtaskChecklistText" rows="4"
+                                          class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                          placeholder="{{ __('One item per line') }}"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <x-input-label :value="__('Department')" class="text-xs text-gray-500 font-medium" />
+                                <select wire:model.live="subtaskDepartmentId"
+                                        class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        @if(count($subtaskDepartments) === 1) disabled @endif>
+                                    @foreach ($subtaskDepartments as $dept)
+                                        <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('subtaskDepartmentId')" class="mt-1" />
+                            </div>
+
+                            <div>
+                                <x-input-label :value="__('Assignee')" class="text-xs text-gray-500 font-medium" />
+                                <select wire:model="subtaskAssigneeId" class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">{{ __('— Auto (head / queue) —') }}</option>
+                                    @foreach ($subtaskUsers as $u)
+                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-xs text-gray-500">{{ __('If not selected, task goes to department head or assign queue.') }}</p>
+                                <x-input-error :messages="$errors->get('subtaskAssigneeId')" class="mt-1" />
+                            </div>
+
+                            <div>
+                                <x-input-label :value="__('Category')" class="text-xs text-gray-500 font-medium" />
+                                <select wire:model="subtaskCategoryId" class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">{{ __('— Select —') }}</option>
+                                    @foreach ($subtaskCategories as $cat)
+                                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('subtaskCategoryId')" class="mt-1" />
+                            </div>
+
+                            <div>
+                                <x-input-label :value="__('Priority')" class="text-xs text-gray-500 font-medium" />
+                                <div class="mt-1 flex items-center gap-2">
+                                    <input type="range" wire:model.live="subtaskPriority" min="1" max="10" class="flex-1 accent-indigo-600" />
+                                    <x-priority-bar :priority="$subtaskPriority" size="sm" />
+                                    <span class="text-sm font-medium text-gray-700 w-5 text-center tabular-nums">{{ $subtaskPriority }}</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <x-input-label :value="__('Deadline')" class="text-xs text-gray-500 font-medium" />
+                                <x-text-input type="date" wire:model="subtaskDeadline" class="mt-1 w-full rounded-lg text-sm" />
+                            </div>
+
+                            <div>
+                                <x-input-label :value="__('Spec URL')" class="text-xs text-gray-500 font-medium" />
+                                <x-text-input wire:model="subtaskSpecUrl" type="url" class="mt-1 w-full rounded-lg text-sm" placeholder="https://" />
+                                <x-input-error :messages="$errors->get('subtaskSpecUrl')" class="mt-1" />
+                            </div>
+
+                            <div
+                                x-data="clipboardImagePaste($wire, 'pastedSubtaskFile')"
+                                @paste="handlePaste($event)"
+                                tabindex="0"
+                                class="outline-none focus:ring-2 focus:ring-indigo-200 rounded-lg"
+                            >
+                                <x-input-label :value="__('Attachments')" class="text-xs text-gray-500 font-medium" />
+                                <p class="mt-1 text-xs text-gray-500">{{ __('Paste image hint') }}</p>
+                                <input type="file" wire:model="subtaskUploadFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="mt-1 text-sm w-full" />
+                                @if (count($subtaskUploadFiles) > 0)
+                                    <ul class="mt-1 text-xs text-gray-600 space-y-0.5">
+                                        @foreach ($subtaskUploadFiles as $file)
+                                            <li>{{ is_object($file) && method_exists($file, 'getClientOriginalName') ? $file->getClientOriginalName() : __('Attachment') }}</li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                                <x-input-error :messages="$errors->get('subtaskUploadFiles.*')" class="mt-1" />
+                            </div>
+
+                            <div>
+                                <x-input-label :value="__('Watchers')" class="text-xs text-gray-500 font-medium" />
+                                <select wire:model="subtaskWatcherIds" multiple
+                                        class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm h-28 focus:border-indigo-500 focus:ring-indigo-500">
+                                    @foreach ($allUsers as $u)
+                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50">
+                        <x-secondary-button type="button" wire:click="closeSubtaskModal">{{ __('Cancel') }}</x-secondary-button>
+                        <x-primary-button wire:loading.attr="disabled">{{ __('Save') }}</x-primary-button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 </div>
 
 @script

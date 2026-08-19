@@ -23,6 +23,7 @@ class Task extends Model
         'department_initiator_id',
         'department_id',
         'category_id',
+        'parent_id',
         'title',
         'description',
         // description_format is intentionally NOT fillable — set via attribute
@@ -131,6 +132,21 @@ class Task extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function subtasks(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id')->orderBy('number');
+    }
+
+    public function isSubtask(): bool
+    {
+        return $this->parent_id !== null;
+    }
+
     public function closedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'closed_by');
@@ -186,5 +202,30 @@ class Task extends Model
         $done = $this->checklistItems->where('is_done', true)->count();
 
         return "{$done}/{$total}";
+    }
+
+    public function subtaskProgress(): string
+    {
+        $items = $this->relationLoaded('subtasks')
+            ? $this->subtasks
+            : $this->subtasks()->get();
+
+        $total = $items->count();
+        if ($total === 0) {
+            return '';
+        }
+
+        $done = $items->filter(fn (self $task) => ! $task->status->isOpen())->count();
+
+        return "{$done}/{$total}";
+    }
+
+    public function openSubtasksCount(): int
+    {
+        $items = $this->relationLoaded('subtasks')
+            ? $this->subtasks
+            : $this->subtasks()->get();
+
+        return $items->filter(fn (self $task) => $task->status->isOpen())->count();
     }
 }

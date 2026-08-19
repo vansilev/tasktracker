@@ -149,7 +149,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $query = app(TaskVisibilityService::class)->accessibleQuery($user)
 
-            ->with(['initiator:id,name', 'assignee:id,name', 'department:id,name', 'category:id,name']);
+            ->with(['initiator:id,name', 'assignee:id,name', 'department:id,name', 'category:id,name', 'parent:id,number,title']);
 
 
 
@@ -1075,6 +1075,16 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                     </div>
 
+                                    @if ($task->parent)
+
+                                        <p class="mt-0.5 text-xs text-indigo-600 truncate">
+
+                                            {{ __('Part of #:number · :title', ['number' => $task->parent->number, 'title' => $task->parent->title]) }}
+
+                                        </p>
+
+                                    @endif
+
                                     <p class="mt-0.5 text-xs text-gray-500 truncate">
 
                                         {{ $task->initiator?->name }}
@@ -1154,6 +1164,16 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <span class="truncate text-sm font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
 
                                         </div>
+
+                                        @if ($task->parent)
+
+                                            <p class="mt-0.5 text-xs text-indigo-600 truncate">
+
+                                                {{ __('Part of #:number · :title', ['number' => $task->parent->number, 'title' => $task->parent->title]) }}
+
+                                            </p>
+
+                                        @endif
 
                                     </div>
 
