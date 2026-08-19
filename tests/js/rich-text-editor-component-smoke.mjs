@@ -128,16 +128,22 @@ async function main() {
         assert(popupBox.y >= 0 && popupBox.y < 900, `Попап уехал с экрана: top=${popupBox.y}`);
         assert(popupBox.height >= 40, `Попап слишком низкий, людей не видно: ${popupBox.height}`);
 
-        await page.locator('.mention-suggestion-item').first().click({ delay: 50 });
+        await page.locator('.mention-suggestion-item').nth(1).click({ delay: 50 });
         await page.waitForFunction(
             () => !document.querySelector('.mention-suggestion-item'),
             { timeout: 3000 },
         );
         const inserted = (await page.locator('.ProseMirror').innerText()).trim();
+        const mentionHtml = await page.locator('.ProseMirror').innerHTML();
         console.log('component mention insert:', inserted);
+        console.log('component mention html:', mentionHtml.replace(/\s+/g, ' ').slice(0, 240));
         assert(
-            inserted.includes('@Павел'),
-            `Клик по человеку должен вставить упоминание в текст, сейчас: ${inserted}`,
+            inserted.includes('@Максим Гольдт'),
+            `Клик должен вставить имя с пробелом, сейчас: ${inserted}`,
+        );
+        assert(
+            mentionHtml.includes('data-type="mention"') && mentionHtml.includes('Максим Гольдт'),
+            `В HTML должен быть mention-чип, сейчас: ${mentionHtml}`,
         );
 
         await page.click('#bold');

@@ -1,15 +1,15 @@
 /**
  * TipTap Suggestion renderer for @mentions.
  *
- * Inserts plain-text `@Token` (no span/data-* attrs) so HTMLPurifier's
- * task_content profile keeps the mention parseable after sanitize.
+ * Inserts a mention chip (`span.mention` with data-id + the person's real name,
+ * including spaces). HTMLPurifier's task_content profile allowlists that markup.
  */
 
 const DEBOUNCE_MS = 200;
 
 /**
  * @param {{
- *   search: (term: string, signal?: AbortSignal) => Promise<Array<{id:number,name:string,email:string,token:string}>>,
+ *   search: (term: string, signal?: AbortSignal) => Promise<Array<{id:number,name:string,email:string,label:string}>>,
  *   labels?: { list?: string, empty?: string },
  *   onPopupEl?: (el: HTMLElement|null) => void,
  * }} options
@@ -39,14 +39,23 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
             }
         },
         command: ({ editor, range, props }) => {
-            const token = props?.token || props?.label || props?.id;
-            if (!token || !editor || editor.isDestroyed) {
+            const id = props?.id;
+            const label = props?.label || props?.name;
+            if (!id || !label || !editor || editor.isDestroyed) {
                 return;
             }
 
-            // insertContentAt keeps the @query range even if the editor blurred
-            // while the user was clicking the popup.
-            editor.chain().focus().insertContentAt(range, `@${token} `).run();
+            editor.chain().focus().insertContentAt(range, [
+                {
+                    type: 'mention',
+                    attrs: {
+                        id: String(id),
+                        label: String(label),
+                        mentionSuggestionChar: '@',
+                    },
+                },
+                { type: 'text', text: ' ' },
+            ]).run();
         },
         render: () => {
             let popup = null;

@@ -5,6 +5,7 @@ use App\Models\Department;
 use App\Models\Task;
 use App\Models\User;
 use App\Rules\PlainTextLength;
+use App\Services\MentionService;
 use App\Services\SettingsService;
 use App\Services\TaskAttachmentService;
 use App\Services\TaskService;
@@ -66,6 +67,12 @@ new #[Layout('components.tasks-layout')] class extends Component
     public function refreshAttachments(): void
     {
         //
+    }
+
+    /** @return list<array{id: int, name: string, email: string, label: string}> */
+    public function mentionSearch(string $term): array
+    {
+        return app(MentionService::class)->searchMentionableUsers($term);
     }
 
     public function with(): array
@@ -176,6 +183,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                             min-height="10rem"
                             :placeholder="__('Description')"
                             :aria-label="__('Description')"
+                            :enable-mentions="true"
                             :enable-inline-attachments="$canCreate"
                             :inline-upload-url="$pendingInlineUploadUrl"
                         />

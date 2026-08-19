@@ -448,16 +448,17 @@ class TaskRichTextEditorTest extends TestCase
         // The textarea-driven mention dropdown is gone; nothing may still call it.
         $this->assertStringNotContainsString('mentionAutocomplete', $show->html());
 
-        // Mentions autocomplete is opt-in on comment editors only.
+        // Mentions autocomplete is on comments and description fields.
         $this->assertEditorMentionsEnabled($show->html(), 'task-new-comment', true);
         $this->assertEditorMentionsEnabled(
             $editingComment->html(),
             'task-edit-comment-'.$comment->id,
             true,
         );
-        $this->assertEditorMentionsEnabled($editing->html(), 'task-edit-description', false);
-        $this->assertEditorMentionsEnabled($transition->html(), 'task-transition-comment', false);
-        $this->assertEditorMentionsEnabled($reassign->html(), 'task-reassign-comment', false);
+        $this->assertEditorMentionsEnabled($create->html(), 'task-create-description', true);
+        $this->assertEditorMentionsEnabled($editing->html(), 'task-edit-description', true);
+        $this->assertEditorMentionsEnabled($transition->html(), 'task-transition-comment', true);
+        $this->assertEditorMentionsEnabled($reassign->html(), 'task-reassign-comment', true);
 
         // Inline attachments: show uses task-scoped upload; create uses pending upload.
         $this->assertEditorInlineAttachmentsEnabled($show->html(), 'task-new-comment', true);

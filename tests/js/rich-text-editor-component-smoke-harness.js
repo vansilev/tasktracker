@@ -36,8 +36,8 @@ Alpine.data('appEditor', () => {
             window.__mentionTerms = window.__mentionTerms || [];
             window.__mentionTerms.push(String(term ?? ''));
             const people = [
-                { id: 1, name: 'Павел', email: 'pavel@tcsavant.com', token: 'Павел' },
-                { id: 2, name: 'Максим Гольдт', email: 'crm.manager@tcsavant.com', token: 'МаксимГольдт' },
+                { id: 1, name: 'Павел', email: 'pavel@tcsavant.com', label: 'Павел' },
+                { id: 2, name: 'Максим Гольдт', email: 'crm.manager@tcsavant.com', label: 'Максим Гольдт' },
             ];
             const q = String(term ?? '').trim().toLowerCase();
             if (q === '') {

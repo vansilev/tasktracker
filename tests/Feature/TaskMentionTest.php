@@ -147,9 +147,9 @@ class TaskMentionTest extends TestCase
         $this->assertSame($tatiana->id, $results[0]['id']);
         $this->assertSame('Татьяна', $results[0]['name']);
         $this->assertSame('tatiana.search@tcsavant.com', $results[0]['email']);
-        $this->assertSame('Татьяна', $results[0]['token']);
+        $this->assertSame('Татьяна', $results[0]['label']);
         $this->assertSame(
-            ['id', 'name', 'email', 'token'],
+            ['id', 'name', 'email', 'label'],
             array_keys($results[0]),
         );
     }
@@ -175,7 +175,7 @@ class TaskMentionTest extends TestCase
         $this->assertContains($assignee->id, $ids);
         $this->assertContains($initiator->id, $ids);
         $this->assertNotContains($inactive->id, $ids);
-        $this->assertSame(['id', 'name', 'email', 'token'], array_keys($results[0]));
+        $this->assertSame(['id', 'name', 'email', 'label'], array_keys($results[0]));
     }
 
     public function test_plain_email_text_does_not_create_phantom_mentions(): void
@@ -306,6 +306,81 @@ class TaskMentionTest extends TestCase
 
         $task->refresh();
         $this->assertTrue($task->watchers->contains('id', $mentioned->id));
+    }
+
+    public function test_mention_chip_with_spaces_in_label_resolves_by_data_id(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $mentioned = $this->createNamedUser($dept, $role, 'Максим Гольдт', 'maxim.chip@tcsavant.com');
+        $sameFirstName = $this->createNamedUser($dept, $role, 'Максим', 'maxim.only@tcsavant.com');
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        $html = '<p>CC <span class="mention" data-type="mention" data-id="'.$mentioned->id.'" data-label="Максим Гольдт">@Максим Гольдт</span> please</p>';
+
+        $resolved = app(MentionService::class)->parseMentionedUsers($html);
+        $this->assertTrue($resolved->contains('id', $mentioned->id));
+        $this->assertFalse($resolved->contains('id', $sameFirstName->id));
+
+        app(TaskService::class)->addComment($task, $initiator, $html);
+
+        $task->refresh();
+        $this->assertTrue($task->watchers->contains('id', $mentioned->id));
+        $this->assertFalse($task->watchers->contains('id', $sameFirstName->id));
+        $this->assertTrue(
+            $mentioned->fresh()->notifications->contains(fn ($n) => ($n->data['event'] ?? '') === 'task.mentioned'),
+        );
+        $this->assertFalse(
+            $sameFirstName->fresh()->notifications->contains(fn ($n) => ($n->data['event'] ?? '') === 'task.mentioned'),
+        );
+        $this->assertStringContainsString('@Максим Гольдт', $task->comments()->first()->body);
+        $this->assertStringContainsString('data-id="'.$mentioned->id.'"', $task->comments()->first()->body);
+    }
+
+    public function test_description_mention_adds_watcher_and_notifies(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $mentioned = $this->createNamedUser($dept, $role, 'Орешкова Валерія', 'valeria.desc@tcsavant.com');
+        $category = $this->createCategory();
+
+        $html = '<p>Нужен <span class="mention" data-type="mention" data-id="'.$mentioned->id.'" data-label="Орешкова Валерія">@Орешкова Валерія</span></p>';
+
+        $task = app(TaskService::class)->create($initiator, [
+            'department_id' => $dept->id,
+            'assignee_id' => $assignee->id,
+            'category_id' => $category->id,
+            'title' => 'Description mention',
+            'description' => $html,
+            'priority' => 5,
+        ]);
+
+        $task->refresh();
+        $this->assertTrue($task->watchers->contains('id', $mentioned->id));
+        $this->assertTrue(
+            $mentioned->fresh()->notifications->contains(fn ($n) => ($n->data['event'] ?? '') === 'task.mentioned'),
+        );
+        $this->assertStringContainsString('@Орешкова Валерія', $task->description);
+    }
+
+    public function test_create_page_mention_search_works(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+
+        $this->actingAs($initiator);
+
+        $results = Volt::test('pages.tasks.create')
+            ->instance()
+            ->mentionSearch('');
+
+        $this->assertNotEmpty($results);
+        $this->assertContains($initiator->id, array_column($results, 'id'));
     }
 
     private function createNamedUser(Department $department, Role $role, string $name, string $email): User

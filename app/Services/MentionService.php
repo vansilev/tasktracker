@@ -28,24 +28,53 @@ class MentionService
         return $mentioned;
     }
 
+    /**
+     * Mentions inside task description: add as watchers. No comment pivot.
+     *
+     * @return Collection<int, User>
+     */
+    public function processDescriptionMentions(Task $task, string $html): Collection
+    {
+        $mentioned = $this->parseMentionedUsers($html);
+
+        if ($mentioned->isEmpty()) {
+            return $mentioned;
+        }
+
+        $task->watchers()->syncWithoutDetaching($mentioned->pluck('id')->all());
+
+        return $mentioned;
+    }
+
     /** @return Collection<int, User> */
     public function parseMentionedUsers(string $body): Collection
     {
-        $tokens = $this->extractMentionTokens($body);
+        $ids = $this->extractMentionIds($body);
+        $tokens = $this->extractMentionTokens($this->stripMentionSpans($body));
+
+        $byId = collect();
+        if ($ids !== []) {
+            $byId = User::query()
+                ->where('is_active', true)
+                ->whereIn('id', $ids)
+                ->get();
+        }
 
         if ($tokens === []) {
-            return collect();
+            return $byId->unique('id')->values();
         }
 
         if ($this->usesSqlite()) {
-            return User::query()
+            $byToken = User::query()
                 ->where('is_active', true)
                 ->get()
                 ->filter(fn (User $user) => $this->userMatchesAnyToken($user, $tokens))
                 ->values();
+
+            return $byId->concat($byToken)->unique('id')->values();
         }
 
-        return User::query()
+        $byToken = User::query()
             ->where('is_active', true)
             ->where(function ($q) use ($tokens) {
                 foreach ($tokens as $token) {
@@ -57,10 +86,50 @@ class MentionService
                 }
             })
             ->get();
+
+        return $byId->concat($byToken)->unique('id')->values();
     }
 
     /**
-     * Pull mention tokens from visible text only.
+     * TipTap mention chips: <span data-type="mention" data-id="12" data-label="Максим Гольдт">
+     *
+     * @return list<int>
+     */
+    private function extractMentionIds(string $body): array
+    {
+        if ($body === '' || ! str_contains($body, 'data-type')) {
+            return [];
+        }
+
+        if (! preg_match_all('/<span\b[^>]*>/iu', $body, $tagMatches)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($tagMatches[0] as $tag) {
+            if (! preg_match('/\bdata-type\s*=\s*(["\'])mention\1/i', $tag)) {
+                continue;
+            }
+            if (preg_match('/\bdata-id\s*=\s*(["\'])(\d+)\1/i', $tag, $idMatch) !== 1) {
+                continue;
+            }
+            $ids[] = (int) $idMatch[2];
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    private function stripMentionSpans(string $body): string
+    {
+        return preg_replace(
+            '/<span\b[^>]*\bdata-type\s*=\s*(["\'])mention\1[^>]*>.*?<\/span>/isu',
+            ' ',
+            $body,
+        ) ?? $body;
+    }
+
+    /**
+     * Pull mention tokens from visible text only (legacy plain-text @Token).
      *
      * Tags (and their attributes, including mailto: hrefs) are stripped first so
      * autolinked emails cannot yield phantom tokens. A lookbehind then ignores
@@ -100,7 +169,7 @@ class MentionService
         return trim($text);
     }
 
-    /** @return list<array{id: int, name: string, email: string, token: string}> */
+    /** @return list<array{id: int, name: string, email: string, label: string}> */
     public function searchMentionableUsers(string $term): array
     {
         $term = trim($term);
@@ -167,14 +236,14 @@ class MentionService
         return $collapsed === $lowerToken || $collapsed === mb_strtolower('@'.$token);
     }
 
-    /** @return array{id: int, name: string, email: string, token: string} */
+    /** @return array{id: int, name: string, email: string, label: string} */
     private function mentionSuggestionFromUser(User $user): array
     {
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'token' => str_replace(' ', '', $user->name),
+            'label' => $user->name,
         ];
     }
 

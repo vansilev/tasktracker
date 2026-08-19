@@ -38,7 +38,9 @@ return [
             'HTML.Doctype' => 'HTML 4.01 Transitional',
             // img is allowed for inline task attachments only. HtmlContentService
             // additionally rejects any img whose src is not an attachment view URL.
-            'HTML.Allowed' => 'p,br,strong,em,u,s,h1,h2,h3,h4,h5,h6,ul,ol,li,a[href|title],blockquote,code,pre,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col[span],colgroup[span],img[src|alt|title]',
+            // span is the TipTap mention chip: class + data-id/label/type survive
+            // sanitize so display keeps spaces and the parser still knows who it is.
+            'HTML.Allowed' => 'p,br,strong,em,u,s,h1,h2,h3,h4,h5,h6,ul,ol,li,a[href|title],blockquote,code,pre,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col[span],colgroup[span],img[src|alt|title],span[class|data-id|data-label|data-type]',
             'CSS.AllowedProperties' => [],
             'AutoFormat.AutoParagraph' => false,
             'AutoFormat.RemoveEmpty' => false,
@@ -64,7 +66,7 @@ return [
         ],
         'custom_definition' => [
             'id' => 'html5-definitions',
-            'rev' => 1,
+            'rev' => 3,
             'debug' => false,
             'elements' => [
                 // http://developers.whatwg.org/sections.html
@@ -122,6 +124,10 @@ return [
         ],
         'custom_attributes' => [
             ['a', 'target', 'Enum#_blank,_self,_target,_top'],
+            ['span', 'class', 'Text'],
+            ['span', 'data-id', 'Text'],
+            ['span', 'data-label', 'Text'],
+            ['span', 'data-type', 'Enum#mention'],
         ],
         'custom_elements' => [
             ['u', 'Inline', 'Inline', 'Common'],

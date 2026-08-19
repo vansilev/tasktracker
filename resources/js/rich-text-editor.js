@@ -18,7 +18,8 @@ import { createMentionSuggestion } from './mention-suggestion';
  *  - Image extension inserts <img src="/tasks/attachments/{id}/view"> only;
  *    HtmlContentService rejects any other img src after purify.
  *  - link schemes are limited to the same four the profile accepts.
- *  - mentions (when enabled) insert plain-text `@Token`, never span/data-* attrs.
+ *  - mentions (when enabled) insert a span.mention chip; task_content allows
+ *    class, data-id, data-label, data-type so the name keeps its spaces.
  */
 const LINK_PROTOCOLS = ['http', 'https', 'mailto', 'tel'];
 
@@ -64,8 +65,7 @@ function buildExtensions({ enableMentions = false, mentionSearch = null, mention
     if (enableMentions && typeof mentionSearch === 'function') {
         extensions.push(
             Mention.configure({
-                // Mentions are stored as plain text via the custom suggestion
-                // command; the node type only hosts the @ trigger plugin.
+                HTMLAttributes: { class: 'mention' },
                 suggestion: createMentionSuggestion({
                     search: mentionSearch,
                     labels: mentionLabels,

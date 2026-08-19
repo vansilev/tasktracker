@@ -228,6 +228,38 @@ HTML;
         $this->assertStringContainsString('<td>B</td>', $result);
     }
 
+    public function test_sanitize_keeps_mention_chip_with_spaces(): void
+    {
+        $html = '<p>CC <span class="mention" data-type="mention" data-id="12" data-label="Максим Гольдт">@Максим Гольдт</span></p>';
+        $result = $this->service->sanitize($html);
+
+        $this->assertStringContainsString('data-type="mention"', $result);
+        $this->assertStringContainsString('data-id="12"', $result);
+        $this->assertStringContainsString('Максим Гольдт', $result);
+        $this->assertStringContainsString('class="mention"', $result);
+        $this->assertStringNotContainsString('<script', $result);
+    }
+
+    public function test_sanitize_keeps_chip_after_stripping_tiptap_extra_attrs(): void
+    {
+        $html = '<p>hello <span class="mention" data-type="mention" data-id="2" data-label="Максим Гольдт" data-mention-suggestion-char="@" contenteditable="false">@Максим Гольдт</span></p>';
+        $result = $this->service->sanitize($html);
+
+        $this->assertStringContainsString('data-type="mention"', $result);
+        $this->assertStringContainsString('data-id="2"', $result);
+        $this->assertStringContainsString('@Максим Гольдт', $result);
+        $this->assertStringNotContainsString('contenteditable', $result);
+        $this->assertStringNotContainsString('data-mention-suggestion-char', $result);
+    }
+
+    public function test_sanitize_strips_non_mention_data_type_on_span(): void
+    {
+        $result = $this->service->sanitize('<p><span data-type="evil" data-id="1">x</span></p>');
+
+        $this->assertStringNotContainsString('data-type="evil"', $result);
+        $this->assertStringContainsString('x', $result);
+    }
+
     public function test_sanitize_strips_style_attributes(): void
     {
         $result = $this->service->sanitize('<p style="color:red">styled</p>');

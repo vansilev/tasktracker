@@ -93,6 +93,14 @@ class TaskNotificationService
         }
     }
 
+    /**
+     * @param  Collection<int, User>  $mentioned
+     */
+    public function notifyMentioned(Task $task, User $actor, string $html, Collection $mentioned): void
+    {
+        $this->sendTaskMentioned($task, $actor, $this->htmlExcerpt($html), $mentioned);
+    }
+
     public function notifyDeadlineApproaching(Task $task): void
     {
         $task->loadMissing(['initiator', 'assignee']);
@@ -288,6 +296,12 @@ class TaskNotificationService
             $comment->body,
             $comment->body_format,
         );
+
+        return $this->htmlExcerpt($html);
+    }
+
+    public function htmlExcerpt(string $html): string
+    {
         $plain = app(HtmlContentService::class)->toPlainText($html);
 
         if (mb_strlen($plain) <= 120) {

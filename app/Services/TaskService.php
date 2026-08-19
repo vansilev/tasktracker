@@ -135,7 +135,12 @@ class TaskService
             return $task;
         });
 
-        $this->notifications->notifyTaskCreated($task, $initiator);
+        $mentioned = $this->mentions->processDescriptionMentions($task->fresh(), (string) $task->description);
+
+        $this->notifications->notifyTaskCreated($task->fresh(), $initiator);
+        if ($mentioned->isNotEmpty()) {
+            $this->notifications->notifyMentioned($task->fresh(), $initiator, (string) $task->description, $mentioned);
+        }
 
         $this->audit->log('task.created', $initiator, $task, null, [
             'number' => $task->number,
@@ -341,6 +346,8 @@ class TaskService
         $assigneeChanged = false;
         $auditOld = [];
         $auditNew = [];
+        $oldDescription = (string) ($task->description ?? '');
+        $descriptionTouched = array_key_exists('description', $data) && $data['description'] !== null;
 
         DB::transaction(function () use ($task, $user, $data, $descriptionSource, &$assigneeChanged, &$auditOld, &$auditNew) {
             $updates = [];
@@ -484,6 +491,16 @@ class TaskService
 
         if ($assigneeChanged) {
             $this->notifications->notifyTaskReassigned($task->fresh(), $user);
+        }
+
+        if ($descriptionTouched) {
+            $fresh = $task->fresh();
+            $previous = $this->mentions->parseMentionedUsers($oldDescription);
+            $current = $this->mentions->processDescriptionMentions($fresh, (string) $fresh->description);
+            $newly = $current->reject(fn (User $mentioned) => $previous->contains('id', $mentioned->id));
+            if ($newly->isNotEmpty()) {
+                $this->notifications->notifyMentioned($fresh, $user, (string) $fresh->description, $newly);
+            }
         }
     }
 

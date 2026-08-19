@@ -761,7 +761,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->task->load(['attachments.uploader', 'comments.attachments', 'histories.changedBy']);
     }
 
-    /** @return list<array{id: int, name: string, email: string, token: string}> */
+    /** @return list<array{id: int, name: string, email: string, label: string}> */
     public function mentionSearch(string $term): array
     {
         return app(MentionService::class)->searchMentionableUsers($term);
@@ -921,6 +921,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     model="transitionComment"
                     key="task-transition-comment"
                     min-height="5rem"
+                    :enable-mentions="true"
                     :enable-inline-attachments="$canUploadAttachment"
                     :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                     :placeholder="__('task.transition_comment_placeholder')"
@@ -956,6 +957,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         key="task-edit-description"
                         class="mt-1"
                         min-height="10rem"
+                        :enable-mentions="true"
                         :enable-inline-attachments="$canUploadAttachment"
                         :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                         :aria-label="__('Description')"
@@ -1008,6 +1010,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 key="task-reassign-comment"
                                 class="mt-1"
                                 min-height="4rem"
+                                :enable-mentions="true"
                                 :enable-inline-attachments="$canUploadAttachment"
                                 :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                                 :placeholder="__('Explain why the task is reassigned')"
@@ -1446,6 +1449,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     min-height="10rem"
                                     :placeholder="__('Description')"
                                     :aria-label="__('Description')"
+                                    :enable-mentions="true"
                                     :enable-inline-attachments="true"
                                     :inline-upload-url="$pendingInlineUploadUrl"
                                 />
