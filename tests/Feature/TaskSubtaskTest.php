@@ -46,10 +46,13 @@ class TaskSubtaskTest extends TestCase
         Volt::test('pages.tasks.index')
             ->set('tab', 'assigned')
             ->assertSee('Visible child')
-            ->assertSee(__('Part of #:number · :title', [
-                'number' => $parent->number,
-                'title' => $parent->title,
-            ]));
+            ->assertSee($parent->title)
+            ->assertViewHas('tasks', function ($paginator) use ($parent) {
+                $ids = $paginator->getCollection()->pluck('id');
+
+                return $ids->contains($parent->id)
+                    && $ids->count() === 1;
+            });
     }
 
     public function test_parent_initiator_can_view_child_in_another_department(): void
@@ -237,6 +240,51 @@ class TaskSubtaskTest extends TestCase
             ->set('tab', 'assigned')
             ->assertSee('Big parent')
             ->assertSee('1/2');
+    }
+
+    public function test_list_nests_child_under_parent_when_both_on_page(): void
+    {
+        [$parent, , $assignee] = $this->makeParent(['title' => 'Grouped parent']);
+        $child = app(TaskService::class)->createSubtask($assignee, $parent, ['title' => 'Nested child']);
+
+        $this->actingAs($assignee);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'assigned')
+            ->assertViewHas('tasks', function ($paginator) use ($parent, $child) {
+                $ids = $paginator->getCollection()->pluck('id');
+
+                return $ids->contains($parent->id)
+                    && ! $ids->contains($child->id)
+                    && $paginator->getCollection()->firstWhere('id', $parent->id)?->subtasks->contains('id', $child->id);
+            })
+            ->assertSee('Grouped parent')
+            ->assertSee('Nested child');
+    }
+
+    public function test_list_keeps_child_flat_when_parent_is_not_in_tab(): void
+    {
+        [$parent, $initiator, $assignee] = $this->makeParent(['title' => 'Hidden parent']);
+        app(TaskService::class)->createSubtask($assignee, $parent, ['title' => 'Standalone child']);
+        $parent->update([
+            'assignee_id' => $initiator->id,
+            'department_id' => $initiator->department_id,
+        ]);
+
+        $this->actingAs($assignee);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'assigned')
+            ->assertSee('Standalone child')
+            ->assertSee(__('Part of #:number · :title', [
+                'number' => $parent->number,
+                'title' => 'Hidden parent',
+            ]))
+            ->assertViewHas('tasks', function ($paginator) use ($parent) {
+                $ids = $paginator->getCollection()->pluck('id');
+
+                return ! $ids->contains($parent->id) && $ids->count() === 1;
+            });
     }
 
     public function test_child_page_shows_parent_link(): void

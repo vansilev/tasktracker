@@ -149,7 +149,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $query = app(TaskVisibilityService::class)->accessibleQuery($user)
 
-            ->with(['initiator:id,name', 'assignee:id,name', 'department:id,name', 'category:id,name', 'parent:id,number,title', 'subtasks:id,parent_id,status']);
+            ->with(['initiator:id,name', 'assignee:id,name', 'department:id,name', 'category:id,name', 'parent:id,number,title']);
 
 
 
@@ -286,11 +286,12 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $this->applySorting($query);
 
-
+        $tasks = $query->paginate(25);
+        $this->nestSubtasksOnPage($tasks);
 
         return [
 
-            'tasks' => $query->paginate(25),
+            'tasks' => $tasks,
 
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
 
@@ -417,7 +418,22 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
         return $count;
+    }
 
+    private function nestSubtasksOnPage($paginator): void
+    {
+        $onPage = $paginator->getCollection();
+        $idsOnPage = $onPage->pluck('id');
+
+        $onPage->load([
+            'subtasks' => fn ($q) => $q->orderBy('number')->with(['assignee:id,name']),
+        ]);
+
+        $roots = $onPage->reject(
+            fn (Task $task) => $task->parent_id && $idsOnPage->contains($task->parent_id)
+        )->values();
+
+        $paginator->setCollection($roots);
     }
 
 
@@ -1053,89 +1069,90 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     </thead>
 
-                    <tbody class="divide-y divide-gray-50">
-
-                        @foreach ($tasks as $task)
-
-                            @php $deadline = $this->deadlineMeta($task); @endphp
-
+                    @foreach ($tasks as $task)
+                        @php $deadline = $this->deadlineMeta($task); @endphp
+                        <tbody class="divide-y divide-gray-50" x-data="{ open: false }">
                             <tr class="odd:bg-white even:bg-gray-50/50 hover:bg-gray-50 cursor-pointer transition-colors group"
-
                                 onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')">
-
                                 <td class="px-4 py-2.5 max-w-md">
-
-                                    <div class="flex items-baseline gap-1.5 min-w-0">
-
-                                        <span class="shrink-0 text-xs text-gray-500">#{{ $task->number }}</span>
-
+                                    <div class="flex items-center gap-1.5 min-w-0 leading-5">
+                                        @if (! $task->isSubtask() && $task->subtasks->isNotEmpty())
+                                            <button type="button"
+                                                    class="inline-flex shrink-0 items-center justify-center rounded-md shadow-sm"
+                                                    style="background:#4f46e5;color:#fff;width:22px;height:22px;"
+                                                    @click.stop="open = !open"
+                                                    :aria-expanded="open"
+                                                    aria-label="{{ __('Subtasks') }}">
+                                                <svg width="12" height="12"
+                                                     style="transition: transform 0.15s ease"
+                                                     :style="open ? 'transform: rotate(90deg)' : 'transform: none'"
+                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                                                </svg>
+                                            </button>
+                                        @else
+                                            <span class="inline-block shrink-0" style="width:22px;height:22px;" aria-hidden="true"></span>
+                                        @endif
+                                        <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $task->number }}</span>
                                         <span class="text-gray-400" aria-hidden="true">&middot;</span>
-
                                         <span class="truncate font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
-
                                         @if (! $task->parent_id && ($subtaskProgress = $task->subtaskProgress()) !== '')
-
-                                            <span class="shrink-0 text-xs text-gray-500 tabular-nums">{{ $subtaskProgress }}</span>
-
+                                            <span class="shrink-0 text-sm tabular-nums text-indigo-600">{{ $subtaskProgress }}</span>
                                         @endif
-
                                     </div>
-
                                     @if ($task->parent)
-
-                                        <p class="mt-0.5 text-xs text-indigo-600 truncate">
-
+                                        <p class="mt-0.5 pl-5 text-xs text-indigo-600 truncate">
                                             {{ __('Part of #:number · :title', ['number' => $task->parent->number, 'title' => $task->parent->title]) }}
-
                                         </p>
-
                                     @endif
-
-                                    <p class="mt-0.5 text-xs text-gray-500 truncate">
-
+                                    <p class="mt-0.5 text-xs text-gray-500 truncate" style="padding-left: 1.75rem;">
                                         {{ $task->initiator?->name }}
-
                                         <span aria-hidden="true">&rarr;</span>
-
                                         {{ $task->assignee?->name }}
-
                                         @if ($task->category?->name)
-
                                             <span aria-hidden="true">&middot;</span>
-
                                             {{ $task->category->name }}
-
                                         @endif
-
                                     </p>
-
                                 </td>
-
                                 <td class="px-4 py-2.5 whitespace-nowrap">
-
                                     <x-status-badge :status="$task->status" />
-
                                 </td>
-
                                 <td class="px-4 py-2.5 whitespace-nowrap w-28">
-
                                     <x-priority-bar :priority="$task->priority" />
-
                                 </td>
-
                                 <td class="px-4 py-2.5 text-gray-600">{{ $task->department?->name }}</td>
-
                                 <td class="px-4 py-2.5 whitespace-nowrap {{ $deadline['class'] }}">
-
                                     {{ $deadline['text'] }}
-
                                 </td>
-
                             </tr>
-
-                        @endforeach
-
-                    </tbody>
+                            @foreach ($task->subtasks as $subtask)
+                                @php $childDeadline = $this->deadlineMeta($subtask); @endphp
+                                <tr class="cursor-pointer"
+                                    style="display: none; background:#eef2ff;"
+                                    :style="open ? 'display: table-row; background:#eef2ff;' : 'display: none;'"
+                                    onclick="Livewire.navigate('{{ route('tasks.show', $subtask) }}')">
+                                    <td class="px-4 py-2 max-w-md">
+                                        <div class="relative flex items-center gap-1.5 min-w-0 leading-5" style="padding-left: 6rem;">
+                                            <span aria-hidden="true" style="position:absolute;left:0.7rem;top:-10px;width:1.5px;background:#818cf8;{{ $loop->last ? 'height:calc(50% + 10px);' : 'bottom:-10px;' }}"></span>
+                                            <span aria-hidden="true" style="position:absolute;left:0.7rem;top:50%;width:5.1rem;height:1.5px;background:#818cf8;margin-top:-0.75px;"></span>
+                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
+                                            <span class="text-gray-400" aria-hidden="true">&middot;</span>
+                                            <span class="truncate text-gray-700">{{ $subtask->title }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-2 whitespace-nowrap">
+                                        <x-status-badge :status="$subtask->status" />
+                                    </td>
+                                    <td class="px-4 py-2 whitespace-nowrap w-28"></td>
+                                    <td class="px-4 py-2 text-gray-600 truncate">{{ $subtask->assignee?->name }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap {{ $childDeadline['class'] }}">
+                                        {{ $childDeadline['text'] }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    @endforeach
 
                 </table>
 
@@ -1149,9 +1166,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     @php $deadline = $this->deadlineMeta($task); @endphp
 
-                    <div class="cursor-pointer hover:bg-gray-50 transition-colors"
+                    <div class="hover:bg-gray-50 transition-colors" x-data="{ open: false }">
 
-                         onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')">
+                        <div class="cursor-pointer"
+
+                             onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')">
 
                         <x-card padding="p-4" class="border-0 shadow-none rounded-none">
 
@@ -1161,9 +1180,27 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                     <div class="min-w-0 flex-1">
 
-                                        <div class="flex items-baseline gap-1.5 min-w-0">
+                                        <div class="flex items-center gap-1.5 min-w-0 leading-5">
 
-                                            <span class="shrink-0 text-xs text-gray-500">#{{ $task->number }}</span>
+                                            @if (! $task->isSubtask() && $task->subtasks->isNotEmpty())
+
+                                                <button type="button"
+                                                        class="inline-flex shrink-0 items-center justify-center rounded-md shadow-sm"
+                                                        style="background:#4f46e5;color:#fff;width:22px;height:22px;"
+                                                        @click.stop="open = !open"
+                                                        :aria-expanded="open"
+                                                        aria-label="{{ __('Subtasks') }}">
+                                                    <svg width="12" height="12"
+                                                         style="transition: transform 0.15s ease"
+                                                         :style="open ? 'transform: rotate(90deg)' : 'transform: none'"
+                                                         fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                                                    </svg>
+                                                </button>
+
+                                            @endif
+
+                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $task->number }}</span>
 
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
@@ -1171,7 +1208,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                             @if (! $task->parent_id && ($subtaskProgress = $task->subtaskProgress()) !== '')
 
-                                                <span class="shrink-0 text-xs text-gray-500 tabular-nums">{{ $subtaskProgress }}</span>
+                                                <span class="shrink-0 text-sm tabular-nums text-indigo-600">{{ $subtaskProgress }}</span>
 
                                             @endif
 
@@ -1218,6 +1255,44 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </div>
 
                         </x-card>
+
+                        </div>
+
+                        @foreach ($task->subtasks as $subtask)
+
+                            <div class="relative cursor-pointer px-4 py-3"
+                                 style="display: none; padding-left: 5rem; background:#eef2ff;"
+                                 :style="open ? 'display: block; padding-left: 5rem; background:#eef2ff;' : 'display: none;'"
+                                 onclick="Livewire.navigate('{{ route('tasks.show', $subtask) }}')">
+
+                                <span aria-hidden="true" style="position:absolute;left:1.75rem;top:-8px;width:1.5px;background:#818cf8;{{ $loop->last ? 'height:calc(50% + 8px);' : 'bottom:-8px;' }}"></span>
+                                <span aria-hidden="true" style="position:absolute;left:1.75rem;top:1.25rem;width:2.75rem;height:1.5px;background:#818cf8;"></span>
+
+                                <div class="flex items-start justify-between gap-2">
+
+                                    <div class="min-w-0">
+
+                                        <div class="flex items-center gap-1.5 min-w-0 leading-5">
+
+                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
+
+                                            <span class="text-gray-400" aria-hidden="true">&middot;</span>
+
+                                            <span class="truncate text-sm text-gray-700">{{ $subtask->title }}</span>
+
+                                        </div>
+
+                                        <p class="mt-0.5 text-xs text-gray-500">{{ $subtask->assignee?->name }}</p>
+
+                                    </div>
+
+                                    <x-status-badge :status="$subtask->status" class="shrink-0" />
+
+                                </div>
+
+                            </div>
+
+                        @endforeach
 
                     </div>
 
