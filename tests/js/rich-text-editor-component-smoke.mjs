@@ -99,6 +99,47 @@ async function main() {
         await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle' });
         await page.waitForFunction(() => window.__componentSmokeReady === true, { timeout: 15000 });
 
+        const editor = page.locator('.ProseMirror');
+        await editor.click();
+        await page.keyboard.press('End');
+        await page.keyboard.type(' @');
+        await page.waitForSelector('.mention-suggestion-item', { timeout: 5000 });
+        const popup = page.locator('.mention-suggestion-popup');
+        const popupText = (await popup.innerText()).trim();
+        const mentionTerms = await page.evaluate(() => window.__mentionTerms || []);
+        const popupBox = await popup.boundingBox();
+        const popupCss = await popup.evaluate((el) => {
+            const cs = getComputedStyle(el);
+
+            return {
+                position: cs.position,
+                zIndex: cs.zIndex,
+                top: cs.top,
+                left: cs.left,
+            };
+        });
+        console.log('component mention terms:', JSON.stringify(mentionTerms));
+        console.log('component mention:', popupText.replace(/\s+/g, ' '));
+        console.log('component mention box:', JSON.stringify(popupBox), JSON.stringify(popupCss));
+        assert(popupText.includes('Павел'), `После @ список людей пустой: ${popupText}`);
+        assert(popupText.includes('Максим Гольдт'), `В списке после @ нет второго человека: ${popupText}`);
+        assert(popupCss.position === 'fixed', `Попап должен висеть над полем, а не внизу страницы: ${popupCss.position}`);
+        assert(popupBox !== null, 'Попап должен иметь размер на экране');
+        assert(popupBox.y >= 0 && popupBox.y < 900, `Попап уехал с экрана: top=${popupBox.y}`);
+        assert(popupBox.height >= 40, `Попап слишком низкий, людей не видно: ${popupBox.height}`);
+
+        await page.locator('.mention-suggestion-item').first().click({ delay: 50 });
+        await page.waitForFunction(
+            () => !document.querySelector('.mention-suggestion-item'),
+            { timeout: 3000 },
+        );
+        const inserted = (await page.locator('.ProseMirror').innerText()).trim();
+        console.log('component mention insert:', inserted);
+        assert(
+            inserted.includes('@Павел'),
+            `Клик по человеку должен вставить упоминание в текст, сейчас: ${inserted}`,
+        );
+
         await page.click('#bold');
         let result = (await page.locator('#result').innerText()).trim();
         let html = (await page.locator('#html').innerText()).trim();

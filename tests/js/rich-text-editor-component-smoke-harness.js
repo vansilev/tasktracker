@@ -13,7 +13,7 @@ Alpine.data('appEditor', () => {
         property: 'description',
         placeholder: 'Type…',
         ariaLabel: 'Description',
-        enableMentions: false,
+        enableMentions: true,
         enableInlineAttachments: false,
         labels: {
             linkPrompt: 'URL',
@@ -31,6 +31,20 @@ Alpine.data('appEditor', () => {
         set: (key, value) => {
             state[key] = value;
             watchers.forEach((fn) => fn(value));
+        },
+        mentionSearch: async (term) => {
+            window.__mentionTerms = window.__mentionTerms || [];
+            window.__mentionTerms.push(String(term ?? ''));
+            const people = [
+                { id: 1, name: 'Павел', email: 'pavel@tcsavant.com', token: 'Павел' },
+                { id: 2, name: 'Максим Гольдт', email: 'crm.manager@tcsavant.com', token: 'МаксимГольдт' },
+            ];
+            const q = String(term ?? '').trim().toLowerCase();
+            if (q === '') {
+                return people;
+            }
+
+            return people.filter((person) => person.name.toLowerCase().includes(q) || person.email.toLowerCase().startsWith(q));
         },
     };
     data.$watch = () => {

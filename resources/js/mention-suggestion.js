@@ -22,12 +22,10 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
         // Default TipTap [' '] would hide the dropdown after ">" "(" "!" etc.
         allowedPrefixes: null,
         debounce: DEBOUNCE_MS,
-        minQueryLength: 1,
+        minQueryLength: 0,
+        dismissOnOutsideClick: false,
         items: async ({ query, signal }) => {
             const term = (query ?? '').trim();
-            if (term === '') {
-                return [];
-            }
 
             try {
                 const results = await search(term, signal);
@@ -42,28 +40,21 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
         },
         command: ({ editor, range, props }) => {
             const token = props?.token || props?.label || props?.id;
-            if (!token) {
+            if (!token || !editor || editor.isDestroyed) {
                 return;
             }
 
-            const nodeAfter = editor.view.state.selection.$to.nodeAfter;
-            if (nodeAfter?.text?.startsWith(' ')) {
-                range.to += 1;
-            }
-
-            editor
-                .chain()
-                .focus()
-                .insertContentAt(range, `@${token} `)
-                .run();
-
-            editor.view.dom.ownerDocument.defaultView?.getSelection()?.collapseToEnd();
+            // insertContentAt keeps the @query range even if the editor blurred
+            // while the user was clicking the popup.
+            editor.chain().focus().insertContentAt(range, `@${token} `).run();
         },
         render: () => {
             let popup = null;
             let list = null;
             let selectedIndex = 0;
             let latestProps = null;
+            let applyItem = null;
+            let lastItemsKey = '';
 
             const destroyPopup = () => {
                 if (popup) {
@@ -74,15 +65,37 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
                 }
             };
 
-            const selectItem = (index) => {
-                if (!latestProps?.items?.length) {
+            const highlightSelected = () => {
+                if (!list) {
                     return;
                 }
 
-                const item = latestProps.items[index];
-                if (item) {
-                    latestProps.command(item);
+                const items = latestProps?.items ?? [];
+                [...list.querySelectorAll('.mention-suggestion-item')].forEach((li) => {
+                    const index = Number(li.dataset.index);
+                    const on = index === selectedIndex;
+                    li.classList.toggle('is-selected', on);
+                    li.setAttribute('aria-selected', on ? 'true' : 'false');
+                    li.style.background = on ? '#eef2ff' : 'transparent';
+                });
+
+                const current = items[selectedIndex];
+                if (current) {
+                    list.setAttribute('aria-activedescendant', `mention-option-${current.id}`);
                 }
+            };
+
+            const itemsKey = (items) => (items ?? []).map((item) => String(item.id)).join(',');
+
+            const selectItem = (index) => {
+                const items = latestProps?.items ?? [];
+                const item = items[index];
+                const command = applyItem || latestProps?.command;
+                if (!item || typeof command !== 'function') {
+                    return;
+                }
+
+                command(item);
             };
 
             const updatePosition = () => {
@@ -113,19 +126,34 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
                 popup.style.top = `${Math.max(margin, top)}px`;
             };
 
-            const renderItems = () => {
+            const renderItems = ({ force = false } = {}) => {
                 if (!list || !latestProps) {
                     return;
                 }
 
-                list.innerHTML = '';
                 const items = latestProps.items ?? [];
+                const key = itemsKey(items);
+
+                // Rebuilding <li> under the cursor cancels the click. Skip if
+                // the people list did not change (caret move, debounce tick).
+                if (!force && key === lastItemsKey && list.childElementCount > 0) {
+                    highlightSelected();
+                    updatePosition();
+
+                    return;
+                }
+
+                lastItemsKey = key;
+                list.innerHTML = '';
 
                 if (items.length === 0) {
                     const empty = document.createElement('li');
                     empty.className = 'mention-suggestion-empty';
                     empty.setAttribute('role', 'presentation');
-                    empty.textContent = labels.empty || '—';
+                    const query = (latestProps.query ?? '').trim();
+                    empty.textContent = query === ''
+                        ? (labels.loading || '…')
+                        : (labels.empty || '—');
                     list.appendChild(empty);
                     selectedIndex = 0;
                     updatePosition();
@@ -138,57 +166,116 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
                 items.forEach((item, index) => {
                     const li = document.createElement('li');
                     li.id = `mention-option-${item.id}`;
+                    li.dataset.index = String(index);
                     li.setAttribute('role', 'option');
                     li.setAttribute('aria-selected', index === selectedIndex ? 'true' : 'false');
                     li.className = 'mention-suggestion-item'+(index === selectedIndex ? ' is-selected' : '');
+                    Object.assign(li.style, {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.125rem',
+                        borderRadius: '0.375rem',
+                        padding: '0.5rem 0.625rem',
+                        cursor: 'pointer',
+                        background: index === selectedIndex ? '#eef2ff' : 'transparent',
+                    });
 
                     const name = document.createElement('span');
                     name.className = 'mention-suggestion-name';
                     name.textContent = item.name;
+                    name.style.fontSize = '0.875rem';
+                    name.style.fontWeight = '500';
+                    name.style.color = '#111827';
 
                     const meta = document.createElement('span');
                     meta.className = 'mention-suggestion-meta';
                     meta.textContent = item.email;
+                    meta.style.fontSize = '0.75rem';
+                    meta.style.color = '#6b7280';
 
                     li.append(name, meta);
-                    li.addEventListener('mouseenter', () => {
-                        selectedIndex = index;
-                        renderItems();
-                    });
-                    li.addEventListener('mousedown', (event) => {
-                        event.preventDefault();
-                        selectItem(index);
-                    });
-
                     list.appendChild(li);
                 });
 
-                list.setAttribute('aria-activedescendant', `mention-option-${items[selectedIndex].id}`);
+                highlightSelected();
                 updatePosition();
             };
 
             return {
                 onStart: (props) => {
                     latestProps = props;
+                    applyItem = props.command;
+                    lastItemsKey = '';
                     selectedIndex = 0;
 
                     popup = document.createElement('div');
                     popup.className = 'mention-suggestion-popup';
                     popup.setAttribute('role', 'listbox');
                     popup.setAttribute('aria-label', labels.list || 'Mentions');
+                    Object.assign(popup.style, {
+                        position: 'fixed',
+                        zIndex: '80',
+                        minWidth: '16rem',
+                        maxWidth: '20rem',
+                        maxHeight: '14rem',
+                        overflowY: 'auto',
+                        background: '#fff',
+                        color: '#111827',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                    });
 
                     list = document.createElement('ul');
                     list.className = 'mention-suggestion-list';
                     list.setAttribute('role', 'presentation');
+                    Object.assign(list.style, {
+                        margin: '0',
+                        padding: '0.25rem',
+                        listStyle: 'none',
+                    });
                     popup.appendChild(list);
+
+                    // pointerdown, not mousedown: the editor blurs on pointerdown
+                    // and TipTap would destroy this popup before mousedown fires.
+                    const pickFromPointer = (event) => {
+                        const li = event.target.closest?.('.mention-suggestion-item');
+                        if (!li || !popup.contains(li)) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        event.stopPropagation();
+                        selectItem(Number(li.dataset.index));
+                    };
+
+                    popup.addEventListener('pointerdown', pickFromPointer, true);
+                    popup.addEventListener('mousedown', pickFromPointer, true);
+
+                    list.addEventListener('mouseover', (event) => {
+                        const li = event.target.closest?.('.mention-suggestion-item');
+                        if (!li || !list.contains(li)) {
+                            return;
+                        }
+
+                        const index = Number(li.dataset.index);
+                        if (Number.isNaN(index) || index === selectedIndex) {
+                            return;
+                        }
+
+                        selectedIndex = index;
+                        highlightSelected();
+                    });
+
                     document.body.appendChild(popup);
                     onPopupEl(popup);
 
-                    renderItems();
+                    renderItems({ force: true });
                 },
 
                 onUpdate: (props) => {
                     latestProps = props;
+                    applyItem = props.command;
                     if (!popup) {
                         return;
                     }
@@ -201,6 +288,8 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
                     }
 
                     if (event.key === 'Escape') {
+                        event.preventDefault();
+                        event.stopPropagation();
                         destroyPopup();
 
                         return true;
@@ -212,20 +301,24 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
                     }
 
                     if (event.key === 'ArrowUp') {
+                        event.preventDefault();
                         selectedIndex = (selectedIndex + count - 1) % count;
-                        renderItems();
+                        highlightSelected();
 
                         return true;
                     }
 
                     if (event.key === 'ArrowDown') {
+                        event.preventDefault();
                         selectedIndex = (selectedIndex + 1) % count;
-                        renderItems();
+                        highlightSelected();
 
                         return true;
                     }
 
-                    if (event.key === 'Enter') {
+                    if (event.key === 'Enter' || event.key === 'Tab') {
+                        event.preventDefault();
+                        event.stopPropagation();
                         selectItem(selectedIndex);
 
                         return true;
@@ -236,7 +329,11 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
 
                 onExit: () => {
                     destroyPopup();
-                    latestProps = null;
+                    // Keep command for one frame: pointerdown can race onExit.
+                    requestAnimationFrame(() => {
+                        latestProps = null;
+                        applyItem = null;
+                    });
                 },
             };
         },

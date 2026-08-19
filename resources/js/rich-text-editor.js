@@ -281,7 +281,14 @@ export default function richTextEditor(config = {}) {
                     this.refreshState();
                     this.schedulePush();
                 },
-                onBlur: () => this.flushPush(),
+                onBlur: () => {
+                    // Clicking a mention row blurs the editor first. Syncing
+                    // Livewire here remounts state and kills the popup.
+                    if (this.mentionPopupEl?.isConnected) {
+                        return;
+                    }
+                    this.flushPush();
+                },
             });
 
             // Not via onCreate: that can fire before `editor` is assigned,

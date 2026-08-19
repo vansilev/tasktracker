@@ -104,29 +104,36 @@ class MentionService
     public function searchMentionableUsers(string $term): array
     {
         $term = trim($term);
-        if ($term === '') {
-            return [];
-        }
 
         if ($this->usesSqlite()) {
-            return User::query()
+            $users = User::query()
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-                ->filter(fn (User $user) => mb_stripos($user->name, $term) !== false
-                    || str_starts_with(mb_strtolower($user->email), mb_strtolower($term)))
+                ->get(['id', 'name', 'email']);
+
+            if ($term !== '') {
+                $users = $users->filter(fn (User $user) => mb_stripos($user->name, $term) !== false
+                    || str_starts_with(mb_strtolower($user->email), mb_strtolower($term)));
+            }
+
+            return $users
                 ->take(8)
                 ->map(fn (User $user) => $this->mentionSuggestionFromUser($user))
                 ->values()
                 ->all();
         }
 
-        return User::query()
-            ->where('is_active', true)
-            ->where(function ($q) use ($term) {
+        $query = User::query()
+            ->where('is_active', true);
+
+        if ($term !== '') {
+            $query->where(function ($q) use ($term) {
                 $q->where('name', 'like', '%'.$term.'%')
                     ->orWhere('email', 'like', $term.'%');
-            })
+            });
+        }
+
+        return $query
             ->orderBy('name')
             ->limit(8)
             ->get(['id', 'name', 'email'])

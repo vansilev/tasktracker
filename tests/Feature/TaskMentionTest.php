@@ -154,6 +154,30 @@ class TaskMentionTest extends TestCase
         );
     }
 
+    public function test_mention_search_on_empty_query_returns_active_people(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $inactive = $this->createNamedUser($dept, $role, 'Hidden User', 'hidden.mention@tcsavant.com');
+        $inactive->update(['is_active' => false]);
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        $this->actingAs($initiator);
+
+        $results = Volt::test('pages.tasks.show', ['task' => $task])
+            ->instance()
+            ->mentionSearch('');
+
+        $this->assertNotEmpty($results, 'После @ должен сразу приходить список людей, без буквы.');
+        $ids = array_column($results, 'id');
+        $this->assertContains($assignee->id, $ids);
+        $this->assertContains($initiator->id, $ids);
+        $this->assertNotContains($inactive->id, $ids);
+        $this->assertSame(['id', 'name', 'email', 'token'], array_keys($results[0]));
+    }
+
     public function test_plain_email_text_does_not_create_phantom_mentions(): void
     {
         $dept = $this->createDepartment();
