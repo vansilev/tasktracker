@@ -225,6 +225,30 @@ class TaskPolicy
 
     }
 
+    public function manageBlockers(User $user, Task $task): bool
+    {
+        if (! $task->isSubtask()) {
+            return false;
+        }
+
+        if (! $this->visibility->canView($user, $task)) {
+            return false;
+        }
+
+        if ($user->isAdmin() || $user->hasPermission(Permission::EditAnyTask)) {
+            return true;
+        }
+
+        if ($task->assignee_id === $user->id || $task->initiator_id === $user->id) {
+            return true;
+        }
+
+        $parent = $task->relationLoaded('parent') ? $task->parent : $task->parent()->first();
+
+        return $parent !== null
+            && ($parent->initiator_id === $user->id || $parent->assignee_id === $user->id);
+    }
+
     public function updateResultUrl(User $user, Task $task): bool
     {
 

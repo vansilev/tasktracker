@@ -639,6 +639,93 @@ class TaskService
         $task->delete();
     }
 
+    public function addBlocker(User $actor, Task $task, Task $blocker): void
+    {
+        Gate::forUser($actor)->authorize('manageBlockers', $task);
+
+        $this->assertValidBlocker($task, $blocker);
+
+        if ($task->blockers()->whereKey($blocker->id)->exists()) {
+            throw ValidationException::withMessages([
+                'blocker_id' => [__('task.blocker_already_set')],
+            ]);
+        }
+
+        $task->blockers()->attach($blocker->id);
+
+        $this->workflow->logHistory($task, 'blocker', null, '#'.$blocker->number, $actor);
+    }
+
+    public function removeBlocker(User $actor, Task $task, Task $blocker): void
+    {
+        Gate::forUser($actor)->authorize('manageBlockers', $task);
+
+        $detached = $task->blockers()->detach($blocker->id);
+
+        if ($detached === 0) {
+            return;
+        }
+
+        $this->workflow->logHistory($task, 'blocker', '#'.$blocker->number, null, $actor);
+    }
+
+    private function assertValidBlocker(Task $task, Task $blocker): void
+    {
+        if (! $task->isSubtask() || ! $blocker->isSubtask()) {
+            throw ValidationException::withMessages([
+                'blocker_id' => [__('task.blocker_only_siblings')],
+            ]);
+        }
+
+        if ((int) $task->id === (int) $blocker->id) {
+            throw ValidationException::withMessages([
+                'blocker_id' => [__('task.blocker_self')],
+            ]);
+        }
+
+        if ((int) $task->parent_id !== (int) $blocker->parent_id) {
+            throw ValidationException::withMessages([
+                'blocker_id' => [__('task.blocker_only_siblings')],
+            ]);
+        }
+
+        if ($this->blockerWouldCycle($task, $blocker)) {
+            throw ValidationException::withMessages([
+                'blocker_id' => [__('task.blocker_cycle')],
+            ]);
+        }
+    }
+
+    private function blockerWouldCycle(Task $task, Task $blocker): bool
+    {
+        $seen = [];
+        $queue = [(int) $blocker->id];
+
+        while ($queue !== []) {
+            $id = array_shift($queue);
+
+            if ($id === (int) $task->id) {
+                return true;
+            }
+
+            if (isset($seen[$id])) {
+                continue;
+            }
+
+            $seen[$id] = true;
+
+            $next = DB::table('task_blockers')
+                ->where('task_id', $id)
+                ->pluck('blocker_id');
+
+            foreach ($next as $blockerId) {
+                $queue[] = (int) $blockerId;
+            }
+        }
+
+        return false;
+    }
+
     public function restore(Task $task, User $user): void
     {
         Gate::forUser($user)->authorize('restore', $task);

@@ -143,9 +143,51 @@ class Task extends Model
         return $this->hasMany(self::class, 'parent_id')->orderBy('number');
     }
 
+    /** Other subtasks this task is waiting on. */
+    public function blockers(): BelongsToMany
+    {
+        return $this->belongsToMany(self::class, 'task_blockers', 'task_id', 'blocker_id')
+            ->orderBy('number');
+    }
+
+    /** Subtasks that wait on this one. */
+    public function blocking(): BelongsToMany
+    {
+        return $this->belongsToMany(self::class, 'task_blockers', 'blocker_id', 'task_id')
+            ->orderBy('number');
+    }
+
     public function isSubtask(): bool
     {
         return $this->parent_id !== null;
+    }
+
+    /** @return Collection<int, self> */
+    public function openBlockers()
+    {
+        return $this->blockerCollection()
+            ->filter(fn (self $task) => $task->status->isOpen())
+            ->values();
+    }
+
+    public function waitingOnLabel(): string
+    {
+        $open = $this->openBlockers();
+        if ($open->isEmpty()) {
+            return '';
+        }
+
+        $numbers = $open->pluck('number')->map(fn ($n) => '#'.$n)->implode(', ');
+
+        return __('Waiting on :numbers', ['numbers' => $numbers]);
+    }
+
+    /** @return Collection<int, self> */
+    private function blockerCollection()
+    {
+        return $this->relationLoaded('blockers')
+            ? $this->blockers
+            : $this->blockers()->get();
     }
 
     public function closedBy(): BelongsTo

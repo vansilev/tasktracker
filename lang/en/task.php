@@ -29,6 +29,10 @@ return [
     'parent_must_be_root' => 'A subtask cannot have its own subtasks.',
     'subtask_title_required' => 'Enter a subtask title.',
     'checklist_item_not_on_parent' => 'That checklist item does not belong to this task.',
+    'blocker_only_siblings' => 'You can only wait on another subtask of the same parent.',
+    'blocker_self' => 'A task cannot wait on itself.',
+    'blocker_cycle' => 'That would create a wait cycle.',
+    'blocker_already_set' => 'This wait is already set.',
     'assignee_without_department' => 'Assignee must belong to a department.',
     'department_assignee_mismatch' => 'Task department must match assignee department.',
     'deactivation_requires_department_head' => 'Cannot deactivate: open tasks need an active department head to reassign.',
@@ -49,5 +53,6 @@ return [
         'spec_url' => 'Spec URL',
         'result_url' => 'Result URL',
         'attachment' => 'Attachment',
+        'blocker' => 'Waiting on',
     ],
 ];

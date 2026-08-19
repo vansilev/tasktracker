@@ -86,6 +86,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public ?int $convertingChecklistItemId = null;
 
+    public ?int $newBlockerId = null;
+
     public ?string $pendingTransition = null;
 
     public string $transitionComment = '';
@@ -117,6 +119,8 @@ new #[Layout('components.tasks-layout')] class extends Component
             'initiator', 'assignee', 'department', 'category',
             'parent:id,number,title',
             'subtasks.assignee:id,name',
+            'subtasks.blockers:id,number,status',
+            'blockers:id,number,title,status',
             'comments.author', 'comments.mentionedUsers', 'comments.attachments',
             'histories.changedBy',
             'checklistItems', 'watchers', 'attachments.uploader',
@@ -196,6 +200,8 @@ new #[Layout('components.tasks-layout')] class extends Component
             'subtaskTotal' => $this->task->subtaskTotalCount(),
             'openSubtasksCount' => $this->task->openSubtasksCount(),
             'canCreateSubtask' => auth()->user()->can('createSubtask', $this->task),
+            'canManageBlockers' => auth()->user()->can('manageBlockers', $this->task),
+            'siblingOptions' => $this->siblingBlockerOptions(),
             'subtaskDepartments' => (auth()->user()->hasPermission('create_task_any_department') || auth()->user()->isAdmin())
                 ? Department::query()->active()->orderBy('name')->get(['id', 'name'])
                 : Department::query()->where('id', auth()->user()->department_id)->get(['id', 'name']),
@@ -322,6 +328,8 @@ new #[Layout('components.tasks-layout')] class extends Component
             'initiator', 'assignee', 'department', 'category',
             'parent:id,number,title',
             'subtasks.assignee:id,name',
+            'subtasks.blockers:id,number,status',
+            'blockers:id,number,title,status',
             'comments.author', 'comments.attachments', 'histories.changedBy', 'checklistItems', 'watchers',
         ]);
     }
@@ -416,6 +424,8 @@ new #[Layout('components.tasks-layout')] class extends Component
             'initiator', 'assignee', 'department', 'category',
             'parent:id,number,title',
             'subtasks.assignee:id,name',
+            'subtasks.blockers:id,number,status',
+            'blockers:id,number,title,status',
             'comments.author', 'comments.mentionedUsers', 'comments.attachments',
         ]);
         $this->editAssigneeDepartmentId = $this->task->department_id;
@@ -513,6 +523,56 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->resetErrorBag();
     }
 
+    public function addBlocker(TaskService $tasks): void
+    {
+        abort_unless(auth()->user()->can('manageBlockers', $this->task), 403);
+
+        $this->validate([
+            'newBlockerId' => 'required|exists:tasks,id',
+        ], [], [
+            'newBlockerId' => __('Waiting on'),
+        ]);
+
+        try {
+            $tasks->addBlocker(
+                auth()->user(),
+                $this->task,
+                Task::query()->findOrFail($this->newBlockerId),
+            );
+            $this->newBlockerId = null;
+            $this->resetErrorBag('newBlockerId');
+            $this->task->load(['blockers:id,number,title,status', 'histories.changedBy']);
+        } catch (ValidationException $e) {
+            $this->addError('newBlockerId', collect($e->errors())->flatten()->first() ?? __('task.blocker_only_siblings'));
+        }
+    }
+
+    public function removeBlocker(int $blockerId, TaskService $tasks): void
+    {
+        abort_unless(auth()->user()->can('manageBlockers', $this->task), 403);
+
+        $blocker = Task::query()->findOrFail($blockerId);
+        $tasks->removeBlocker(auth()->user(), $this->task, $blocker);
+        $this->task->load(['blockers:id,number,title,status', 'histories.changedBy']);
+    }
+
+    /** @return \Illuminate\Support\Collection<int, Task> */
+    private function siblingBlockerOptions()
+    {
+        if (! $this->task->isSubtask()) {
+            return collect();
+        }
+
+        $taken = $this->task->blockers->pluck('id');
+
+        return Task::query()
+            ->where('parent_id', $this->task->parent_id)
+            ->where('id', '!=', $this->task->id)
+            ->when($taken->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $taken))
+            ->orderBy('number')
+            ->get(['id', 'number', 'title', 'status']);
+    }
+
     public function saveSubtask(TaskService $tasks, TaskAttachmentService $attachments, SettingsService $settings): void
     {
         abort_unless(auth()->user()->can('createSubtask', $this->task), 403);
@@ -578,7 +638,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             }
 
             $this->closeSubtaskModal();
-            $this->task->load(['subtasks.assignee:id,name', 'checklistItems']);
+            $this->task->load(['subtasks.assignee:id,name', 'subtasks.blockers:id,number,status', 'checklistItems']);
         } catch (QueryException $e) {
             report($e);
             $this->addError('subtaskTitle', __('task.create_failed'));
@@ -785,6 +845,38 @@ new #[Layout('components.tasks-layout')] class extends Component
                         <span title="{{ __('Urgent') }}">🔥</span>
                     @endif
                 </div>
+                @if ($task->isSubtask() && ($task->blockers->isNotEmpty() || ($canManageBlockers && $siblingOptions->isNotEmpty())))
+                    <div class="mt-2 flex flex-wrap items-center gap-2" data-testid="waiting-row">
+                        <span class="text-sm font-semibold leading-5" style="color:#B45309">{{ __('Waiting on') }}</span>
+                        @foreach ($task->blockers as $blocker)
+                            <span class="inline-flex items-center gap-1" data-testid="waiting-chip">
+                                <x-waiting-chip :open="$blocker->status->isOpen()">
+                                    <a href="{{ route('tasks.show', $blocker) }}" wire:navigate class="hover:underline">#{{ $blocker->number }} · {{ $blocker->title }}</a>
+                                </x-waiting-chip>
+                                @if ($canManageBlockers)
+                                    <button type="button"
+                                            wire:click.stop="removeBlocker({{ $blocker->id }})"
+                                            data-testid="waiting-remove"
+                                            class="text-sm font-medium text-gray-500 hover:text-red-700 px-1 py-0.5"
+                                            aria-label="{{ __('Remove wait') }}">{{ __('Remove wait') }}</button>
+                                @endif
+                            </span>
+                        @endforeach
+                        @if ($canManageBlockers && $siblingOptions->isNotEmpty())
+                            <select wire:model="newBlockerId"
+                                    data-testid="waiting-select"
+                                    class="border-gray-300 rounded-lg bg-white shadow-sm text-sm text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                                    style="min-height:2.5rem;min-width:16rem;padding:0.5rem 0.75rem;line-height:1.25">
+                                <option value="">{{ __('Select a sibling subtask') }}</option>
+                                @foreach ($siblingOptions as $option)
+                                    <option value="{{ $option->id }}">#{{ $option->number }} · {{ $option->title }}</option>
+                                @endforeach
+                            </select>
+                            <button type="button" wire:click="addBlocker" data-testid="waiting-add" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">{{ __('Add blocker') }}</button>
+                            <x-input-error :messages="$errors->get('newBlockerId')" class="w-full" />
+                        @endif
+                    </div>
+                @endif
                 @if ($openSubtasksCount > 0)
                     <p class="mt-1 text-xs text-amber-700">{{ __('This task has :count open subtasks.', ['count' => $openSubtasksCount]) }}</p>
                 @endif
@@ -971,6 +1063,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                    class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
                                     <span class="shrink-0 text-xs text-gray-500 mt-0.5">#{{ $subtask->number }}</span>
                                     <span class="flex-1 min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
+                                    @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
+                                        <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
+                                    @endif
                                     <x-status-badge :status="$subtask->status" class="shrink-0" />
                                     <span class="shrink-0 text-xs text-gray-500 max-w-[7rem] truncate">{{ $subtask->assignee?->name }}</span>
                                     <span class="shrink-0 text-xs text-gray-500">{{ $subtask->deadline?->timezone(config('app.timezone'))->format('d.m.Y') ?? '—' }}</span>

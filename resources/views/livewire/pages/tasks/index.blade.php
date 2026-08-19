@@ -149,7 +149,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $query = app(TaskVisibilityService::class)->accessibleQuery($user)
 
-            ->with(['initiator:id,name', 'assignee:id,name', 'department:id,name', 'category:id,name', 'parent:id,number,title']);
+            ->with(['initiator:id,name', 'assignee:id,name', 'department:id,name', 'category:id,name', 'parent:id,number,title', 'blockers:id,number,status']);
 
 
 
@@ -426,7 +426,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $idsOnPage = $onPage->pluck('id');
 
         $onPage->load([
-            'subtasks' => fn ($q) => $q->orderBy('number')->with(['assignee:id,name']),
+            'subtasks' => fn ($q) => $q->orderBy('number')->with(['assignee:id,name', 'blockers:id,number,status']),
         ]);
 
         $roots = $onPage->reject(
@@ -1096,6 +1096,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $task->number }}</span>
                                         <span class="text-gray-400" aria-hidden="true">&middot;</span>
                                         <span class="truncate font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
+                                        @if (($waitingOn = $task->waitingOnLabel()) !== '')
+                                            <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
+                                        @endif
                                         @if (! $task->parent_id && ($subtaskProgress = $task->subtaskProgress()) !== '')
                                             <span class="shrink-0 text-sm tabular-nums text-indigo-600">{{ $subtaskProgress }}</span>
                                         @endif
@@ -1139,6 +1142,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
                                             <span class="truncate text-gray-700">{{ $subtask->title }}</span>
+                                            @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
+                                                <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
+                                            @endif
                                         </div>
                                     </td>
                                     <td class="px-4 py-2 whitespace-nowrap">
@@ -1205,6 +1211,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
                                             <span class="truncate text-sm font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
+                                            @if (($waitingOn = $task->waitingOnLabel()) !== '')
+                                                <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
+                                            @endif
 
                                             @if (! $task->parent_id && ($subtaskProgress = $task->subtaskProgress()) !== '')
 
@@ -1279,6 +1288,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
                                             <span class="truncate text-sm text-gray-700">{{ $subtask->title }}</span>
+                                            @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
+                                                <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
+                                            @endif
 
                                         </div>
 
