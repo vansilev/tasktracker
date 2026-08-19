@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Permission;
+use App\Enums\SystemType;
+use App\Enums\TaskStatus;
 use App\Models\AuditLog;
 use App\Models\Task;
+use App\Models\User;
 use App\Services\AuditLogPresenter;
 use App\Services\TaskService;
 use App\Services\TaskWorkflowService;
-use App\Enums\TaskStatus;
 use Livewire\Volt\Volt;
 use Tests\Support\CreatesTaskTrackerFixtures;
 use Tests\TestCase;
@@ -75,7 +78,7 @@ class TaskAuditTest extends TestCase
         $dept = $this->createDepartment();
         $role = $this->createRoleWithPermissions(array_merge(
             $this->defaultPermissions(),
-            [\App\Enums\Permission::ChangeStatus->value],
+            [Permission::ChangeStatus->value],
         ));
         $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
         $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
@@ -118,16 +121,16 @@ class TaskAuditTest extends TestCase
     {
         app()->setLocale('ru');
 
-        $admin = \App\Models\User::factory()->create([
+        $admin = User::factory()->create([
             'email' => 'audit-ui-'.uniqid().'@tcsavant.com',
-            'system_type' => \App\Enums\SystemType::Admin,
+            'system_type' => SystemType::Admin,
             'email_verified_at' => now(),
         ]);
 
         AuditLog::query()->create([
             'actor_id' => $admin->id,
             'action' => 'auth.login',
-            'entity_type' => \App\Models\User::class,
+            'entity_type' => User::class,
             'entity_id' => $admin->id,
             'old_values' => null,
             'new_values' => ['email' => $admin->email, 'method' => 'password'],

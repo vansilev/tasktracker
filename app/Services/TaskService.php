@@ -27,6 +27,7 @@ class TaskService
         private TaskNotificationService $notifications,
         private AuditLogService $audit,
         private TaskContentService $content,
+        private PendingInlineAttachmentService $pendingAttachments,
     ) {}
 
     /**
@@ -79,8 +80,12 @@ class TaskService
         }
 
         $task = DB::transaction(function () use ($initiator, $data, $assignee, $checklistTexts, $watcherIds, $category, $descriptionSource) {
-            $number = (int) Task::query()->lockForUpdate()->max('number') + 1;
+            // Include soft-deleted rows: numbers stay unique and must not be reused.
+            $number = (int) Task::withTrashed()->lockForUpdate()->max('number') + 1;
 
+            // Persist the row first so pending inline files can become real
+            // TaskAttachments (task_id required) before HTML sanitize runs —
+            // otherwise /pending-attachments/{id}/view imgs are stripped.
             $task = new Task([
                 'number' => $number,
                 'initiator_id' => $initiator->id,
@@ -89,7 +94,7 @@ class TaskService
                 'department_id' => $assignee->department_id,
                 'category_id' => $category->id,
                 'title' => $data['title'],
-                'description' => $this->content->fromSource($data['description'] ?? '', $descriptionSource),
+                'description' => '',
                 'priority' => (int) $data['priority'],
                 'status' => TaskStatus::New,
                 'deadline' => $data['deadline'] ?? null,
@@ -98,6 +103,14 @@ class TaskService
             ]);
             // description_format is not mass-assignable.
             $task->description_format = ContentFormat::Html;
+            $task->save();
+
+            $description = $this->pendingAttachments->promoteReferencedInHtml(
+                (string) ($data['description'] ?? ''),
+                $task,
+                $initiator,
+            );
+            $task->description = $this->content->fromSource($description, $descriptionSource);
             $task->save();
 
             foreach ($checklistTexts as $i => $text) {
@@ -442,7 +455,7 @@ class TaskService
         $comment->mentionedUsers()->detach();
         $mentioned = $this->mentions->processCommentMentions($task, $comment->fresh());
 
-        $this->notifications->notifyComment($task, $user, $comment->fresh(), $mentioned);
+        $this->notifications->notifyComment($task, $user, $comment->fresh(), $mentioned, isEdit: true);
     }
 
     public function deleteComment(TaskComment $comment, User $user): void

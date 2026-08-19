@@ -165,6 +165,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             'canManageChecklist' => auth()->user()->can('manageChecklist', $this->task),
             'canToggleChecklist' => auth()->user()->can('toggleChecklist', $this->task),
             'canUploadAttachment' => auth()->user()->can('uploadAttachment', $this->task),
+            'inlineUploadUrl' => route('tasks.attachments.inline', $this->task),
             'canEditResultUrl' => auth()->user()->can('updateResultUrl', $this->task),
             'canDeleteTask' => auth()->user()->can('delete', $this->task),
             'allUsers' => User::query()
@@ -489,6 +490,9 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public function refreshAttachments(): void
     {
+        // Full render refreshes the sidecar attachment list. The TipTap island is
+        // wire:ignore; stale HTML in the snapshot is ignored client-side during
+        // the upload pipeline (see rich-text-editor ignoreIncoming).
         $this->task->load(['attachments.uploader', 'comments.attachments']);
     }
 
@@ -623,6 +627,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     key="task-transition-comment"
                     min-height="5rem"
                     :enable-inline-attachments="$canUploadAttachment"
+                    :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                     :placeholder="__('task.transition_comment_placeholder')"
                     :aria-label="__('Transition comment')"
                 />
@@ -657,6 +662,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         class="mt-1"
                         min-height="10rem"
                         :enable-inline-attachments="$canUploadAttachment"
+                        :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                         :aria-label="__('Description')"
                     />
                     <x-input-error :messages="$errors->get('editDescription')" class="mt-1" />
@@ -708,6 +714,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 class="mt-1"
                                 min-height="4rem"
                                 :enable-inline-attachments="$canUploadAttachment"
+                                :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                                 :placeholder="__('Explain why the task is reassigned')"
                                 :aria-label="__('Reassignment comment')"
                             />
@@ -801,6 +808,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                                 min-height="4rem"
                                                 :enable-mentions="true"
                                                 :enable-inline-attachments="$canUploadAttachment"
+                                                :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                                                 :aria-label="__('Comments')"
                                             />
                                             <x-input-error :messages="$errors->get('editCommentBody')" />
@@ -841,6 +849,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                             min-height="4rem"
                             :enable-mentions="true"
                             :enable-inline-attachments="$canUploadAttachment"
+                            :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                             :placeholder="__('Write a comment...')"
                             :aria-label="__('Comments')"
                         />
@@ -1070,8 +1079,8 @@ new #[Layout('components.tasks-layout')] class extends Component
      * Sidecar clipboard paste (comment file list / attachments card).
      *
      * TipTap editors with data-inline-attachments handle image paste themselves
-     * (upload → storeInlineAttachment → insert into the document). Skip those
-     * targets so the same paste is not uploaded twice.
+     * (HTTP POST → tasks.attachments.inline → insert into the document). Skip
+     * those targets so the same paste is not uploaded twice.
      *
      * Comment @mention autocomplete lives in the TipTap editor (enable-mentions)
      * and calls mentionSearch() on this component.

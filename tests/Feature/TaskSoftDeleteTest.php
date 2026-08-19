@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Task;
 use App\Models\TaskAttachment;
 use App\Models\User;
+use App\Services\TaskAttachmentService;
 use App\Services\TaskService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
@@ -124,6 +125,49 @@ class TaskSoftDeleteTest extends TestCase
         $this->assertNotNull(Task::query()->find($task->id));
     }
 
+    public function test_create_allocates_number_above_soft_deleted_tasks(): void
+    {
+        $admin = User::factory()->create([
+            'email' => 'soft-num-admin-'.uniqid().'@tcsavant.com',
+            'system_type' => SystemType::Admin,
+            'email_verified_at' => now(),
+        ]);
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator Num', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee Num', role: $role);
+        $category = $this->createCategory();
+
+        $deleted = $this->createTask($initiator, $assignee, $category, [
+            'number' => 100,
+            'title' => 'Soft deleted high number',
+        ]);
+        $this->actingAs($admin);
+        app(TaskService::class)->softDelete($deleted, $admin);
+
+        $this->createTask($initiator, $assignee, $category, [
+            'number' => 50,
+            'title' => 'Live lower number',
+        ]);
+
+        $this->actingAs($initiator);
+        $created = app(TaskService::class)->create($initiator, [
+            'department_id' => $dept->id,
+            'assignee_id' => $assignee->id,
+            'category_id' => $category->id,
+            'title' => 'After soft delete',
+            'description' => '<p>описание после удаления</p>',
+            'priority' => 5,
+        ]);
+
+        $this->assertSame(101, $created->number);
+        $this->assertDatabaseHas('tasks', [
+            'id' => $created->id,
+            'number' => 101,
+            'deleted_at' => null,
+        ]);
+    }
+
     public function test_image_attachment_view_opens_inline(): void
     {
         Storage::fake('attachments');
@@ -135,7 +179,7 @@ class TaskSoftDeleteTest extends TestCase
         $task = $this->createTask($initiator, $assignee, $this->createCategory());
 
         $file = UploadedFile::fake()->image('screenshot.png', 40, 40);
-        $attachment = app(\App\Services\TaskAttachmentService::class)
+        $attachment = app(TaskAttachmentService::class)
             ->store($task, $initiator, $file);
 
         $this->actingAs($initiator)

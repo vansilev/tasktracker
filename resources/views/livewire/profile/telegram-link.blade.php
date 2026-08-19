@@ -58,14 +58,17 @@ new class extends Component
         </p>
     </header>
 
+    {{-- wire:key на обеих ветках обязателен: без него Livewire превращает кнопку
+         «Отвязать» в «Привязать», переиспользуя тот же <button>, и на ней остаётся
+         висеть обработчик wire:confirm от отвязки. --}}
     <div class="mt-4 space-y-3">
         @if ($linked)
             <p class="text-sm text-green-700">
                 {{ __('notification.telegram_linked') }}
             </p>
 
-            <div class="flex items-center gap-3">
-                <x-danger-button wire:click="unlink" wire:confirm="{{ __('notification.telegram_unlink_confirm') }}">
+            <div class="flex items-center gap-3" wire:key="telegram-linked-actions">
+                <x-danger-button wire:key="telegram-unlink-button" wire:click="unlink" wire:confirm="{{ __('notification.telegram_unlink_confirm') }}">
                     {{ __('notification.telegram_unlink') }}
                 </x-danger-button>
 
@@ -78,8 +81,8 @@ new class extends Component
                 {{ __('notification.telegram_not_linked') }}
             </p>
 
-            <div class="flex flex-wrap items-center gap-3">
-                <x-primary-button type="button" wire:click="generateLink">
+            <div class="flex flex-wrap items-center gap-3" wire:key="telegram-unlinked-actions">
+                <x-primary-button wire:key="telegram-generate-link-button" type="button" wire:click="generateLink">
                     {{ __('notification.telegram_generate_link') }}
                 </x-primary-button>
 

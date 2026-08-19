@@ -375,14 +375,33 @@ Schedule: every minute
 
 ### Telegram webhook (после выдачи токена бота)
 
-В `.env` задай `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`
-(случайная строка). Затем один раз зарегистрируй webhook:
+Пошаговый разовый выкат уведомлений в тему Pulse (список файлов, очередь, миграция,
+проверка, откат) — в [DEPLOY_TELEGRAM_PULSE.md](DEPLOY_TELEGRAM_PULSE.md).
+
+В `.env` задай:
+
+```
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=avant_herald_bot
+TELEGRAM_WEBHOOK_SECRET=
+TELEGRAM_DM_ENABLED=false
+TELEGRAM_GROUP_ENABLED=true
+TELEGRAM_GROUP_CHAT_ID=-1001970597297
+TELEGRAM_GROUP_MESSAGE_THREAD_ID=11252
+TELEGRAM_GROUP_TAG_ASSIGNEE_ON_COMMENT=true
+```
+
+`TELEGRAM_GROUP_MESSAGE_THREAD_ID=11252` — топик Task Tracker | Pulse. Без thread id сообщения не отправляются. Личка выключена (`TELEGRAM_DM_ENABLED=false`).
+
+Затем один раз зарегистрируй webhook:
 
 ```bash
 curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
   -d "url=https://task.avant.od.ua/telegram/webhook" \
   -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
 ```
+
+Проверка топика: `php artisan telegram:group-test`.
 
 Для SMTP в `.env` замени `MAIL_MAILER=log` на реальные SMTP-реквизиты Workspace.
 

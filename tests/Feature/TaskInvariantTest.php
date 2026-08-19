@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\Permission;
 use App\Models\Category;
-use App\Models\Department;
 use App\Models\User;
 use App\Services\TaskService;
 use Illuminate\Validation\ValidationException;

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\Permission;
 use App\Models\TaskChecklistItem;
 use App\Services\TaskService;
 use Illuminate\Auth\Access\AuthorizationException;

@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Enums\SystemType;
 use App\Models\AuditLog;
 use App\Models\Role;
+use App\Models\User;
 use Livewire\Volt\Volt;
 use Tests\Support\CreatesTaskTrackerFixtures;
 use Tests\TestCase;
@@ -168,9 +169,9 @@ class AdminAuditTest extends TestCase
             ->assertForbidden();
     }
 
-    private function createAdmin(): \App\Models\User
+    private function createAdmin(): User
     {
-        return \App\Models\User::factory()->create([
+        return User::factory()->create([
             'email' => 'audit-admin-'.uniqid().'@tcsavant.com',
             'system_type' => SystemType::Admin,
             'email_verified_at' => now(),

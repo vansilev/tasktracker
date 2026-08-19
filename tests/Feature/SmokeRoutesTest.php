@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\SystemType;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesTaskTrackerFixtures;
 use Tests\TestCase;
 

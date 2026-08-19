@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Department;
-use App\Models\User;
 use App\Services\TaskAssignmentService;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\CreatesTaskTrackerFixtures;

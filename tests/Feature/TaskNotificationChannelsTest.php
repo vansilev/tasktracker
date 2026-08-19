@@ -49,6 +49,40 @@ class TaskNotificationChannelsTest extends TestCase
         $channels = app(TaskNotificationService::class)
             ->resolveChannels($user->fresh(), 'task.commented');
 
+        $this->assertSame(['mail'], $channels);
+    }
+
+    public function test_telegram_channel_included_when_dm_enabled(): void
+    {
+        config(['services.telegram.dm_enabled' => true]);
+
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Dm User', role: $role);
+        $user->update(['telegram_chat_id' => '12345']);
+
+        UserNotificationPreference::query()->create([
+            'user_id' => $user->id,
+            'event' => 'task.commented',
+            'channel' => 'database',
+            'enabled' => false,
+        ]);
+        UserNotificationPreference::query()->create([
+            'user_id' => $user->id,
+            'event' => 'task.commented',
+            'channel' => 'email',
+            'enabled' => true,
+        ]);
+        UserNotificationPreference::query()->create([
+            'user_id' => $user->id,
+            'event' => 'task.commented',
+            'channel' => 'telegram',
+            'enabled' => true,
+        ]);
+
+        $channels = app(TaskNotificationService::class)
+            ->resolveChannels($user->fresh(), 'task.commented');
+
         $this->assertSame(['mail', 'telegram'], $channels);
     }
 
@@ -208,6 +242,7 @@ class TaskNotificationChannelsTest extends TestCase
         $this->postJson('/telegram/webhook', [
             'message' => [
                 'chat' => ['id' => 987654321],
+                'from' => ['id' => 987654321, 'username' => 'herald_user'],
                 'text' => '/start '.$code->code,
             ],
         ], [
@@ -215,6 +250,7 @@ class TaskNotificationChannelsTest extends TestCase
         ])->assertOk();
 
         $this->assertSame('987654321', $user->fresh()->telegram_chat_id);
+        $this->assertSame('herald_user', $user->fresh()->telegram_username);
         $this->assertDatabaseMissing('telegram_link_codes', ['code' => $code->code]);
     }
 
@@ -317,7 +353,7 @@ class TaskNotificationChannelsTest extends TestCase
         $dept = $this->createDepartment();
         $role = $this->createRoleWithPermissions($this->defaultPermissions());
         $user = $this->createUserInDepartment($dept, 'Unlink User', role: $role);
-        $user->update(['telegram_chat_id' => '999']);
+        $user->update(['telegram_chat_id' => '999', 'telegram_username' => 'unlink_me']);
 
         $this->actingAs($user);
 
@@ -326,5 +362,6 @@ class TaskNotificationChannelsTest extends TestCase
             ->assertSet('linked', false);
 
         $this->assertNull($user->fresh()->telegram_chat_id);
+        $this->assertNull($user->fresh()->telegram_username);
     }
 }

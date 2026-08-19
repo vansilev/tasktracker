@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\Permission;
 use App\Enums\SystemType;
 use App\Enums\TaskStatus;
 use App\Models\User;

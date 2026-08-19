@@ -8,6 +8,7 @@ use App\Rules\PlainTextLength;
 use App\Services\SettingsService;
 use App\Services\TaskAttachmentService;
 use App\Services\TaskService;
+use Illuminate\Database\QueryException;
 use Livewire\Attributes\Layout;
 use Livewire\Features\SupportFileUploads\WithFileUploads;
 use Livewire\Volt\Component;
@@ -58,12 +59,24 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->pastedCreateFile = null;
     }
 
+    /**
+     * TipTap calls this after inline upload (same hook as show page).
+     * Create has no attachment sidebar to refresh — keep as intentional no-op.
+     */
+    public function refreshAttachments(): void
+    {
+        //
+    }
+
     public function with(): array
     {
         $user = auth()->user();
         $canAnyDept = $user->hasPermission('create_task_any_department') || $user->isAdmin();
+        $canCreate = $user->can('create', Task::class);
 
         return [
+            'canCreate' => $canCreate,
+            'pendingInlineUploadUrl' => $canCreate ? route('pending.attachments.inline') : null,
             'departments' => $canAnyDept
                 ? Department::query()->active()->orderBy('name')->get(['id', 'name'])
                 : Department::query()->where('id', $user->department_id)->get(['id', 'name']),
@@ -115,6 +128,13 @@ new #[Layout('components.tasks-layout')] class extends Component
             }
 
             $this->redirect(route('tasks.show', $task), navigate: true);
+        } catch (QueryException $e) {
+            // QueryException extends RuntimeException — do not mis-label DB failures
+            // as assignee errors (e.g. tasks_number_unique after soft-delete).
+            report($e);
+            $this->addError('title', __('task.create_failed'));
+
+            return;
         } catch (RuntimeException $e) {
             $this->addError('assigneeId', $e->getMessage());
 
@@ -156,6 +176,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                             min-height="10rem"
                             :placeholder="__('Description')"
                             :aria-label="__('Description')"
+                            :enable-inline-attachments="$canCreate"
+                            :inline-upload-url="$pendingInlineUploadUrl"
                         />
                         <x-input-error :messages="$errors->get('description')" class="mt-1" />
                     </div>
@@ -270,8 +292,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 @script
 <script>
     /*
-     * Create page has no task id yet, so TipTap inline insert is disabled.
-     * Clipboard paste here only fills the sidecar uploadFiles list (stored after create).
+     * Sidecar Attachments field: paste still fills uploadFiles.
+     * Description TipTap uses pending.attachments.inline (promoted on save).
      */
     Alpine.data('clipboardImagePaste', (wire, property) => ({
         handlePaste(event) {

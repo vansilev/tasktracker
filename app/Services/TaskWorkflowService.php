@@ -106,7 +106,9 @@ class TaskWorkflowService
             throw new InvalidArgumentException(__('task.comment_required'));
         }
 
-        DB::transaction(function () use ($task, $user, $to, $from, $comment, $commentSource) {
+        $reasonExcerpt = null;
+
+        DB::transaction(function () use ($task, $user, $to, $from, $comment, $commentSource, &$reasonExcerpt) {
             $updates = ['status' => $to];
 
             if ($to === TaskStatus::Completed) {
@@ -139,6 +141,7 @@ class TaskWorkflowService
                 // body_format is not mass-assignable.
                 $statusComment->body_format = ContentFormat::Html;
                 $statusComment->save();
+                $reasonExcerpt = $this->notifications->commentExcerpt($statusComment);
             }
 
             $this->logHistory($task, 'status', $from->value, $to->value, $user);
@@ -150,7 +153,7 @@ class TaskWorkflowService
             ]);
         });
 
-        $this->notifications->notifyStatusChanged($task->fresh(), $user, $from, $to);
+        $this->notifications->notifyStatusChanged($task->fresh(), $user, $from, $to, $reasonExcerpt);
     }
 
     public function logHistory(Task $task, string $field, ?string $old, ?string $new, User $user): void

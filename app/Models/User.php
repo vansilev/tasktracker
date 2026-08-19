@@ -6,13 +6,13 @@ use App\Enums\AuthProvider;
 use App\Enums\Permission;
 use App\Enums\SystemType;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -25,6 +25,7 @@ use Illuminate\Support\Collection;
     'department_id',
     'locale',
     'telegram_chat_id',
+    'telegram_username',
     'auth_provider',
     'google_id',
     'avatar',

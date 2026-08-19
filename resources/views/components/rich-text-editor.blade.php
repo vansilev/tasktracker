@@ -6,6 +6,7 @@
     'key' => null,
     'enableMentions' => false,
     'enableInlineAttachments' => false,
+    'inlineUploadUrl' => null,
 ])
 
 @php
@@ -26,8 +27,13 @@
     $icon = 'h-4 w-4 shrink-0';
 @endphp
 
+{{-- wire:ignore on the Alpine root: Livewire must not morph this subtree.
+     Ignoring only the inner mount leaves Alpine to destroy/recreate TipTap while
+     the old ProseMirror DOM stays — that yields "mismatched transaction" on toolbar clicks.
+     Values still reach the server via $wire.set. --}}
 <div
     wire:key="{{ $editorKey }}"
+    wire:ignore
     @if ($enableInlineAttachments) data-inline-attachments="true" @endif
     x-data="richTextEditor({
         property: @js($model),
@@ -35,8 +41,7 @@
         ariaLabel: @js($ariaLabel),
         enableMentions: @js((bool) $enableMentions),
         enableInlineAttachments: @js((bool) $enableInlineAttachments),
-        uploadProperty: 'inlineAttachmentFile',
-        storeMethod: 'storeInlineAttachment',
+        inlineUploadUrl: @js($inlineUploadUrl),
         labels: {
             linkPrompt: @js(__('editor.link_prompt')),
             linkInvalid: @js(__('editor.link_invalid')),
@@ -49,10 +54,7 @@
     x-on:livewire:navigating.window="teardown()"
     {{ $attributes->merge(['class' => 'rich-text-editor']) }}
 >
-    {{-- wire:ignore: a Livewire re-render must never morph the ProseMirror DOM,
-         otherwise the editor instance is torn out from under the user mid-edit.
-         The value reaches the server through $wire.set instead. --}}
-    <div wire:ignore class="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
+    <div class="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
         <div
             role="toolbar"
             aria-label="{{ __('editor.toolbar') }}"

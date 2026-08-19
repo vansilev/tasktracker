@@ -169,26 +169,35 @@ function clipboardImageFiles(event) {
 /**
  * Alpine component backing <x-rich-text-editor>.
  *
- * Livewire lifecycle: the ProseMirror DOM lives inside wire:ignore so Livewire's
- * morph never touches it, which means the editor is never rebuilt underneath the
- * user. The price is that Livewire also cannot read the value out of the DOM, so
- * the value is pushed into the property explicitly with $wire.set(..., false).
+ * CRITICAL: the TipTap `Editor` must live in this closure, NOT on the returned
+ * Alpine data object. Alpine v3 wraps component properties in Vue's reactive
+ * Proxy; dispatching a ProseMirror transaction through a proxied Editor throws
+ * `RangeError: Applying a mismatched transaction` (TipTap #1515 / official
+ * Alpine install guide). Keep `editor` / `uploadQueue` out of reactive state.
  *
- * Inline attachments (show page only): toolbar file pick + image paste upload via
- * `$wire.upload` → `storeInlineAttachment`, then insert markup. Sidecar
- * clipboardImagePaste skips editors with data-inline-attachments so paste is
- * not double-uploaded.
+ * Livewire lifecycle: the whole Alpine root is wire:ignore so morph never
+ * tears the editor out mid-edit. Values reach the server via $wire.set(..., false).
+ *
+ * Inline attachments: POST to `inlineUploadUrl` (JSON) → insert into TipTap.
+ * Deliberately NOT Livewire WithFileUploads: `_finishUpload` always re-renders
+ * and races the editor (stale snapshot / remount → silent no-op insert).
+ * TipTap is source of truth while editing; `applyIncoming` only mirrors a
+ * server clear (e.g. commentBody = '' after submit). Sidecar paste handlers
+ * skip editors with data-inline-attachments.
  */
 export default function richTextEditor(config = {}) {
+    // Per-instance, non-reactive. Alpine.data() invokes this factory once per
+    // component, so multiple editors on one page each get their own closure.
+    let editor = null;
+    let uploadQueue = Promise.resolve();
+
     return {
         property: config.property,
         placeholder: config.placeholder || '',
         labels: config.labels || {},
         enableMentions: Boolean(config.enableMentions),
         enableInlineAttachments: Boolean(config.enableInlineAttachments),
-        uploadProperty: config.uploadProperty || 'inlineAttachmentFile',
-        storeMethod: config.storeMethod || 'storeInlineAttachment',
-        editor: null,
+        inlineUploadUrl: config.inlineUploadUrl || null,
         isEmpty: true,
         inTable: false,
         uploading: false,
@@ -203,10 +212,9 @@ export default function richTextEditor(config = {}) {
         commitHookCleanup: null,
         mentionPopupEl: null,
         tornDown: false,
-        uploadQueue: Promise.resolve(),
 
         init() {
-            const initial = this.$wire.get(this.property) ?? '';
+            const initial = this.$wire?.get?.(this.property) ?? '';
             this.lastSynced = initial;
 
             const mentionSearch = this.enableMentions
@@ -222,9 +230,18 @@ export default function richTextEditor(config = {}) {
                 : null;
 
             const self = this;
+            const mount = this.$refs.editor;
 
-            this.editor = new Editor({
-                element: this.$refs.editor,
+            if (editor && !editor.isDestroyed) {
+                editor.destroy();
+            }
+            editor = null;
+            if (mount) {
+                mount.innerHTML = '';
+            }
+
+            editor = new Editor({
+                element: mount,
                 extensions: buildExtensions({
                     enableMentions: this.enableMentions,
                     mentionSearch,
@@ -267,11 +284,13 @@ export default function richTextEditor(config = {}) {
                 onBlur: () => this.flushPush(),
             });
 
-            // Not via onCreate: that can fire before this.editor is assigned,
+            // Not via onCreate: that can fire before `editor` is assigned,
             // which would leave the placeholder covering pre-filled content.
             this.refreshState();
 
-            this.$watch(`$wire.${this.property}`, (value) => this.applyIncoming(value ?? ''));
+            if (typeof this.$watch === 'function' && this.property) {
+                this.$watch(`$wire.${this.property}`, (value) => this.applyIncoming(value ?? ''));
+            }
 
             // A submit can beat the debounce when the user types and hits Enter.
             // Capture on document runs before Livewire's own submit listener.
@@ -341,21 +360,47 @@ export default function richTextEditor(config = {}) {
                 this.mentionPopupEl = null;
             }
 
-            if (this.editor && !this.editor.isDestroyed) {
-                this.editor.destroy();
+            if (editor && !editor.isDestroyed) {
+                editor.destroy();
             }
 
-            this.editor = null;
+            editor = null;
+
+            if (this.$refs?.editor) {
+                this.$refs.editor.innerHTML = '';
+            }
         },
 
+        /**
+         * HTML to sync to Livewire. TipTap's isEmpty is text-based: an empty
+         * table/image-only doc is "empty" even though it has markup we must keep.
+         * Only the default blank paragraph collapses to '' for required rules.
+         */
         currentHtml() {
-            if (!this.editor || this.editor.isDestroyed) {
+            if (!editor || editor.isDestroyed) {
                 return '';
             }
 
-            // An "empty" document is still <p></p>; report it as empty so the
-            // required rule fires with its normal message.
-            return this.editor.isEmpty ? '' : this.editor.getHTML();
+            const html = editor.getHTML();
+
+            if (!editor.isEmpty) {
+                return html;
+            }
+
+            if (/<(table|img|ul|ol|pre|blockquote)\b/i.test(html)) {
+                return html;
+            }
+
+            return '';
+        },
+
+        /** Full document HTML (including text-empty structural markup). */
+        rawHtml() {
+            if (!editor || editor.isDestroyed) {
+                return '';
+            }
+
+            return editor.getHTML();
         },
 
         schedulePush() {
@@ -389,33 +434,34 @@ export default function richTextEditor(config = {}) {
             // live=false: update the client-side property only. Livewire ships
             // it with the next commit (form submit, wire:click) instead of
             // firing a request on every keystroke.
-            this.$wire.set(this.property, html, false);
+            this.$wire?.set?.(this.property, html, false);
         },
 
         applyIncoming(incoming) {
-            if (!this.editor || this.editor.isDestroyed) {
+            if (!editor || editor.isDestroyed) {
                 return;
             }
 
-            if (incoming === this.lastSynced || incoming === this.currentHtml()) {
+            const next = incoming ?? '';
+
+            if (next === this.lastSynced || next === this.currentHtml()) {
                 return;
             }
 
-            // A queued push plus focus means the user is mid-keystroke. Their
-            // text wins; the queued push will carry it. Without this an unrelated
-            // round trip can land between keystrokes and reset the caret.
-            if (this.pushTimer !== null && this.editor.isFocused) {
+            // TipTap owns the document while the user edits. Livewire snapshots
+            // during upload/refresh are often stale and must not call setContent.
+            // The only server write we mirror is clearing the field after submit
+            // (addComment sets commentBody to '').
+            if (next !== '') {
                 return;
             }
 
-            this.lastSynced = incoming;
-            this.editor.commands.setContent(incoming, { emitUpdate: false });
+            this.lastSynced = '';
+            editor.commands.setContent('', { emitUpdate: false });
             this.refreshState();
         },
 
         refreshState() {
-            const editor = this.editor;
-
             if (!editor || editor.isDestroyed) {
                 return;
             }
@@ -453,20 +499,20 @@ export default function richTextEditor(config = {}) {
 
         /** Run a chained command with focus restored to the editor. */
         run(callback) {
-            if (!this.editor || this.editor.isDestroyed) {
+            if (!editor || editor.isDestroyed) {
                 return;
             }
 
-            callback(this.editor.chain().focus()).run();
+            callback(editor.chain().focus()).run();
             this.refreshState();
         },
 
         promptLink() {
-            if (!this.editor || this.editor.isDestroyed) {
+            if (!editor || editor.isDestroyed) {
                 return;
             }
 
-            const previous = this.editor.getAttributes('link').href || '';
+            const previous = editor.getAttributes('link').href || '';
             const answer = window.prompt(this.labels.linkPrompt, previous);
 
             if (answer === null) {
@@ -512,38 +558,60 @@ export default function richTextEditor(config = {}) {
         },
 
         enqueueUpload(file) {
-            this.uploadQueue = this.uploadQueue
+            uploadQueue = uploadQueue
                 .then(() => this.uploadAndInsert(file))
                 .catch(() => {});
         },
 
         async uploadAndInsert(file) {
-            if (!this.enableInlineAttachments || !this.editor || this.editor.isDestroyed) {
+            if (!this.enableInlineAttachments || !editor || editor.isDestroyed) {
+                return;
+            }
+
+            if (!this.inlineUploadUrl) {
+                console.error('rich-text-editor: inlineUploadUrl is missing');
+                window.alert(this.labels.attachFailed || 'Upload failed');
+
                 return;
             }
 
             this.uploading = true;
 
             try {
-                await new Promise((resolve, reject) => {
-                    this.$wire.upload(
-                        this.uploadProperty,
-                        file,
-                        () => resolve(),
-                        () => reject(new Error('upload failed')),
-                    );
+                const body = new FormData();
+                body.append('file', file);
+
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(this.inlineUploadUrl, {
+                    method: 'POST',
+                    body,
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
+                    },
                 });
 
-                const payload = await this.$wire.call(this.storeMethod);
+                if (!response.ok) {
+                    throw new Error(`upload failed (${response.status})`);
+                }
+
+                const payload = await response.json();
 
                 if (!payload || !payload.viewUrl) {
                     throw new Error('missing attachment payload');
                 }
 
+                if (!editor || editor.isDestroyed) {
+                    throw new Error('editor was destroyed during upload');
+                }
+
                 this.insertAttachment(payload);
 
-                // Sidecar attachment list; non-blocking (store skipped render).
-                this.$wire.call('refreshAttachments').catch(() => {});
+                // Sidecar list only; TipTap content is already local + flushed.
+                // Show refreshes the attachment sidebar; create page no-ops the same action.
+                Promise.resolve(this.$wire?.call?.('refreshAttachments')).catch(() => {});
             } catch (error) {
                 console.error('Inline attachment upload failed', error);
                 window.alert(this.labels.attachFailed || 'Upload failed');
@@ -553,12 +621,17 @@ export default function richTextEditor(config = {}) {
         },
 
         insertAttachment(payload) {
-            if (!this.editor || this.editor.isDestroyed) {
-                return;
+            if (!editor || editor.isDestroyed) {
+                throw new Error('editor unavailable');
             }
 
             const html = attachmentInsertHtml(payload);
-            this.editor.chain().focus().insertContent(html).run();
+            const ok = editor.chain().focus().insertContent(html).run();
+
+            if (!ok) {
+                throw new Error('insertContent rejected markup');
+            }
+
             this.refreshState();
             this.flushPush();
         },

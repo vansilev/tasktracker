@@ -22,9 +22,11 @@ class TaskNotificationService
     /** @var list<string> */
     public const PREFERENCE_CHANNELS = ['database', 'email', 'telegram'];
 
+    public function __construct(private TelegramGroupNotifier $group) {}
+
     public function notifyTaskCreated(Task $task, User $actor): void
     {
-        $task->loadMissing(['assignee', 'watchers', 'department.head']);
+        $task->loadMissing(['assignee', 'watchers', 'department.head', 'initiator']);
 
         $recipients = collect([$task->assignee]);
 
@@ -36,31 +38,44 @@ class TaskNotificationService
         $recipients = $recipients->merge($task->watchers);
 
         $this->sendTaskAssigned($task, $actor, $recipients);
+        $this->group->notifyCreated($task, $actor);
     }
 
     public function notifyTaskReassigned(Task $task, User $actor): void
     {
-        $task->loadMissing(['assignee', 'watchers']);
+        $task->loadMissing(['assignee', 'watchers', 'initiator']);
 
         $recipients = collect([$task->assignee])->merge($task->watchers);
 
         $this->sendTaskAssigned($task, $actor, $recipients);
+        $this->group->notifyReassigned($task, $actor);
     }
 
-    public function notifyStatusChanged(Task $task, User $actor, TaskStatus $oldStatus, TaskStatus $newStatus): void
-    {
+    public function notifyStatusChanged(
+        Task $task,
+        User $actor,
+        TaskStatus $oldStatus,
+        TaskStatus $newStatus,
+        ?string $reasonExcerpt = null,
+    ): void {
         $task->loadMissing(['initiator', 'assignee', 'watchers']);
 
         $recipients = collect([$task->initiator, $task->assignee])->merge($task->watchers);
 
         $this->sendTaskStatusChanged($task, $actor, $oldStatus, $newStatus, $recipients);
+        $this->group->notifyStatusChanged($task, $actor, $oldStatus, $newStatus, $reasonExcerpt);
     }
 
     /**
      * @param  Collection<int, User>  $mentioned
      */
-    public function notifyComment(Task $task, User $actor, TaskComment $comment, Collection $mentioned): void
-    {
+    public function notifyComment(
+        Task $task,
+        User $actor,
+        TaskComment $comment,
+        Collection $mentioned,
+        bool $isEdit = false,
+    ): void {
         $task->loadMissing(['initiator', 'assignee', 'watchers']);
 
         $mentionedIds = $mentioned->pluck('id')->all();
@@ -72,6 +87,10 @@ class TaskNotificationService
 
         $this->sendTaskMentioned($task, $actor, $excerpt, $mentioned);
         $this->sendTaskCommented($task, $actor, $excerpt, $commentRecipients);
+
+        if (! $isEdit) {
+            $this->group->notifyCommented($task, $actor, $excerpt, $mentioned);
+        }
     }
 
     public function notifyDeadlineApproaching(Task $task): void
@@ -166,7 +185,11 @@ class TaskNotificationService
             $channels[] = 'mail';
         }
 
-        if ($this->isChannelEnabled($user, $event, 'telegram') && filled($user->telegram_chat_id)) {
+        if (
+            config('services.telegram.dm_enabled')
+            && $this->isChannelEnabled($user, $event, 'telegram')
+            && filled($user->telegram_chat_id)
+        ) {
             $channels[] = 'telegram';
         }
 
@@ -257,7 +280,7 @@ class TaskNotificationService
             });
     }
 
-    private function commentExcerpt(TaskComment $comment): string
+    public function commentExcerpt(TaskComment $comment): string
     {
         // Format-aware: markdown-marked legacy rows must render through CommonMark
         // first so notification text does not leak raw `**bold**` markers.

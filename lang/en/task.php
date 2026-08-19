@@ -13,6 +13,7 @@ return [
         'cancelled' => 'Cancelled',
     ],
     'no_assignee_available' => 'No assignee available for this department.',
+    'create_failed' => 'Could not create the task. Try again or contact an administrator.',
     'cannot_create_for_department' => 'Cannot create tasks for this department.',
     'transition_not_allowed' => 'This status transition is not allowed.',
     'comment_required' => 'Comment is required for this action.',

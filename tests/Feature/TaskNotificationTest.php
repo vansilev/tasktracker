@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\Permission;
 use App\Enums\TaskStatus;
-use App\Models\User;
 use App\Models\UserNotificationPreference;
 use App\Services\TaskService;
 use App\Services\TaskWorkflowService;

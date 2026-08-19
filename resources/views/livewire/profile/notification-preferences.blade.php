@@ -44,9 +44,14 @@ new class extends Component
     public function save(): void
     {
         $userId = Auth::id();
+        $dmEnabled = $this->telegramDmEnabled();
 
         foreach (self::EVENTS as $eventKey => $eventDot) {
             foreach (self::CHANNELS as $channel) {
+                if ($channel === 'telegram' && ! $dmEnabled) {
+                    continue;
+                }
+
                 UserNotificationPreference::query()->updateOrCreate(
                     [
                         'user_id' => $userId,
@@ -61,6 +66,11 @@ new class extends Component
         }
 
         $this->dispatch('notification-preferences-saved');
+    }
+
+    public function telegramDmEnabled(): bool
+    {
+        return (bool) config('services.telegram.dm_enabled');
     }
 
     /**
@@ -115,7 +125,8 @@ new class extends Component
                                     <input
                                         type="checkbox"
                                         wire:model="preferences.{{ $eventKey }}.{{ $channel }}"
-                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                                        @disabled($channel === 'telegram' && ! $this->telegramDmEnabled())
+                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 disabled:opacity-40"
                                     />
                                 </td>
                             @endforeach
@@ -126,7 +137,9 @@ new class extends Component
         </div>
 
         <p class="text-xs text-gray-500">
-            {{ __('notification.channels_hint') }}
+            {{ $this->telegramDmEnabled()
+                ? __('notification.channels_hint')
+                : __('notification.channels_hint_group') }}
         </p>
 
         <div class="flex items-center gap-4">

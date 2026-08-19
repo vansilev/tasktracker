@@ -7,7 +7,6 @@ use App\Enums\SystemType;
 use App\Models\TaskAttachment;
 use App\Models\TaskComment;
 use App\Models\TaskHistory;
-use App\Models\User;
 use App\Services\TaskAttachmentService;
 use App\Services\TaskService;
 use Illuminate\Auth\Access\AuthorizationException;

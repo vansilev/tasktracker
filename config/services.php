@@ -38,6 +38,11 @@ return [
         'token' => env('TELEGRAM_BOT_TOKEN'),
         'bot_username' => env('TELEGRAM_BOT_USERNAME'),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+        'dm_enabled' => env('TELEGRAM_DM_ENABLED', false),
+        'group_enabled' => env('TELEGRAM_GROUP_ENABLED', false),
+        'group_chat_id' => env('TELEGRAM_GROUP_CHAT_ID'),
+        'group_message_thread_id' => env('TELEGRAM_GROUP_MESSAGE_THREAD_ID'),
+        'group_tag_assignee_on_comment' => env('TELEGRAM_GROUP_TAG_ASSIGNEE_ON_COMMENT', true),
     ],
 
 ];

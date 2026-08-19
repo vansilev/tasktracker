@@ -44,7 +44,12 @@ class TelegramWebhookController extends Controller
         $payload = preg_replace('/@.+$/', '', $payload) ?? $payload;
         $payload = trim($payload);
 
-        $result = $linkService->consumeStartPayload((string) $chatId, $payload !== '' ? $payload : null);
+        $fromUsername = data_get($message, 'from.username');
+        $result = $linkService->consumeStartPayload(
+            (string) $chatId,
+            $payload !== '' ? $payload : null,
+            is_string($fromUsername) ? $fromUsername : null,
+        );
         $locale = $result['user']->locale ?? config('app.locale');
         $reply = __($result['message_key'], [], $locale);
 

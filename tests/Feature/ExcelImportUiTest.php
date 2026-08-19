@@ -6,6 +6,7 @@ use App\Enums\SystemType;
 use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Volt\Volt;
@@ -126,7 +127,7 @@ class ExcelImportUiTest extends TestCase
             ->assertHasErrors(['importFile']);
     }
 
-    /** @return array{0: \App\Models\User, 1: UploadedFile} */
+    /** @return array{0: User, 1: UploadedFile} */
     private function prepareImportFixtures(): array
     {
         $dept = $this->createDepartment('IT');
@@ -171,9 +172,9 @@ class ExcelImportUiTest extends TestCase
         return $path;
     }
 
-    private function createAdmin(): \App\Models\User
+    private function createAdmin(): User
     {
-        return \App\Models\User::factory()->create([
+        return User::factory()->create([
             'email' => 'import-admin-'.uniqid().'@tcsavant.com',
             'system_type' => SystemType::Admin,
             'email_verified_at' => now(),

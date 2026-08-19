@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ContentFormat;
 use App\Models\Category;
 use App\Models\Department;
+use App\Models\Task;
 use App\Models\TaskAttachment;
 use App\Models\User;
 use App\Services\HtmlContentService;
@@ -25,6 +26,42 @@ class TaskInlineAttachmentTest extends TestCase
     {
         parent::setUp();
         Storage::fake('attachments');
+    }
+
+    public function test_http_inline_attachment_returns_payload_with_relative_urls(): void
+    {
+        [$initiator, $assignee, $category] = $this->seedActors();
+        $task = $this->createTask($initiator, $assignee, $category);
+
+        $this->actingAs($assignee);
+
+        $response = $this->postJson(route('tasks.attachments.inline', $task), [
+            'file' => UploadedFile::fake()->image('shot.png', 40, 40),
+        ]);
+
+        $response->assertOk();
+        $payload = $response->json();
+        $attachment = TaskAttachment::query()->where('task_id', $task->id)->firstOrFail();
+
+        $this->assertSame($attachment->id, $payload['id']);
+        $this->assertSame('shot.png', $payload['filename']);
+        $this->assertTrue($payload['isImage']);
+        $this->assertNull($attachment->comment_id);
+        $this->assertSame('/tasks/attachments/'.$attachment->id.'/view', $payload['viewUrl']);
+        $this->assertSame('/tasks/attachments/'.$attachment->id.'/download', $payload['downloadUrl']);
+    }
+
+    public function test_http_inline_attachment_forbidden_without_permission(): void
+    {
+        [$initiator, $assignee, $category] = $this->seedActors();
+        $outsider = User::factory()->create(['is_active' => true]);
+        $task = $this->createTask($initiator, $assignee, $category);
+
+        $this->actingAs($outsider);
+
+        $this->postJson(route('tasks.attachments.inline', $task), [
+            'file' => UploadedFile::fake()->image('shot.png', 40, 40),
+        ])->assertForbidden();
     }
 
     public function test_store_inline_attachment_returns_payload_with_relative_urls(): void
@@ -153,21 +190,95 @@ class TaskInlineAttachmentTest extends TestCase
 
         $show = Volt::test('pages.tasks.show', ['task' => $task]);
         $this->assertMatchesRegularExpression(
-            '/wire:key="task-new-comment"[\s\S]{0,900}?enableInlineAttachments:\s*true/',
+            '/wire:key="task-new-comment"[\s\S]{0,1200}?enableInlineAttachments:\s*true/',
             $show->html(),
+        );
+        $this->assertStringContainsString('inlineUploadUrl:', $show->html());
+        $this->assertTrue(
+            str_contains($show->html(), 'attachments/inline')
+            || str_contains($show->html(), 'attachments\\/inline'),
+            'Show editors should expose the HTTP inline upload URL',
         );
 
         $editing = Volt::test('pages.tasks.show', ['task' => $task])->set('editing', true);
         $this->assertMatchesRegularExpression(
-            '/wire:key="task-edit-description"[\s\S]{0,900}?enableInlineAttachments:\s*true/',
+            '/wire:key="task-edit-description"[\s\S]{0,1200}?enableInlineAttachments:\s*true/',
             $editing->html(),
         );
 
         $create = Volt::test('pages.tasks.create')->set('departmentId', $dept->id);
         $this->assertMatchesRegularExpression(
-            '/wire:key="task-create-description"[\s\S]{0,900}?enableInlineAttachments:\s*false/',
+            '/wire:key="task-create-description"[\s\S]{0,1200}?enableInlineAttachments:\s*true/',
             $create->html(),
         );
+        $this->assertTrue(
+            str_contains($create->html(), 'pending-attachments/inline')
+            || str_contains($create->html(), 'pending-attachments\\/inline'),
+            'Create editor should expose the pending inline upload URL',
+        );
+    }
+
+    public function test_pending_inline_attachment_promotes_on_task_create(): void
+    {
+        [$initiator, $assignee, $category, $dept] = $this->seedActors();
+        $this->actingAs($initiator);
+
+        $response = $this->postJson(route('pending.attachments.inline'), [
+            'file' => UploadedFile::fake()->image('create-shot.png', 40, 40),
+        ]);
+
+        $response->assertOk();
+        $pendingId = $response->json('id');
+        $this->assertSame('/pending-attachments/'.$pendingId.'/view', $response->json('viewUrl'));
+
+        $description = '<p><a href="/pending-attachments/'.$pendingId.'/view">'
+            .'<img src="/pending-attachments/'.$pendingId.'/view" alt="create-shot.png"></a></p>';
+
+        Volt::test('pages.tasks.create')
+            ->set('departmentId', $dept->id)
+            ->set('categoryId', $category->id)
+            ->set('assigneeId', $assignee->id)
+            ->set('title', 'With inline image')
+            ->set('description', $description)
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect();
+
+        $task = Task::query()->where('title', 'With inline image')->firstOrFail();
+        $attachment = TaskAttachment::query()->where('task_id', $task->id)->firstOrFail();
+
+        $this->assertStringContainsString(
+            '/tasks/attachments/'.$attachment->id.'/view',
+            $task->description,
+        );
+        $this->assertStringNotContainsString('/pending-attachments/', $task->description);
+        $this->assertDatabaseMissing('pending_inline_attachments', ['id' => $pendingId]);
+    }
+
+    public function test_create_page_refresh_attachments_is_noop(): void
+    {
+        [$initiator, , , $dept] = $this->seedActors();
+        $this->actingAs($initiator);
+
+        Volt::test('pages.tasks.create')
+            ->set('departmentId', $dept->id)
+            ->call('refreshAttachments')
+            ->assertHasNoErrors()
+            ->assertOk();
+    }
+
+    public function test_pending_inline_forbidden_without_create_permission(): void
+    {
+        // Users with no roles inherit Permission::defaults() (includes create_task).
+        // Attach an empty role so create is denied.
+        $role = $this->createRoleWithPermissions([]);
+        $dept = $this->createDepartment();
+        $outsider = $this->createUserInDepartment($dept, 'No Create', role: $role);
+        $this->actingAs($outsider);
+
+        $this->postJson(route('pending.attachments.inline'), [
+            'file' => UploadedFile::fake()->image('shot.png', 40, 40),
+        ])->assertForbidden();
     }
 
     /** @return array{0: User, 1: User, 2: Category, 3: Department} */

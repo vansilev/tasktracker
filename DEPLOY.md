@@ -296,8 +296,22 @@ php artisan queue:work --stop-when-empty --tries=3 --timeout=90
 php artisan queue:work --tries=3 --timeout=90
 ```
 
-Telegram: задай `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`
-в `.env` и зарегистрируй webhook на `https://<host>/telegram/webhook`.
+Telegram: задай в `.env`:
+
+```
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=avant_herald_bot
+TELEGRAM_WEBHOOK_SECRET=
+TELEGRAM_DM_ENABLED=false
+TELEGRAM_GROUP_ENABLED=true
+TELEGRAM_GROUP_CHAT_ID=-1001970597297
+TELEGRAM_GROUP_MESSAGE_THREAD_ID=11252
+TELEGRAM_GROUP_TAG_ASSIGNEE_ON_COMMENT=true
+```
+
+`TELEGRAM_GROUP_MESSAGE_THREAD_ID` — id топика Pulse внутри форума AVANT. Без него бот не пишет (чтобы не попасть в General). Личные сообщения выключены флагом `TELEGRAM_DM_ENABLED`.
+
+Webhook на `https://<host>/telegram/webhook` (нужен, чтобы сотрудники привязывали бота через `/start` и их можно было тегать). Проверка: `php artisan telegram:group-test`.
 SMTP: замени `MAIL_MAILER=log` на реальные реквизиты.
 ## 9. Закешировать production-конфиг
 

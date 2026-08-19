@@ -96,13 +96,14 @@ class HtmlContentService
         }
 
         return (bool) preg_match(
-            '~<(?:img\b[^>]*\bsrc|a\b[^>]*\bhref)=["\'](?:https?://[^"\']+)?/tasks/attachments/\d+/(?:view|download)["\']~i',
+            '~<(?:img\b[^>]*\bsrc|a\b[^>]*\bhref)=["\'](?:https?://[^"\']+)?(?:/tasks/attachments/\d+/(?:view|download)|/pending-attachments/\d+/(?:view|download))["\']~i',
             $html,
         );
     }
 
     /**
      * Whether an img src is an allowed same-app attachment view URL.
+     * Includes create-page pending URLs (promoted to /tasks/attachments/… on save).
      */
     public function isAllowedAttachmentImageSrc(string $src): bool
     {
@@ -142,7 +143,7 @@ class HtmlContentService
             $path = substr($path, strlen($appPath)) ?: '';
         }
 
-        return preg_match('#^/tasks/attachments/\d+/view$#', $path) === 1;
+        return preg_match('#^/(?:tasks/attachments|pending-attachments)/\d+/view$#', $path) === 1;
     }
 
     private function stripNonAttachmentImages(string $html): string

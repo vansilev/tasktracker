@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Exceptions\ComponentNotFoundException;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -69,7 +70,7 @@ class ProfileTest extends TestCase
 
         $this->actingAs($user);
 
-        $this->expectException(\Livewire\Exceptions\ComponentNotFoundException::class);
+        $this->expectException(ComponentNotFoundException::class);
 
         Volt::test('profile.delete-user-form');
     }

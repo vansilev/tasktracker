@@ -459,10 +459,10 @@ class TaskRichTextEditorTest extends TestCase
         $this->assertEditorMentionsEnabled($transition->html(), 'task-transition-comment', false);
         $this->assertEditorMentionsEnabled($reassign->html(), 'task-reassign-comment', false);
 
-        // Inline attachments are available on the show page (task already exists).
+        // Inline attachments: show uses task-scoped upload; create uses pending upload.
         $this->assertEditorInlineAttachmentsEnabled($show->html(), 'task-new-comment', true);
         $this->assertEditorInlineAttachmentsEnabled($editing->html(), 'task-edit-description', true);
-        $this->assertEditorInlineAttachmentsEnabled($create->html(), 'task-create-description', false);
+        $this->assertEditorInlineAttachmentsEnabled($create->html(), 'task-create-description', true);
     }
 
     private function assertEditorMentionsEnabled(string $html, string $wireKey, bool $enabled): void

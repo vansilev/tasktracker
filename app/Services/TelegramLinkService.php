@@ -39,14 +39,17 @@ class TelegramLinkService
     {
         DB::transaction(function () use ($user) {
             TelegramLinkCode::query()->where('user_id', $user->id)->delete();
-            $user->update(['telegram_chat_id' => null]);
+            $user->update([
+                'telegram_chat_id' => null,
+                'telegram_username' => null,
+            ]);
         });
     }
 
     /**
      * @return array{ok: bool, message_key: string, user?: User}
      */
-    public function consumeStartPayload(string $chatId, ?string $payload): array
+    public function consumeStartPayload(string $chatId, ?string $payload, ?string $username = null): array
     {
         $chatId = trim($chatId);
 
@@ -59,6 +62,8 @@ class TelegramLinkService
         if ($code === '') {
             return ['ok' => false, 'message_key' => 'notification.telegram_link_need_code'];
         }
+
+        $normalizedUsername = $this->normalizeUsername($username);
 
         /** @var TelegramLinkCode|null $link */
         $link = TelegramLinkCode::query()
@@ -74,13 +79,19 @@ class TelegramLinkService
             return ['ok' => false, 'message_key' => 'notification.telegram_link_invalid'];
         }
 
-        DB::transaction(function () use ($link, $chatId) {
+        DB::transaction(function () use ($link, $chatId, $normalizedUsername) {
             User::query()
                 ->where('telegram_chat_id', $chatId)
                 ->where('id', '!=', $link->user_id)
-                ->update(['telegram_chat_id' => null]);
+                ->update([
+                    'telegram_chat_id' => null,
+                    'telegram_username' => null,
+                ]);
 
-            $link->user->update(['telegram_chat_id' => $chatId]);
+            $link->user->update([
+                'telegram_chat_id' => $chatId,
+                'telegram_username' => $normalizedUsername,
+            ]);
             TelegramLinkCode::query()->where('user_id', $link->user_id)->delete();
         });
 
@@ -89,5 +100,16 @@ class TelegramLinkService
             'message_key' => 'notification.telegram_link_success',
             'user' => $link->user->fresh(),
         ];
+    }
+
+    private function normalizeUsername(?string $username): ?string
+    {
+        $username = ltrim(trim((string) $username), '@');
+
+        if ($username === '' || preg_match('/^[A-Za-z0-9_]{5,32}$/', $username) !== 1) {
+            return null;
+        }
+
+        return $username;
     }
 }
