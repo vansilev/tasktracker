@@ -220,4 +220,138 @@ class TaskListFiltersTest extends TestCase
                 'NNN No Deadline Task',
             ]);
     }
+
+    public function test_title_sort_is_alphabetical(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $category = $this->createCategory();
+
+        $this->createTask($initiator, $assignee, $category, ['title' => 'Zebra Task']);
+        $this->createTask($initiator, $assignee, $category, ['title' => 'Alpha Task']);
+        $this->createTask($initiator, $assignee, $category, ['title' => 'Middle Task']);
+
+        $this->actingAs($this->createAdmin());
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('sortByColumn', 'title')
+            ->assertSet('sortBy', 'title')
+            ->assertSet('sortDir', 'asc')
+            ->assertSeeInOrder(['Alpha Task', 'Middle Task', 'Zebra Task']);
+    }
+
+    public function test_clicking_same_column_toggles_sort_direction(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $category = $this->createCategory();
+        $this->createTask($initiator, $assignee, $category, ['title' => 'Only Task']);
+
+        $this->actingAs($this->createAdmin());
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('sortByColumn', 'title')
+            ->assertSet('sortDir', 'asc')
+            ->call('sortByColumn', 'title')
+            ->assertSet('sortBy', 'title')
+            ->assertSet('sortDir', 'desc');
+    }
+
+    public function test_department_sort_orders_by_department_name(): void
+    {
+        $alpha = $this->createDepartment('Alpha Dept');
+        $zulu = $this->createDepartment('Zulu Dept');
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($alpha, 'Initiator', role: $role);
+        $assigneeAlpha = $this->createUserInDepartment($alpha, 'Assignee Alpha', role: $role);
+        $assigneeZulu = $this->createUserInDepartment($zulu, 'Assignee Zulu', role: $role);
+        $category = $this->createCategory();
+
+        $this->createTask($initiator, $assigneeZulu, $category, ['title' => 'Task In Zulu']);
+        $this->createTask($initiator, $assigneeAlpha, $category, ['title' => 'Task In Alpha']);
+
+        $this->actingAs($this->createAdmin());
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('sortByColumn', 'department')
+            ->assertSeeInOrder(['Task In Alpha', 'Task In Zulu']);
+    }
+
+    public function test_status_sort_follows_workflow_order(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $category = $this->createCategory();
+
+        $this->createTask($initiator, $assignee, $category, [
+            'title' => 'Completed Task',
+            'status' => TaskStatus::Completed,
+        ]);
+        $this->createTask($initiator, $assignee, $category, [
+            'title' => 'New Task',
+            'status' => TaskStatus::New,
+        ]);
+        $this->createTask($initiator, $assignee, $category, [
+            'title' => 'In Progress Task',
+            'status' => TaskStatus::InProgress,
+        ]);
+
+        $this->actingAs($this->createAdmin());
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('sortByColumn', 'status')
+            ->assertSeeInOrder(['New Task', 'In Progress Task', 'Completed Task']);
+    }
+
+    public function test_priority_sort_high_first_by_default(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $category = $this->createCategory();
+
+        $this->createTask($initiator, $assignee, $category, ['title' => 'Low Priority Task', 'priority' => 2]);
+        $this->createTask($initiator, $assignee, $category, ['title' => 'High Priority Task', 'priority' => 9]);
+
+        $this->actingAs($this->createAdmin());
+
+        $page = Volt::test('pages.tasks.index')->set('tab', 'all');
+        $page->assertSet('sortBy', 'priority')
+            ->assertSet('sortDir', 'desc')
+            ->assertSeeInOrder(['High Priority Task', 'Low Priority Task']);
+
+        $page->call('sortByColumn', 'priority')
+            ->assertSet('sortDir', 'asc')
+            ->assertSeeInOrder(['Low Priority Task', 'High Priority Task']);
+    }
+
+    public function test_table_headers_are_sortable(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $this->createTask($initiator, $assignee, $this->createCategory(), ['title' => 'Header Task']);
+
+        $this->actingAs($this->createAdmin());
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->assertSeeHtml("wire:click=\"sortByColumn('title')\"")
+            ->assertSeeHtml("wire:click=\"sortByColumn('status')\"")
+            ->assertSeeHtml("wire:click=\"sortByColumn('priority')\"")
+            ->assertSeeHtml("wire:click=\"sortByColumn('department')\"")
+            ->assertSeeHtml("wire:click=\"sortByColumn('deadline')\"");
+    }
 }

@@ -59,6 +59,7 @@
     "Department": "Department",
     "Deadline": "Deadline",
     "Priority": "Priority",
+    "Title": "Title",
     "Back to tasks": "Back to tasks",
     "— Auto (head / queue) —": "— Auto (head / queue) —",
     "If not selected, task goes to department head or assign queue.": "If not selected, task goes to department head or assign queue.",

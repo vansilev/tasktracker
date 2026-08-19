@@ -59,6 +59,7 @@
     "Department": "Подразделение",
     "Deadline": "Дедлайн",
     "Priority": "Приоритет",
+    "Title": "Название",
     "Back to tasks": "Назад к задачам",
     "— Auto (head / queue) —": "— Авто (руководитель / очередь) —",
     "If not selected, task goes to department head or assign queue.": "Если не выбран — задача уходит руководителю или в очередь распределения.",

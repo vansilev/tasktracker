@@ -310,35 +310,43 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
     private function applySorting($query): void
-
     {
-
         $dir = $this->sortDir === 'asc' ? 'asc' : 'desc';
 
-
-
         match ($this->sortBy) {
-
+            'title' => $query
+                ->orderByRaw("CASE WHEN title IS NULL OR title = '' THEN 1 ELSE 0 END")
+                ->orderBy('title', $dir)
+                ->orderBy('id'),
             'deadline' => $query
-
                 ->orderByRaw('CASE WHEN deadline IS NULL THEN 1 ELSE 0 END')
-
-                ->orderBy('deadline', $dir),
-
-            'created_at' => $query->orderBy('created_at', $dir),
-
-            'status' => $query->orderBy('status', $dir),
-
+                ->orderBy('deadline', $dir)
+                ->orderBy('id'),
+            'created_at' => $query->orderBy('created_at', $dir)->orderBy('id'),
+            'status' => $query
+                ->orderByRaw($this->statusSortSql().' '.$dir)
+                ->orderBy('id'),
+            'department' => $query
+                ->leftJoin('departments', 'departments.id', '=', 'tasks.department_id')
+                ->select('tasks.*')
+                ->orderBy('departments.name', $dir)
+                ->orderBy('tasks.id'),
             default => $query
-
                 ->orderBy('priority', $dir)
-
                 ->orderByRaw('CASE WHEN deadline IS NULL THEN 1 ELSE 0 END')
-
-                ->orderBy('deadline'),
-
+                ->orderBy('deadline')
+                ->orderBy('id'),
         };
+    }
 
+    private function statusSortSql(): string
+    {
+        $whens = [];
+        foreach (TaskStatus::cases() as $index => $status) {
+            $whens[] = "WHEN '{$status->value}' THEN {$index}";
+        }
+
+        return 'CASE status '.implode(' ', $whens).' ELSE 99 END';
     }
 
 
@@ -494,13 +502,26 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
     public function toggleSortDir(): void
-
     {
-
         $this->sortDir = $this->sortDir === 'asc' ? 'desc' : 'asc';
+        $this->resetPage();
+    }
+
+    public function sortByColumn(string $column): void
+    {
+        $allowed = ['title', 'status', 'priority', 'department', 'deadline'];
+        if (! in_array($column, $allowed, true)) {
+            return;
+        }
+
+        if ($this->sortBy === $column) {
+            $this->sortDir = $this->sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortBy = $column;
+            $this->sortDir = $column === 'priority' ? 'desc' : 'asc';
+        }
 
         $this->resetPage();
-
     }
 
 
@@ -758,15 +779,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <div class="flex items-center gap-1.5">
 
                     <select wire:model.live="sortBy" class="border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-
                         <option value="priority">{{ __('Priority') }}</option>
-
-                        <option value="deadline">{{ __('Deadline') }}</option>
-
-                        <option value="created_at">{{ __('Created at') }}</option>
-
+                        <option value="title">{{ __('Title') }}</option>
                         <option value="status">{{ __('Status') }}</option>
-
+                        <option value="department">{{ __('Department') }}</option>
+                        <option value="deadline">{{ __('Deadline') }}</option>
+                        <option value="created_at">{{ __('Created at') }}</option>
                     </select>
 
                     <button type="button" wire:click="toggleSortDir"
@@ -1052,21 +1070,31 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <table class="min-w-full divide-y divide-gray-100 text-sm">
 
                     <thead class="bg-gray-50/80">
-
                         <tr>
-
-                            <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Title') }}</th>
-
-                            <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Status') }}</th>
-
-                            <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide w-28">{{ __('Priority') }}</th>
-
-                            <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Department') }}</th>
-
-                            <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Deadline') }}</th>
-
+                            @foreach ([
+                                ['title', __('Title'), ''],
+                                ['status', __('Status'), ''],
+                                ['priority', __('Priority'), 'min-width:10rem'],
+                                ['department', __('Department'), ''],
+                                ['deadline', __('Deadline'), ''],
+                            ] as [$column, $label, $thStyle])
+                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide whitespace-nowrap {{ $sortBy === $column ? 'text-indigo-700' : 'text-gray-500' }}"
+                                    @if ($thStyle !== '') style="{{ $thStyle }}" @endif>
+                                    <button type="button"
+                                            wire:click="sortByColumn('{{ $column }}')"
+                                            class="inline-flex items-center gap-1 whitespace-nowrap hover:text-indigo-700">
+                                        {{ $label }}
+                                        @if ($sortBy === $column)
+                                            @if ($sortDir === 'asc')
+                                                <svg class="w-4 h-4 shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                            @else
+                                                <svg class="w-4 h-4 shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                            @endif
+                                        @endif
+                                    </button>
+                                </th>
+                            @endforeach
                         </tr>
-
                     </thead>
 
                     @foreach ($tasks as $task)
