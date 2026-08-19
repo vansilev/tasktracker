@@ -84,6 +84,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public $pastedSubtaskFile = null;
 
+    public ?int $convertingChecklistItemId = null;
+
     public ?string $pendingTransition = null;
 
     public string $transitionComment = '';
@@ -190,6 +192,8 @@ new #[Layout('components.tasks-layout')] class extends Component
             'checklistDone' => $this->task->checklistItems->where('is_done', true)->count(),
             'checklistTotal' => $this->task->checklistItems->count(),
             'subtaskProgress' => $this->task->subtaskProgress(),
+            'subtaskProgressPercent' => $this->task->subtaskProgressPercent(),
+            'subtaskTotal' => $this->task->subtaskTotalCount(),
             'openSubtasksCount' => $this->task->openSubtasksCount(),
             'canCreateSubtask' => auth()->user()->can('createSubtask', $this->task),
             'subtaskDepartments' => (auth()->user()->hasPermission('create_task_any_department') || auth()->user()->isAdmin())
@@ -463,7 +467,27 @@ new #[Layout('components.tasks-layout')] class extends Component
     {
         abort_unless(auth()->user()->can('createSubtask', $this->task), 403);
 
+        $this->resetSubtaskForm();
+        $this->creatingSubtask = true;
+    }
+
+    public function openSubtaskModalFromChecklist(int $itemId): void
+    {
+        abort_unless(auth()->user()->can('createSubtask', $this->task), 403);
+        abort_if($this->task->isSubtask(), 403);
+
+        $item = TaskChecklistItem::query()->where('task_id', $this->task->id)->findOrFail($itemId);
+
+        $this->resetSubtaskForm();
+        $this->convertingChecklistItemId = $item->id;
+        $this->subtaskTitle = mb_substr(trim($item->text), 0, 120);
+        $this->creatingSubtask = true;
+    }
+
+    private function resetSubtaskForm(): void
+    {
         $user = auth()->user();
+        $this->convertingChecklistItemId = null;
         $this->subtaskTitle = '';
         $this->subtaskDescription = '';
         $this->subtaskDepartmentId = $user->department_id;
@@ -478,12 +502,12 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->pastedSubtaskFile = null;
         $this->subtaskEditorKey++;
         $this->resetErrorBag();
-        $this->creatingSubtask = true;
     }
 
     public function closeSubtaskModal(): void
     {
         $this->creatingSubtask = false;
+        $this->convertingChecklistItemId = null;
         $this->subtaskUploadFiles = [];
         $this->pastedSubtaskFile = null;
         $this->resetErrorBag();
@@ -515,25 +539,46 @@ new #[Layout('components.tasks-layout')] class extends Component
         ]);
 
         $checklist = array_filter(array_map('trim', explode("\n", $this->subtaskChecklistText)));
+        $payload = [
+            'department_id' => $this->subtaskDepartmentId,
+            'assignee_id' => $this->subtaskAssigneeId,
+            'category_id' => $this->subtaskCategoryId,
+            'title' => $this->subtaskTitle,
+            'description' => $this->subtaskDescription,
+            'priority' => $this->subtaskPriority,
+            'deadline' => $this->subtaskDeadline,
+            'spec_url' => $this->subtaskSpecUrl ?: null,
+        ];
 
         try {
-            $child = $tasks->createSubtask(auth()->user(), $this->task, [
-                'department_id' => $this->subtaskDepartmentId,
-                'assignee_id' => $this->subtaskAssigneeId,
-                'category_id' => $this->subtaskCategoryId,
-                'title' => $this->subtaskTitle,
-                'description' => $this->subtaskDescription,
-                'priority' => $this->subtaskPriority,
-                'deadline' => $this->subtaskDeadline,
-                'spec_url' => $this->subtaskSpecUrl ?: null,
-            ], $checklist, $this->subtaskWatcherIds);
+            if ($this->convertingChecklistItemId !== null) {
+                $item = TaskChecklistItem::query()
+                    ->where('task_id', $this->task->id)
+                    ->findOrFail($this->convertingChecklistItemId);
+                $child = $tasks->createSubtaskFromChecklist(
+                    auth()->user(),
+                    $this->task,
+                    $item,
+                    $payload,
+                    $checklist,
+                    $this->subtaskWatcherIds,
+                );
+            } else {
+                $child = $tasks->createSubtask(
+                    auth()->user(),
+                    $this->task,
+                    $payload,
+                    $checklist,
+                    $this->subtaskWatcherIds,
+                );
+            }
 
             foreach ($this->subtaskUploadFiles as $file) {
                 $attachments->store($child, auth()->user(), $file, null, false);
             }
 
             $this->closeSubtaskModal();
-            $this->task->load(['subtasks.assignee:id,name']);
+            $this->task->load(['subtasks.assignee:id,name', 'checklistItems']);
         } catch (QueryException $e) {
             report($e);
             $this->addError('subtaskTitle', __('task.create_failed'));
@@ -914,6 +959,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <span class="text-xs text-gray-500">{{ $subtaskProgress }}</span>
                         </x-slot>
                     @endif
+                    @if ($subtaskTotal > 0)
+                        <div class="mb-4 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: {{ $subtaskProgressPercent }}%"></div>
+                        </div>
+                    @endif
                     <ul class="space-y-1.5">
                         @forelse ($task->subtasks as $subtask)
                             <li>
@@ -958,6 +1008,10 @@ new #[Layout('components.tasks-layout')] class extends Component
                                            class="mt-0.5 rounded border-gray-300 text-gray-400" />
                                 @endif
                                 <span class="flex-1 text-sm {{ $item->is_done ? 'line-through text-gray-400' : 'text-gray-800' }}">{{ $item->text }}</span>
+                                @if ($canCreateSubtask && ! $task->isSubtask())
+                                    <button type="button" wire:click="openSubtaskModalFromChecklist({{ $item->id }})"
+                                            class="shrink-0 text-xs text-indigo-600 hover:text-indigo-800">{{ __('To subtask') }}</button>
+                                @endif
                                 @if ($canManageChecklist)
                                     <button type="button" wire:click="deleteChecklistItem({{ $item->id }})" class="text-xs text-red-600 hover:text-red-800">✕</button>
                                 @endif

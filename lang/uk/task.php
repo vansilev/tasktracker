@@ -28,6 +28,7 @@ return [
     'parent_not_found' => 'Батьківську задачу не знайдено.',
     'parent_must_be_root' => 'Підзадачу не можна створити в іншої підзадачі.',
     'subtask_title_required' => 'Вкажіть назву підзадачі.',
+    'checklist_item_not_on_parent' => 'Цей пункт чек-листа не належить цій задачі.',
     'assignee_without_department' => 'Виконавець має бути привʼязаний до підрозділу.',
     'department_assignee_mismatch' => 'Підрозділ задачі має збігатися з підрозділом виконавця.',
     'deactivation_requires_department_head' => 'Деактивація неможлива: відкриті задачі потрібно перепризначити активному керівнику.',

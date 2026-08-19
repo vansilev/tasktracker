@@ -213,6 +213,33 @@ class TaskService
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  list<string>  $checklistTexts
+     * @param  list<int|string>  $extraWatcherIds
+     */
+    public function createSubtaskFromChecklist(
+        User $actor,
+        Task $parent,
+        TaskChecklistItem $item,
+        array $data,
+        array $checklistTexts = [],
+        array $extraWatcherIds = [],
+    ): Task {
+        if ((int) $item->task_id !== (int) $parent->id) {
+            throw ValidationException::withMessages([
+                'checklist_item' => [__('task.checklist_item_not_on_parent')],
+            ]);
+        }
+
+        return DB::transaction(function () use ($actor, $parent, $item, $data, $checklistTexts, $extraWatcherIds) {
+            $child = $this->createSubtask($actor, $parent, $data, $checklistTexts, $extraWatcherIds);
+            $item->delete();
+
+            return $child;
+        });
+    }
+
     private function resolveParent(User $initiator, mixed $parentId): ?Task
     {
         if ($parentId === null || $parentId === '') {

@@ -28,6 +28,7 @@ return [
     'parent_not_found' => 'Parent task was not found.',
     'parent_must_be_root' => 'A subtask cannot have its own subtasks.',
     'subtask_title_required' => 'Enter a subtask title.',
+    'checklist_item_not_on_parent' => 'That checklist item does not belong to this task.',
     'assignee_without_department' => 'Assignee must belong to a department.',
     'department_assignee_mismatch' => 'Task department must match assignee department.',
     'deactivation_requires_department_head' => 'Cannot deactivate: open tasks need an active department head to reassign.',

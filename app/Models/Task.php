@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class Task extends Model
 {
@@ -206,26 +207,48 @@ class Task extends Model
 
     public function subtaskProgress(): string
     {
-        $items = $this->relationLoaded('subtasks')
-            ? $this->subtasks
-            : $this->subtasks()->get();
-
-        $total = $items->count();
+        $total = $this->subtaskTotalCount();
         if ($total === 0) {
             return '';
         }
 
-        $done = $items->filter(fn (self $task) => ! $task->status->isOpen())->count();
+        return $this->subtaskCompletedCount().'/'.$total;
+    }
 
-        return "{$done}/{$total}";
+    public function subtaskCompletedCount(): int
+    {
+        return $this->subtaskCollection()
+            ->filter(fn (self $task) => $task->status === TaskStatus::Completed)
+            ->count();
+    }
+
+    public function subtaskTotalCount(): int
+    {
+        return $this->subtaskCollection()->count();
+    }
+
+    public function subtaskProgressPercent(): int
+    {
+        $total = $this->subtaskTotalCount();
+        if ($total === 0) {
+            return 0;
+        }
+
+        return (int) round(($this->subtaskCompletedCount() / $total) * 100);
+    }
+
+    /** @return Collection<int, self> */
+    private function subtaskCollection()
+    {
+        return $this->relationLoaded('subtasks')
+            ? $this->subtasks
+            : $this->subtasks()->get();
     }
 
     public function openSubtasksCount(): int
     {
-        $items = $this->relationLoaded('subtasks')
-            ? $this->subtasks
-            : $this->subtasks()->get();
-
-        return $items->filter(fn (self $task) => $task->status->isOpen())->count();
+        return $this->subtaskCollection()
+            ->filter(fn (self $task) => $task->status->isOpen())
+            ->count();
     }
 }

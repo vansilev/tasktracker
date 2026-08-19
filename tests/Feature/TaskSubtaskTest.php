@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\Permission;
 use App\Enums\TaskStatus;
 use App\Models\Task;
+use App\Models\TaskChecklistItem;
 use App\Models\User;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
@@ -163,6 +164,79 @@ class TaskSubtaskTest extends TestCase
         $this->assertSame($assignee->id, $child->assignee_id);
         $this->assertSame($parent->category_id, $child->category_id);
         $this->assertSame($parent->priority, $child->priority);
+    }
+
+    public function test_show_page_converts_checklist_item_into_subtask(): void
+    {
+        [$parent, $initiator] = $this->makeParent();
+        $item = app(TaskService::class)->addChecklistItem($parent, $initiator, 'Hard backend piece');
+
+        $this->actingAs($initiator);
+
+        Volt::test('pages.tasks.show', ['task' => $parent->fresh()])
+            ->assertSee(__('To subtask'))
+            ->call('openSubtaskModalFromChecklist', $item->id)
+            ->assertSet('creatingSubtask', true)
+            ->assertSet('subtaskTitle', 'Hard backend piece')
+            ->set('subtaskDescription', '<p>Enough text here</p>')
+            ->call('saveSubtask')
+            ->assertHasNoErrors()
+            ->assertSet('creatingSubtask', false)
+            ->assertSee('Hard backend piece')
+            ->assertDontSee(__('To subtask'));
+
+        $this->assertFalse(TaskChecklistItem::query()->whereKey($item->id)->exists());
+        $this->assertTrue(
+            Task::query()->where('parent_id', $parent->id)->where('title', 'Hard backend piece')->exists(),
+        );
+    }
+
+    public function test_cannot_convert_checklist_item_from_another_task(): void
+    {
+        [$parent, $initiator] = $this->makeParent();
+        [$other] = $this->makeParent();
+        $foreign = app(TaskService::class)->addChecklistItem($other, $other->initiator, 'Not yours');
+
+        $this->expectException(ValidationException::class);
+        app(TaskService::class)->createSubtaskFromChecklist(
+            $initiator,
+            $parent,
+            $foreign,
+            ['title' => 'Stolen'],
+        );
+    }
+
+    public function test_subtask_progress_counts_only_completed_children(): void
+    {
+        [$parent, , $assignee] = $this->makeParent();
+        $done = app(TaskService::class)->createSubtask($assignee, $parent, ['title' => 'Done child']);
+        $cancelled = app(TaskService::class)->createSubtask($assignee, $parent, ['title' => 'Cancelled child']);
+        app(TaskService::class)->createSubtask($assignee, $parent, ['title' => 'Open child']);
+
+        $done->update(['status' => TaskStatus::Completed, 'completed_at' => now()]);
+        $cancelled->update(['status' => TaskStatus::Cancelled]);
+
+        $parent->load('subtasks');
+
+        $this->assertSame('1/3', $parent->subtaskProgress());
+        $this->assertSame(1, $parent->subtaskCompletedCount());
+        $this->assertSame(33, $parent->subtaskProgressPercent());
+        $this->assertSame(1, $parent->openSubtasksCount());
+    }
+
+    public function test_list_shows_parent_subtask_progress(): void
+    {
+        [$parent, , $assignee] = $this->makeParent(['title' => 'Big parent']);
+        $done = app(TaskService::class)->createSubtask($assignee, $parent, ['title' => 'Done slice']);
+        app(TaskService::class)->createSubtask($assignee, $parent, ['title' => 'Open slice']);
+        $done->update(['status' => TaskStatus::Completed, 'completed_at' => now()]);
+
+        $this->actingAs($assignee);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'assigned')
+            ->assertSee('Big parent')
+            ->assertSee('1/2');
     }
 
     public function test_child_page_shows_parent_link(): void

@@ -68,6 +68,7 @@
     "Checklist": "Чек-лист",
     "Subtasks": "Подзадачи",
     "Add subtask": "Добавить подзадачу",
+    "To subtask": "В подзадачу",
     "No subtasks yet.": "Подзадач пока нет.",
     "Part of #:number · :title": "Часть #:number · :title",
     "This task has :count open subtasks.": "У задачи ещё :count открытых подзадач.",

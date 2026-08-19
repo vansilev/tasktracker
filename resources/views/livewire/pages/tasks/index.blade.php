@@ -149,7 +149,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $query = app(TaskVisibilityService::class)->accessibleQuery($user)
 
-            ->with(['initiator:id,name', 'assignee:id,name', 'department:id,name', 'category:id,name', 'parent:id,number,title']);
+            ->with(['initiator:id,name', 'assignee:id,name', 'department:id,name', 'category:id,name', 'parent:id,number,title', 'subtasks:id,parent_id,status']);
 
 
 
@@ -1073,6 +1073,12 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                         <span class="truncate font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
 
+                                        @if (! $task->parent_id && ($subtaskProgress = $task->subtaskProgress()) !== '')
+
+                                            <span class="shrink-0 text-xs text-gray-500 tabular-nums">{{ $subtaskProgress }}</span>
+
+                                        @endif
+
                                     </div>
 
                                     @if ($task->parent)
@@ -1162,6 +1168,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
                                             <span class="truncate text-sm font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
+
+                                            @if (! $task->parent_id && ($subtaskProgress = $task->subtaskProgress()) !== '')
+
+                                                <span class="shrink-0 text-xs text-gray-500 tabular-nums">{{ $subtaskProgress }}</span>
+
+                                            @endif
 
                                         </div>
 
