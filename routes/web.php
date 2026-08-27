@@ -22,6 +22,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('tasks/create', 'pages.tasks.create')->name('tasks.create');
     Volt::route('tasks/{task}', 'pages.tasks.show')->name('tasks.show');
 
+    Route::middleware('billing')->group(function () {
+        Volt::route('billing', 'pages.billing.index')->name('billing.index');
+        Volt::route('billing/create', 'pages.billing.create')->name('billing.create');
+        Volt::route('billing/{item}', 'pages.billing.show')->name('billing.show');
+    });
+
     Route::post('tasks/{task}/attachments/inline', [TaskAttachmentController::class, 'storeInline'])
         ->middleware('throttle:30,1')
         ->name('tasks.attachments.inline');

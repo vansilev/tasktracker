@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\TaskStatus;
+use App\Models\BillingItem;
 use App\Models\Category;
 use App\Models\Department;
 use App\Models\Task;
@@ -9,6 +10,7 @@ use App\Models\TaskChecklistItem;
 use App\Models\TaskComment;
 use App\Models\User;
 use App\Rules\PlainTextLength;
+use App\Services\BillingPaymentService;
 use App\Services\MentionService;
 use App\Services\SettingsService;
 use App\Services\TaskAttachmentService;
@@ -113,6 +115,14 @@ new #[Layout('components.tasks-layout')] class extends Component
     /** Temporary upload slot used by TipTap inline attachment insert (show page). */
     public $inlineAttachmentFile = null;
 
+    public bool $billingPayOpen = false;
+
+    public string $billingPayAmount = '';
+
+    public bool $billingSkipOpen = false;
+
+    public string $billingSkipReason = '';
+
     public function mount(Task $task): void
     {
         $this->task = $task->load([
@@ -188,7 +198,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         return [
             'transitions' => app(TaskWorkflowService::class)->allowedTransitions(auth()->user(), $this->task),
             'assignees' => User::query()
-                ->where('is_active', true)
+                ->people()
                 ->where('department_id', $this->editAssigneeDepartmentId ?? $this->task->department_id)
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -207,7 +217,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                 : Department::query()->where('id', auth()->user()->department_id)->get(['id', 'name']),
             'subtaskCategories' => Category::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name']),
             'subtaskUsers' => User::query()
-                ->where('is_active', true)
+                ->people()
                 ->when($this->subtaskDepartmentId, fn ($q) => $q->where('department_id', $this->subtaskDepartmentId))
                 ->orderBy('name')
                 ->get(['id', 'name', 'email']),
@@ -225,12 +235,49 @@ new #[Layout('components.tasks-layout')] class extends Component
             'inlineUploadUrl' => route('tasks.attachments.inline', $this->task),
             'canEditResultUrl' => auth()->user()->can('updateResultUrl', $this->task),
             'canDeleteTask' => auth()->user()->can('delete', $this->task),
+            'billingItem' => BillingItem::query()->where('last_task_id', $this->task->id)->first(),
             'allUsers' => User::query()
-                ->where('is_active', true)
+                ->people()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'presentedHistories' => app(TaskHistoryPresenter::class)->presentMany($this->task->histories),
         ];
+    }
+
+    public function openBillingPay(): void
+    {
+        $item = BillingItem::query()->where('last_task_id', $this->task->id)->firstOrFail();
+        $this->authorize('markPaid', $item);
+        $this->billingPayOpen = true;
+        $this->billingPayAmount = $item->amount !== null ? (string) $item->amount : '';
+    }
+
+    public function confirmBillingPay(BillingPaymentService $payments): void
+    {
+        $item = BillingItem::query()->where('last_task_id', $this->task->id)->firstOrFail();
+        try {
+            $payments->markPaid(auth()->user(), $item, $this->billingPayAmount !== '' ? $this->billingPayAmount : null);
+            $this->billingPayOpen = false;
+            $this->task->refresh();
+            $this->task->load(['comments.author', 'histories.changedBy']);
+            session()->flash('billing_status', __('billing.task_paid_comment'));
+        } catch (ValidationException $e) {
+            session()->flash('billing_error', collect($e->errors())->flatten()->first());
+        }
+    }
+
+    public function confirmBillingSkip(BillingPaymentService $payments): void
+    {
+        $item = BillingItem::query()->where('last_task_id', $this->task->id)->firstOrFail();
+        try {
+            $payments->skip(auth()->user(), $item, $this->billingSkipReason);
+            $this->billingSkipOpen = false;
+            $this->billingSkipReason = '';
+            $this->task->refresh();
+            $this->task->load(['comments.author', 'histories.changedBy']);
+        } catch (ValidationException $e) {
+            session()->flash('billing_error', collect($e->errors())->flatten()->first());
+        }
     }
 
     public function startEditWatchers(): void
@@ -905,9 +952,30 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </x-action-button>
                     @endforeach
                 @endif
+                @if ($billingItem && $billingItem->kind->canMarkPaid() && auth()->user()->can('markPaid', $billingItem) && $billingItem->state === \App\Enums\BillingState::Active)
+                    <x-action-button variant="primary" wire:click="openBillingPay">{{ __('billing.mark_paid') }}</x-action-button>
+                    @if ($billingItem->kind->canSkip())
+                        <x-action-button variant="ghost" wire:click="$set('billingSkipOpen', true)">{{ __('billing.skip') }}</x-action-button>
+                    @endif
+                @endif
             </div>
         </div>
     </div>
+
+    @if (session('billing_status'))
+        <p class="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">{{ session('billing_status') }}</p>
+    @endif
+    @if (session('billing_error'))
+        <p class="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">{{ session('billing_error') }}</p>
+    @endif
+    @if ($billingItem)
+        <div class="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-sm text-indigo-900">
+            {{ $billingItem->title() }} · {{ $billingItem->formattedAmount() }}
+            @if (auth()->user()->hasPermission(\App\Enums\Permission::ViewBilling) || auth()->user()->hasPermission(\App\Enums\Permission::ManageBilling))
+                · <a href="{{ route('billing.show', $billingItem) }}" wire:navigate class="underline">{{ __('billing.open_billing') }}</a>
+            @endif
+        </div>
+    @endif
 
     @if ($transitionError)
         <div class="rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">{{ $transitionError }}</div>
@@ -1556,6 +1624,32 @@ new #[Layout('components.tasks-layout')] class extends Component
                         <x-primary-button wire:loading.attr="disabled">{{ __('Save') }}</x-primary-button>
                     </div>
                 </form>
+            </div>
+        </div>
+    @endif
+
+    @if ($billingPayOpen && $billingItem)
+        <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+                <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $billingItem->title(), 'amount' => $billingItem->formattedAmount()]) }}</p>
+                <x-text-input wire:model="billingPayAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
+                <div class="flex gap-2 justify-end">
+                    <x-action-button variant="ghost" wire:click="$set('billingPayOpen', false)">{{ __('Cancel') }}</x-action-button>
+                    <x-action-button variant="primary" wire:click="confirmBillingPay">{{ __('billing.yes') }}</x-action-button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($billingSkipOpen && $billingItem)
+        <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+                <label class="text-sm">{{ __('billing.skip_reason') }}</label>
+                <textarea wire:model="billingSkipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
+                <div class="flex gap-2 justify-end">
+                    <x-action-button variant="ghost" wire:click="$set('billingSkipOpen', false)">{{ __('Cancel') }}</x-action-button>
+                    <x-action-button variant="danger" wire:click="confirmBillingSkip">{{ __('billing.skip') }}</x-action-button>
+                </div>
             </div>
         </div>
     @endif

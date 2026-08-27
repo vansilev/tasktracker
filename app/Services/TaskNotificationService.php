@@ -272,6 +272,7 @@ class TaskNotificationService
     ): void {
         $recipients
             ->filter(fn (User $user) => $user->is_active && ($actor === null || $user->id !== $actor->id))
+            ->filter(fn (User $user) => ! app(BillingBot::class)->is($user))
             ->unique('id')
             ->each(function (User $user) use ($event, $notificationFactory) {
                 if (! $this->hasAnyChannelEnabled($user, $event)) {

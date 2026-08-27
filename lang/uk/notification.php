@@ -39,6 +39,9 @@ return [
         'task_deadline_approaching' => 'Наближення дедлайну',
         'task_overdue' => 'Прострочений дедлайн',
         'task_review_sla_expired' => 'Минув SLA перевірки',
+        'billing_due_7' => 'Оплата через 7 днів',
+        'billing_due_3' => 'Оплата через 3 дні',
+        'billing_overdue' => 'Прострочена оплата',
     ],
     'channels' => [
         'database' => 'In-app',

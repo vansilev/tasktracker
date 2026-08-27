@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureApiUserIsActive;
+use App\Http\Middleware\EnsureCanViewBilling;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin' => EnsureAdmin::class,
+            'billing' => EnsureCanViewBilling::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

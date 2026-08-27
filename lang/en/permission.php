@@ -12,4 +12,6 @@ return [
     'comment' => 'Comment',
     'review_task' => 'Accept / return for rework',
     'manage_department' => 'Manage department settings',
+    'view_billing' => 'View billing',
+    'manage_billing' => 'Manage billing',
 ];

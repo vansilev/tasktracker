@@ -28,6 +28,9 @@ return [
     'admin_email' => env('ADMIN_EMAIL', 'crm.manager@tcsavant.com'),
     'admin_name' => env('ADMIN_NAME', 'CRM Manager'),
 
+    'billing_bot_email' => env('BILLING_BOT_EMAIL', 'billing@tcsavant.com'),
+    'billing_bot_name' => env('BILLING_BOT_NAME', 'Оплаты'),
+
     /*
     |--------------------------------------------------------------------------
     | Application defaults

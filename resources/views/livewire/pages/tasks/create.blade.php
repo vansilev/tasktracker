@@ -89,11 +89,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                 : Department::query()->where('id', $user->department_id)->get(['id', 'name']),
             'categories' => Category::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'name']),
             'users' => User::query()
-                ->where('is_active', true)
+                ->people()
                 ->when($this->departmentId, fn ($q) => $q->where('department_id', $this->departmentId))
                 ->orderBy('name')
                 ->get(['id', 'name', 'email']),
-            'allUsers' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'allUsers' => User::query()->people()->orderBy('name')->get(['id', 'name']),
         ];
     }
 

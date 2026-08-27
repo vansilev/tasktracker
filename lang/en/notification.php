@@ -39,6 +39,9 @@ return [
         'task_deadline_approaching' => 'Deadline approaching',
         'task_overdue' => 'Overdue deadline',
         'task_review_sla_expired' => 'Review SLA expired',
+        'billing_due_7' => 'Payment in 7 days',
+        'billing_due_3' => 'Payment in 3 days',
+        'billing_overdue' => 'Payment overdue',
     ],
     'channels' => [
         'database' => 'In-app',

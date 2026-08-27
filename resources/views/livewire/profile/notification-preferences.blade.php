@@ -15,6 +15,9 @@ new class extends Component
         'task_deadline_approaching' => 'task.deadline_approaching',
         'task_overdue' => 'task.overdue',
         'task_review_sla_expired' => 'task.review_sla_expired',
+        'billing_due_7' => 'billing.due_7',
+        'billing_due_3' => 'billing.due_3',
+        'billing_overdue' => 'billing.overdue',
     ];
 
     /** @var list<string> */

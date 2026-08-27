@@ -92,4 +92,27 @@ class SmokeRoutesTest extends TestCase
             ->get('/tasks/create')
             ->assertOk();
     }
+
+    public function test_regular_user_cannot_access_billing(): void
+    {
+        $dept = $this->createDepartment();
+        $user = $this->createUserInDepartment($dept, 'Employee');
+
+        $this->actingAs($user)
+            ->get('/billing')
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_access_billing(): void
+    {
+        $admin = User::factory()->create([
+            'email' => 'admin-billing-smoke@tcsavant.com',
+            'system_type' => SystemType::Admin,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/billing')
+            ->assertOk();
+    }
 }

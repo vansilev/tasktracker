@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <x-page-header :title="__($title ?? 'Tasks')">
+        <x-page-header :title="isset($title) ? (string) $title : __('Tasks')">
             @isset($headerActions)
                 <x-slot name="actions">
                     {{ $headerActions }}

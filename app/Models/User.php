@@ -117,6 +117,15 @@ class User extends Authenticatable implements HasLocalePreference
         $this->roles()->sync($roleIds);
     }
 
+    public function scopePeople($query)
+    {
+        $email = (string) config('tasktracker.billing_bot_email');
+
+        return $query
+            ->where('is_active', true)
+            ->when($email !== '', fn ($q) => $q->where('email', '!=', $email));
+    }
+
     public function preferredLocale(): string
     {
         return $this->locale ?: (string) config('app.locale');
