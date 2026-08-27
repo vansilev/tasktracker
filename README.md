@@ -123,7 +123,7 @@ php artisan schedule:list
 php artisan test
 ```
 
-**180 passed** (433 assertions). Покрыты: RBAC/видимость, workflow, инварианты задач, обновление полей, lifecycle пользователей, деактивация сессий, настройки, аудит, in-app уведомления, напоминания, вложения, дашборд, фильтры списка, переназначение, предпочтения уведомлений, @упоминания, история, импорт Excel UI, smoke-маршруты.
+Покрыты: RBAC/видимость, workflow, инварианты задач, обновление полей, lifecycle пользователей, деактивация сессий, настройки, аудит, in-app уведомления, напоминания, вложения, дашборд, фильтры списка, переназначение, предпочтения уведомлений, @упоминания, история, импорт Excel UI, smoke-маршруты, REST API, MCP.
 
 ## Ключевая структура
 
@@ -140,6 +140,8 @@ app/Services/ExcelTaskImportService.php  — импорт Excel (команда 
 app/Services/SettingsService.php         — настройки (БД → config)
 app/Services/UserLifecycleService.php    — пользователи, перевод между отделами
 app/Services/AuditLogService.php         — журнал админ-действий
+app/Services/TaskApiService.php          — REST + MCP (список, карточка, create/comment/transition)
+app/Mcp/Servers/TaskTrackerServer.php    — MCP-сервер `/mcp`
 app/Http/Middleware/EnsureUserIsActive.php
 app/Console/Commands/SendTaskReminders.php
 app/Notifications/Task*.php              — классы уведомлений
@@ -150,6 +152,44 @@ resources/views/livewire/profile/notification-preferences.blade.php
 resources/views/livewire/layout/notifications.blade.php
 storage/app/private/attachments/           — файлы вне public
 ```
+
+## API и MCP
+
+Auth: Laravel Sanctum (Bearer). В URL задач — публичный **номер** (`#224`), не внутренний id.
+
+```bash
+php artisan tasktracker:issue-api-token you@tcsavant.com --name=cursor-mcp
+```
+
+Либо `POST /api/v1/auth/token` с email и паролем.
+
+| Метод | Путь | Назначение |
+|-------|------|------------|
+| POST | `/api/v1/auth/token` | Выдать токен |
+| GET | `/api/v1/me` | Текущий пользователь |
+| GET | `/api/v1/tasks` | Список (`q`, `tab`, `status`, `open`, `assignee_email`, …) |
+| GET | `/api/v1/tasks/{number}` | Карточка |
+| POST | `/api/v1/tasks` | Создать |
+| POST | `/api/v1/tasks/{number}/comments` | Комментарий |
+| POST | `/api/v1/tasks/{number}/transition` | Сменить статус |
+| GET | `/api/v1/users` | Сотрудники |
+| GET | `/api/v1/catalogs` | Отделы, категории, статусы |
+| POST | `/mcp` | MCP (тот же Bearer) |
+
+Cursor → MCP:
+
+```json
+{
+  "task-avant": {
+    "url": "https://task.avant.od.ua/mcp",
+    "headers": {
+      "Authorization": "Bearer <token>"
+    }
+  }
+}
+```
+
+Локально: `http://127.0.0.1:8000/mcp`. На прод API/MCP попадают только после выката.
 
 ## Следующие этапы
 

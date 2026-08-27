@@ -10,6 +10,8 @@
         "laravel-notification-channels/telegram": "^7.0",
         "laravel/breeze": "^2.4",
         "laravel/framework": "^13.8",
+        "laravel/mcp": "^0.9.4",
+        "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.28",
         "laravel/tinker": "^3.0",
         "league/commonmark": "^2.8",
