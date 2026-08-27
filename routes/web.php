@@ -24,7 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('billing')->group(function () {
         Volt::route('billing', 'pages.billing.index')->name('billing.index');
-        Volt::route('billing/create', 'pages.billing.create')->name('billing.create');
+        Route::redirect('billing/create', '/billing')->name('billing.create');
         Volt::route('billing/{item}', 'pages.billing.show')->name('billing.show');
     });
 

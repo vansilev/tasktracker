@@ -52,6 +52,15 @@ class BillingTest extends TestCase
             ->assertSee(__('billing.nav'));
     }
 
+    public function test_create_url_stays_on_billing_list(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->get('/billing/create')
+            ->assertRedirect('/billing');
+    }
+
     public function test_missing_fields_show_yellow_needs_fill_badges(): void
     {
         $admin = $this->admin();
@@ -367,6 +376,8 @@ class BillingTest extends TestCase
 
         $this->actingAs($admin);
         Volt::test('pages.billing.create')
+            ->call('openModal')
+            ->assertSet('open', true)
             ->set('vendor', 'Hostinger')
             ->set('product', 'KVM 2')
             ->call('nextStep')
@@ -379,7 +390,8 @@ class BillingTest extends TestCase
             ->call('nextStep')
             ->set('paymentMethod', BillingPaymentMethod::Bank->value)
             ->call('save')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSet('open', false);
 
         $this->assertDatabaseHas('billing_items', [
             'vendor' => 'Hostinger',

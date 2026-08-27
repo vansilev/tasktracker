@@ -53,6 +53,7 @@ return [
     ],
     'nav' => 'Billing',
     'create' => 'Add payment',
+    'created' => 'Payment added to the list.',
     'empty' => 'Nothing here yet. Start with domains and hosting — usually 3–5 of them.',
     'search' => 'Search services…',
     'paid_confirm' => 'Paid :title, :amount?',

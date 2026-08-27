@@ -9,6 +9,7 @@ use App\Services\BillingItemService;
 use App\Services\BillingPaymentService;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
@@ -155,13 +156,19 @@ new #[Layout('components.tasks-layout')] class extends Component
             session()->flash('billing_error', collect($e->errors())->flatten()->first());
         }
     }
+
+    #[On('billing-item-created')]
+    public function refreshAfterCreate(): void
+    {
+        $this->resetPage();
+    }
 }; ?>
 
 <div>
     <x-slot name="title">{{ __('billing.nav') }}</x-slot>
     @if ($canManage)
         <x-slot name="headerActions">
-            <x-action-button variant="primary" size="md" type="button" onclick="Livewire.navigate('{{ route('billing.create') }}')">
+            <x-action-button variant="primary" size="md" type="button" wire:click="$dispatch('open-billing-create')">
                 {{ __('billing.create') }}
             </x-action-button>
         </x-slot>
@@ -307,5 +314,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                 </div>
             </div>
         </div>
+    @endif
+
+    @if ($canManage)
+        <livewire:pages.billing.create />
     @endif
 </div>
