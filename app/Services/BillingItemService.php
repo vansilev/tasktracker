@@ -90,7 +90,13 @@ class BillingItemService
     public function dueMeta(BillingItem $item): array
     {
         if ($item->next_due_on === null) {
-            return ['text' => '—', 'class' => 'text-gray-500'];
+            return [
+                'text' => '—',
+                'relative' => '—',
+                'date' => null,
+                'tone' => 'gray',
+                'class' => 'text-gray-500',
+            ];
         }
 
         $today = $this->cycle->today();
@@ -99,28 +105,61 @@ class BillingItemService
         $days = (int) $today->diffInDays($due, false);
 
         if ($days < 0) {
+            $count = abs($days);
+            $relative = trans_choice('billing.overdue_days', $count, ['count' => $count]);
+
             return [
-                'text' => __('billing.overdue_days', ['count' => abs($days)]),
+                'text' => $relative,
+                'relative' => $relative,
+                'date' => $formatted,
+                'tone' => 'red',
                 'class' => 'text-red-600 font-medium',
             ];
         }
 
         if ($days === 0) {
-            return ['text' => __('billing.due_today').' · '.$formatted, 'class' => 'text-amber-600 font-medium'];
-        }
+            $relative = __('billing.due_today');
 
-        if ($days === 1) {
-            return ['text' => __('billing.due_tomorrow').' · '.$formatted, 'class' => 'text-amber-600 font-medium'];
-        }
-
-        if ($days <= 7) {
             return [
-                'text' => __('billing.due_in_days', ['count' => $days]).' · '.$formatted,
+                'text' => $relative.' · '.$formatted,
+                'relative' => $relative,
+                'date' => $formatted,
+                'tone' => 'amber',
                 'class' => 'text-amber-600 font-medium',
             ];
         }
 
-        return ['text' => $formatted, 'class' => 'text-gray-700'];
+        if ($days === 1) {
+            $relative = __('billing.due_tomorrow');
+
+            return [
+                'text' => $relative.' · '.$formatted,
+                'relative' => $relative,
+                'date' => $formatted,
+                'tone' => 'amber',
+                'class' => 'text-amber-600 font-medium',
+            ];
+        }
+
+        if ($days <= 7) {
+            $relative = trans_choice('billing.due_in_days', $days, ['count' => $days]);
+
+            return [
+                'text' => $relative.' · '.$formatted,
+                'relative' => $relative,
+                'date' => $formatted,
+                'tone' => 'amber',
+                'class' => 'text-amber-600 font-medium',
+            ];
+        }
+
+        return [
+            'text' => $formatted,
+            'relative' => $formatted,
+            'date' => $formatted,
+            'tone' => 'gray',
+            'class' => 'text-gray-700',
+        ];
     }
 
     public function amountHint(?string $raw, ?string $currency, ?int $periodMonths): ?string

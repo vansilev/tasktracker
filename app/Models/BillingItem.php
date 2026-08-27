@@ -104,6 +104,17 @@ class BillingItem extends Model
         return number_format((float) $this->amount, 2, ',', ' ').' '.($this->currency ?? '');
     }
 
+    public function frequencyLabel(): string
+    {
+        if ($this->kind === BillingKind::Subscription) {
+            return $this->period_months === 12
+                ? __('billing.every_year')
+                : __('billing.every_month');
+        }
+
+        return $this->kind->label();
+    }
+
     /** @return list<array{key: string, label: string}> */
     public function issues(): array
     {

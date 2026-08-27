@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\BillingCategory;
 use App\Enums\BillingKind;
 use App\Enums\BillingPaymentMethod;
 use App\Enums\BillingPaymentType;
@@ -109,6 +110,53 @@ class BillingTest extends TestCase
             ->assertSet('editing', false);
 
         $this->assertSame('4321', $item->fresh()->card_last4);
+    }
+
+    public function test_item_popup_shows_card_not_a_field_dump(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-27', 'Europe/Kyiv')->startOfDay());
+        $admin = $this->admin();
+        $item = BillingItem::factory()->create([
+            'vendor' => 'ChatGPT',
+            'product' => 'Plus',
+            'category' => BillingCategory::Ai,
+            'kind' => BillingKind::Subscription,
+            'period_months' => 1,
+            'amount' => 24,
+            'currency' => 'USD',
+            'next_due_on' => '2026-08-29',
+            'payment_method' => BillingPaymentMethod::Card,
+            'card_last4' => null,
+            'payer_user_id' => null,
+            'owner_user_id' => null,
+        ]);
+
+        $this->actingAs($admin);
+
+        Volt::test('pages.billing.show')
+            ->call('openModal', $item->id)
+            ->assertSee('ChatGPT')
+            ->assertSee('Plus')
+            ->assertSee('24,00 USD')
+            ->assertSee(__('billing.every_month'))
+            ->assertDontSee(__('billing.kind.subscription'))
+            ->assertSee(__('billing.missing_prefix', [
+                'items' => __('billing.issue_short.payer').', '.__('billing.issue_short.owner').', '.__('billing.issue_short.card_last4'),
+            ]))
+            ->assertSee(trans_choice('billing.due_in_days', 2, ['count' => 2]))
+            ->assertDontSee(__('billing.issue.payer'))
+            ->assertSee(__('billing.fill_missing'));
+    }
+
+    public function test_due_in_two_days_uses_correct_russian_plural(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-27', 'Europe/Kyiv')->startOfDay());
+        $item = BillingItem::factory()->create(['next_due_on' => '2026-08-29']);
+        $meta = app(BillingItemService::class)->dueMeta($item);
+
+        $this->assertSame('через 2 дня', $meta['relative']);
+        $this->assertSame('29.08.2026', $meta['date']);
+        $this->assertSame('amber', $meta['tone']);
     }
 
     public function test_missing_fields_show_yellow_needs_fill_badges(): void

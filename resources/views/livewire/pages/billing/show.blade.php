@@ -250,8 +250,12 @@ new class extends Component
         if (! $this->item) {
             return [
                 'people' => collect(),
-                'due' => ['text' => '—', 'class' => 'text-gray-500'],
+                'due' => ['text' => '—', 'relative' => '—', 'date' => null, 'tone' => 'gray', 'class' => 'text-gray-500'],
                 'issues' => [],
+                'issueSummary' => '',
+                'frequency' => '',
+                'statusKey' => 'active',
+                'statusColor' => 'gray',
                 'canManage' => auth()->user()->hasPermission(Permission::ManageBilling),
                 'canPay' => false,
                 'kinds' => BillingKind::cases(),
@@ -261,11 +265,32 @@ new class extends Component
         }
 
         $this->item->loadMissing(['payer', 'owner', 'lastTask', 'payments.actor']);
+        $issues = $this->item->issues();
+        $due = app(BillingItemService::class)->dueMeta($this->item);
+        $statusKey = $this->item->derivedStatus();
+        if ($statusKey === 'needs_payer') {
+            $statusKey = match ($due['tone'] ?? 'gray') {
+                'red' => 'overdue',
+                'amber' => 'soon',
+                default => 'active',
+            };
+        }
 
         return [
             'people' => app(BillingBot::class)->peopleQuery()->get(['id', 'name']),
-            'due' => app(BillingItemService::class)->dueMeta($this->item),
-            'issues' => $this->item->issues(),
+            'due' => $due,
+            'issues' => $issues,
+            'issueSummary' => collect($issues)
+                ->map(fn (array $issue) => __('billing.issue_short.'.$issue['key']))
+                ->implode(', '),
+            'frequency' => $this->item->frequencyLabel(),
+            'statusKey' => $statusKey,
+            'statusColor' => match ($statusKey) {
+                'overdue' => 'red',
+                'soon', 'needs_payer', 'paused' => 'amber',
+                'active' => 'green',
+                default => 'gray',
+            },
             'canManage' => auth()->user()->hasPermission(Permission::ManageBilling),
             'canPay' => auth()->user()->can('markPaid', $this->item),
             'kinds' => BillingKind::cases(),
@@ -286,9 +311,17 @@ new class extends Component
         >
             <div class="fixed inset-0 bg-gray-500/75" wire:click="close"></div>
             <div class="relative mx-auto my-6 w-full max-w-2xl px-4">
-                <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-                    <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
-                        <h2 id="billing-show-title" class="text-sm font-semibold text-gray-900 truncate">{{ $item->title() }}</h2>
+                <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
+                    <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100">
+                        <div class="min-w-0">
+                            <h2 id="billing-show-title" class="text-base font-semibold text-gray-900 truncate">{{ $item->vendor }}</h2>
+                            <p class="text-sm text-gray-500 truncate">{{ $item->product }}</p>
+                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                <x-pill color="indigo">{{ $item->category->label() }}</x-pill>
+                                <x-pill>{{ __('billing.kind_short.'.$item->kind->value) }}</x-pill>
+                                <x-pill :color="$statusColor">{{ __('billing.status.'.$statusKey) }}</x-pill>
+                            </div>
+                        </div>
                         <div class="flex items-center gap-2 shrink-0">
                             @if ($canManage && ! $editing)
                                 <x-action-button variant="secondary" size="sm" type="button" wire:click="startEdit">{{ __('Edit') }}</x-action-button>
@@ -297,20 +330,12 @@ new class extends Component
                         </div>
                     </div>
 
-                    <div class="p-5 space-y-4 max-h-[calc(100vh-10rem)] overflow-y-auto">
+                    <div class="p-5 space-y-4 overflow-y-auto">
                         @if (session('billing_status'))
                             <p class="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">{{ session('billing_status') }}</p>
                         @endif
                         @if (session('billing_error'))
                             <p class="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">{{ session('billing_error') }}</p>
-                        @endif
-
-                        @if ($issues)
-                            <div class="flex flex-wrap gap-1">
-                                @foreach ($issues as $issue)
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 ring-1 ring-amber-200">{{ $issue['label'] }}</span>
-                                @endforeach
-                            </div>
                         @endif
 
                         @if ($editing)
@@ -411,85 +436,176 @@ new class extends Component
                                 </div>
                             </form>
                         @else
-                            <dl class="grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                                <div>
-                                    <dt class="text-gray-500">{{ __('billing.amount') }}</dt>
-                                    <dd class="font-medium">{{ $item->formattedAmount() }}</dd>
+                            @php
+                                $dueTone = $due['tone'] ?? 'gray';
+                                $dueBox = match ($dueTone) {
+                                    'red' => 'bg-red-50',
+                                    'amber' => 'bg-amber-50',
+                                    default => 'bg-gray-50',
+                                };
+                                $dueMuted = match ($dueTone) {
+                                    'red' => 'text-red-700/70',
+                                    'amber' => 'text-amber-800/70',
+                                    default => 'text-gray-500',
+                                };
+                                $dueStrong = match ($dueTone) {
+                                    'red' => 'text-red-900',
+                                    'amber' => 'text-amber-950',
+                                    default => 'text-gray-900',
+                                };
+                            @endphp
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="rounded-xl bg-indigo-50 px-4 py-3">
+                                    <div class="text-[11px] font-medium uppercase tracking-wide text-indigo-700/70">{{ __('billing.amount') }}</div>
+                                    <div class="mt-1 text-xl font-semibold text-gray-900 leading-tight">{{ $item->formattedAmount() }}</div>
                                 </div>
-                                <div>
-                                    <dt class="text-gray-500">{{ __('billing.next_due') }}</dt>
-                                    <dd class="{{ $due['class'] }}">{{ $due['text'] }}</dd>
+                                <div class="rounded-xl px-4 py-3 {{ $dueBox }}">
+                                    <div class="text-[11px] font-medium uppercase tracking-wide {{ $dueMuted }}">{{ __('billing.next_due') }}</div>
+                                    <div class="mt-1 text-xl font-semibold leading-tight {{ $dueStrong }}">{{ $due['relative'] ?? $due['text'] }}</div>
+                                    @if (($due['date'] ?? null) && ($due['relative'] ?? '') !== ($due['date'] ?? ''))
+                                        <div class="mt-0.5 text-sm {{ $dueStrong }} opacity-80">{{ $due['date'] }}</div>
+                                    @endif
+                                    @if ($item->state === \App\Enums\BillingState::Paused && $item->paused_until)
+                                        <div class="mt-0.5 text-xs {{ $dueStrong }} opacity-80">{{ $item->paused_until->format('d.m.Y') }}</div>
+                                    @endif
                                 </div>
-                                <div>
-                                    <dt class="text-gray-500">{{ __('billing.kind_label') }}</dt>
-                                    <dd>{{ $item->kind->label() }}</dd>
+                            </div>
+
+                            @if ($issues && $issueSummary)
+                                <div class="flex items-start justify-between gap-3 rounded-xl bg-amber-50 px-3.5 py-3 ring-1 ring-amber-100">
+                                    <p class="text-sm text-amber-900">{{ __('billing.missing_prefix', ['items' => $issueSummary]) }}</p>
+                                    @if ($canManage)
+                                        <x-action-button variant="secondary" size="sm" type="button" wire:click="startEdit" class="shrink-0">{{ __('billing.fill_missing') }}</x-action-button>
+                                    @endif
                                 </div>
-                                <div>
-                                    <dt class="text-gray-500">{{ __('billing.method_label') }}</dt>
-                                    <dd>{{ $item->payment_method->label() }} @if ($item->card_last4) •••• {{ $item->card_last4 }} @endif</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-gray-500">{{ __('billing.payer') }}</dt>
-                                    <dd>{{ $item->payer?->name ?? __('billing.not_specified') }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-gray-500">{{ __('billing.owner') }}</dt>
-                                    <dd>{{ $item->owner?->name ?? __('billing.not_specified') }}</dd>
-                                </div>
-                                @if ($item->owner_label)
-                                    <div>
-                                        <dt class="text-gray-500">{{ __('billing.owner_label') }}</dt>
-                                        <dd>{{ $item->owner_label }}</dd>
-                                    </div>
-                                @endif
-                                <div>
-                                    <dt class="text-gray-500">{{ __('billing.state_label') }}</dt>
-                                    <dd>{{ $item->state->label() }}</dd>
-                                </div>
-                            </dl>
-                            @if ($item->notes)
-                                <p class="mt-4 text-sm text-gray-600 whitespace-pre-line">{{ $item->notes }}</p>
-                            @endif
-                            @if ($item->lastTask)
-                                <p class="mt-4 text-sm"><a href="{{ route('tasks.show', $item->lastTask) }}" wire:navigate class="text-indigo-700">{{ __('billing.open_task') }} #{{ $item->lastTask->number }}</a></p>
                             @endif
 
-                            <div class="mt-4 flex flex-wrap gap-2">
-                                @if ($item->kind->canMarkPaid() && $canPay && $item->state === \App\Enums\BillingState::Active)
-                                    <x-action-button variant="primary" wire:click="openPay">{{ __('billing.mark_paid') }}</x-action-button>
-                                    @if ($item->kind->canSkip())
-                                        <x-action-button variant="ghost" wire:click="$set('skipOpen', true)">{{ __('billing.skip') }}</x-action-button>
+                            <div class="grid sm:grid-cols-2 gap-2.5">
+                                <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.method_label') }}</div>
+                                    <div class="mt-0.5 text-sm font-medium text-gray-900">
+                                        {{ $item->payment_method->label() }}
+                                        @if ($item->card_last4)
+                                            <span class="text-gray-500 font-normal">•••• {{ $item->card_last4 }}</span>
+                                        @elseif ($item->payment_method === \App\Enums\BillingPaymentMethod::Card && $canManage)
+                                            <button type="button" wire:click="startEdit" class="text-amber-700 hover:underline font-normal">{{ __('billing.specify') }}</button>
+                                        @endif
+                                    </div>
+                                    @if ($item->card_label)
+                                        <div class="text-xs text-gray-500">{{ $item->card_label }}</div>
                                     @endif
+                                    @if ($item->auto_renew)
+                                        <div class="text-xs text-gray-500">{{ __('billing.auto_renew') }}</div>
+                                    @endif
+                                </div>
+                                <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.kind_label') }}</div>
+                                    <div class="mt-0.5 text-sm font-medium text-gray-900">{{ $frequency }}</div>
+                                </div>
+                                <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.payer') }}</div>
+                                    <div class="mt-0.5 text-sm font-medium text-gray-900">
+                                        @if ($item->payer)
+                                            {{ $item->payer->name }}
+                                        @elseif ($canManage)
+                                            <button type="button" wire:click="startEdit" class="text-amber-700 hover:underline font-normal">{{ __('billing.specify') }}</button>
+                                        @else
+                                            <span class="text-gray-400 font-normal">—</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.owner') }}</div>
+                                    <div class="mt-0.5 text-sm font-medium text-gray-900">
+                                        @if ($item->owner)
+                                            {{ $item->owner->name }}
+                                        @elseif ($canManage)
+                                            <button type="button" wire:click="startEdit" class="text-amber-700 hover:underline font-normal">{{ __('billing.specify') }}</button>
+                                        @else
+                                            <span class="text-gray-400 font-normal">—</span>
+                                        @endif
+                                    </div>
+                                    @if ($item->owner_label && ! $item->owner)
+                                        <div class="text-xs text-gray-500">{{ $item->owner_label }}</div>
+                                    @endif
+                                </div>
+                                @if ($item->account_ref)
+                                    <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                        <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.account_ref') }}</div>
+                                        <div class="mt-0.5 text-sm font-medium text-gray-900 break-all">{{ $item->account_ref }}</div>
+                                    </div>
                                 @endif
-                                @if ($canManage && $item->state === \App\Enums\BillingState::Active)
-                                    <x-action-button variant="secondary" wire:click="$set('pauseOpen', true)">{{ __('billing.pause') }}</x-action-button>
-                                    <x-action-button variant="danger" wire:click="$set('archiveOpen', true)">{{ __('billing.archive') }}</x-action-button>
-                                @endif
-                                @if ($canManage && $item->state === \App\Enums\BillingState::Paused)
-                                    <x-action-button variant="primary" wire:click="resume">{{ __('billing.unpause') }}</x-action-button>
+                                @if ($item->vat_note)
+                                    <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                        <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.vat_note') }}</div>
+                                        <div class="mt-0.5 text-sm font-medium text-gray-900">{{ $item->vat_note }}</div>
+                                    </div>
                                 @endif
                             </div>
+
+                            @if ($item->description)
+                                <p class="text-sm text-gray-600">{{ $item->description }}</p>
+                            @endif
+
+                            @if ($item->notes)
+                                <div class="rounded-lg border border-gray-100 bg-white px-3.5 py-3">
+                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500 mb-1">{{ __('billing.notes') }}</div>
+                                    <p class="text-sm text-gray-700 whitespace-pre-line">{{ $item->notes }}</p>
+                                </div>
+                            @endif
+
+                            @if ($item->portal_url || $item->lastTask)
+                                <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                                    @if ($item->portal_url)
+                                        <a href="{{ $item->portal_url }}" target="_blank" rel="noopener noreferrer" class="text-indigo-700 hover:underline">{{ __('billing.open_portal') }}</a>
+                                    @endif
+                                    @if ($item->lastTask)
+                                        <a href="{{ route('tasks.show', $item->lastTask) }}" wire:navigate class="text-indigo-700 hover:underline">{{ __('billing.open_task') }} #{{ $item->lastTask->number }}</a>
+                                    @endif
+                                </div>
+                            @endif
                         @endif
 
                         <div class="border-t border-gray-100 pt-4">
                             <h3 class="text-sm font-medium text-gray-900 mb-2">{{ __('billing.history') }}</h3>
-                            @forelse ($item->payments as $payment)
-                                <div class="py-2 border-b border-gray-50 last:border-0 text-sm">
-                                    <span class="font-medium">{{ $payment->type->value === 'paid' ? __('billing.mark_paid') : __('billing.skip') }}</span>
-                                    · {{ $payment->recorded_on?->format('d.m.Y') }}
-                                    · {{ $payment->actor?->name }}
+                            @forelse ($item->payments->sortByDesc('id') as $payment)
+                                <div class="py-2 border-b border-gray-50 last:border-0 text-sm flex flex-wrap items-baseline gap-x-2">
+                                    <span class="font-medium text-gray-900">{{ $payment->type->label() }}</span>
+                                    <span class="text-gray-500">{{ $payment->recorded_on?->format('d.m.Y') }}</span>
+                                    @if ($payment->actor)
+                                        <span class="text-gray-500">{{ $payment->actor->name }}</span>
+                                    @endif
                                     @if ($payment->amount !== null)
-                                        · {{ number_format((float) $payment->amount, 2, ',', ' ') }} {{ $payment->currency }}
+                                        <span class="text-gray-700">{{ number_format((float) $payment->amount, 2, ',', ' ') }} {{ $payment->currency }}</span>
                                     @endif
                                     @if ($payment->reason)
-                                        <div class="text-gray-500">{{ $payment->reason }}</div>
+                                        <div class="w-full text-gray-500">{{ $payment->reason }}</div>
                                     @endif
                                 </div>
                             @empty
-                                <p class="text-sm text-gray-500">—</p>
+                                <p class="text-sm text-gray-400">{{ __('billing.history_empty') }}</p>
                             @endforelse
                         </div>
                     </div>
+
+                    @if (! $editing)
+                        <div class="border-t border-gray-100 px-5 py-3 flex flex-wrap items-center gap-2 bg-white">
+                            @if ($item->kind->canMarkPaid() && $canPay && $item->state === \App\Enums\BillingState::Active)
+                                <x-action-button variant="primary" wire:click="openPay">{{ __('billing.mark_paid') }}</x-action-button>
+                                @if ($item->kind->canSkip())
+                                    <x-action-button variant="ghost" wire:click="$set('skipOpen', true)">{{ __('billing.skip') }}</x-action-button>
+                                @endif
+                            @endif
+                            @if ($canManage && $item->state === \App\Enums\BillingState::Active)
+                                <x-action-button variant="secondary" wire:click="$set('pauseOpen', true)">{{ __('billing.pause') }}</x-action-button>
+                                <button type="button" wire:click="$set('archiveOpen', true)" class="ml-auto text-sm text-red-700 hover:text-red-900 px-2 py-1.5">{{ __('billing.archive') }}</button>
+                            @endif
+                            @if ($canManage && $item->state === \App\Enums\BillingState::Paused)
+                                <x-action-button variant="primary" wire:click="resume">{{ __('billing.unpause') }}</x-action-button>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
