@@ -71,6 +71,46 @@ class BillingTest extends TestCase
             ->assertDispatched('open-billing-create');
     }
 
+    public function test_item_url_opens_list_with_popup_query(): void
+    {
+        $admin = $this->admin();
+        $item = BillingItem::factory()->create([
+            'vendor' => 'Hostinger',
+            'product' => 'KVM 2',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/billing/'.$item->id)
+            ->assertRedirect('/billing?item='.$item->id);
+    }
+
+    public function test_list_opens_item_popup_and_edit_saves(): void
+    {
+        $admin = $this->admin();
+        $item = BillingItem::factory()->create([
+            'vendor' => 'Hostinger',
+            'product' => 'KVM 2',
+            'card_last4' => '1111',
+        ]);
+
+        $this->actingAs($admin);
+        Volt::test('pages.billing.index')
+            ->call('openShow', $item->id)
+            ->assertDispatched('open-billing-show')
+            ->assertSet('openItem', $item->id);
+
+        Volt::test('pages.billing.show')
+            ->call('openModal', $item->id)
+            ->assertSet('open', true)
+            ->call('startEdit')
+            ->assertSet('editing', true)
+            ->set('cardLast4', '4321')
+            ->call('save')
+            ->assertSet('editing', false);
+
+        $this->assertSame('4321', $item->fresh()->card_last4);
+    }
+
     public function test_missing_fields_show_yellow_needs_fill_badges(): void
     {
         $admin = $this->admin();

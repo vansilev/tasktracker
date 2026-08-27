@@ -157,16 +157,40 @@ new #[Layout('components.tasks-layout')] class extends Component
         }
     }
 
+    #[Url(as: 'item')]
+    public ?int $openItem = null;
+
     #[On('billing-item-created')]
+    #[On('billing-item-updated')]
     public function refreshAfterCreate(): void
     {
         $this->resetPage();
+    }
+
+    public function mount(): void
+    {
+        if ($this->openItem) {
+            $this->dispatch('open-billing-show', id: $this->openItem);
+        }
     }
 
     public function openCreate(): void
     {
         $this->authorize('create', BillingItem::class);
         $this->dispatch('open-billing-create');
+    }
+
+    public function openShow(int $id): void
+    {
+        $this->authorize('view', BillingItem::query()->findOrFail($id));
+        $this->openItem = $id;
+        $this->dispatch('open-billing-show', id: $id);
+    }
+
+    #[On('billing-show-closed')]
+    public function clearOpenItem(): void
+    {
+        $this->openItem = null;
     }
 }; ?>
 
@@ -252,7 +276,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     $due = $meta->dueMeta($item);
                                     $issues = $item->issues();
                                 @endphp
-                                <tr class="hover:bg-gray-50 cursor-pointer" onclick="Livewire.navigate('{{ route('billing.show', $item) }}')">
+                                <tr class="hover:bg-gray-50 cursor-pointer" wire:click="openShow({{ $item->id }})" role="button">
                                     <td class="px-4 py-2.5">
                                         <div class="font-medium text-gray-900">{{ $item->title() }}</div>
                                         <div class="text-xs text-gray-500">{{ $item->category->label() }} · {{ __('billing.kind_short.'.$item->kind->value) }}</div>
@@ -278,11 +302,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <div>{{ $item->owner->name }}</div>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap" onclick="event.stopPropagation()">
+                                    <td class="px-4 py-2.5 whitespace-nowrap" wire:click.stop>
                                         @if ($item->kind->canMarkPaid() && auth()->user()->can('markPaid', $item))
-                                            <x-action-button variant="secondary" size="sm" wire:click="openPay({{ $item->id }})">{{ __('billing.mark_paid') }}</x-action-button>
+                                            <x-action-button variant="secondary" size="sm" wire:click.stop="openPay({{ $item->id }})">{{ __('billing.mark_paid') }}</x-action-button>
                                             @if ($item->kind->canSkip())
-                                                <x-action-button variant="ghost" size="sm" wire:click="openSkip({{ $item->id }})">{{ __('billing.skip') }}</x-action-button>
+                                                <x-action-button variant="ghost" size="sm" wire:click.stop="openSkip({{ $item->id }})">{{ __('billing.skip') }}</x-action-button>
                                             @endif
                                         @endif
                                     </td>
@@ -294,13 +318,13 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <div class="md:hidden divide-y divide-gray-100">
                     @foreach ($items as $item)
                         @php $due = $meta->dueMeta($item); $issues = $item->issues(); @endphp
-                        <a href="{{ route('billing.show', $item) }}" wire:navigate class="block p-4">
+                        <button type="button" wire:click="openShow({{ $item->id }})" class="block w-full text-left p-4">
                             <div class="font-medium">{{ $item->title() }}</div>
                             <div class="text-sm {{ $due['class'] }}">{{ $item->formattedAmount() }} · {{ $due['text'] }}</div>
                             @foreach ($issues as $issue)
                                 <div class="mt-1 text-xs text-amber-800 bg-amber-50 rounded px-2 py-1">{{ $issue['label'] }}</div>
                             @endforeach
-                        </a>
+                        </button>
                     @endforeach
                 </div>
                 <div class="px-4 py-3">{{ $items->links() }}</div>
@@ -334,6 +358,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         </div>
     @endif
 
+    <livewire:pages.billing.show />
     @if ($canManage)
         <livewire:pages.billing.create />
     @endif

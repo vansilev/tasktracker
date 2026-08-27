@@ -25,7 +25,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('billing')->group(function () {
         Volt::route('billing', 'pages.billing.index')->name('billing.index');
         Route::redirect('billing/create', '/billing')->name('billing.create');
-        Volt::route('billing/{item}', 'pages.billing.show')->name('billing.show');
+        Route::get('billing/{item}', function (\App\Models\BillingItem $item) {
+            return redirect()->route('billing.index', ['item' => $item->id]);
+        })->name('billing.show');
     });
 
     Route::post('tasks/{task}/attachments/inline', [TaskAttachmentController::class, 'storeInline'])
