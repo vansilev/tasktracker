@@ -162,13 +162,22 @@ new #[Layout('components.tasks-layout')] class extends Component
     {
         $this->resetPage();
     }
+
+    public function openCreate(): void
+    {
+        $this->authorize('create', BillingItem::class);
+        $this->dispatch('open-billing-create');
+    }
 }; ?>
 
 <div>
     <x-slot name="title">{{ __('billing.nav') }}</x-slot>
     @if ($canManage)
+        <button type="button" id="billing-open-create" class="sr-only" tabindex="-1" wire:click="openCreate">
+            {{ __('billing.create') }}
+        </button>
         <x-slot name="headerActions">
-            <x-action-button variant="primary" size="md" type="button" wire:click="$dispatch('open-billing-create')">
+            <x-action-button variant="primary" size="md" type="button" onclick="document.getElementById('billing-open-create')?.click()">
                 {{ __('billing.create') }}
             </x-action-button>
         </x-slot>
@@ -214,7 +223,16 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             @if ($items->isEmpty())
-                <x-empty-state>{{ __('billing.empty') }}</x-empty-state>
+                <x-empty-state>
+                    {{ __('billing.empty') }}
+                    @if ($canManage)
+                        <x-slot name="action">
+                            <x-action-button variant="primary" type="button" wire:click="openCreate">
+                                {{ __('billing.create') }}
+                            </x-action-button>
+                        </x-slot>
+                    @endif
+                </x-empty-state>
             @else
                 <div class="hidden md:block overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-100 text-sm">

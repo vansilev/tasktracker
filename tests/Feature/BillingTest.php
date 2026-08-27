@@ -61,6 +61,16 @@ class BillingTest extends TestCase
             ->assertRedirect('/billing');
     }
 
+    public function test_index_can_open_create_popup(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin);
+        Volt::test('pages.billing.index')
+            ->call('openCreate')
+            ->assertDispatched('open-billing-create');
+    }
+
     public function test_missing_fields_show_yellow_needs_fill_badges(): void
     {
         $admin = $this->admin();
