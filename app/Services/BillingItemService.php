@@ -167,7 +167,12 @@ class BillingItemService
         }
 
         $normalized = str_replace(["\u{00A0}", ' '], '', (string) $raw);
-        $normalized = str_replace(',', '.', $normalized);
+        if (preg_match('/^\d{1,3}(\.\d{3})+(,\d+)?$/', $normalized)) {
+            $normalized = str_replace('.', '', $normalized);
+            $normalized = str_replace(',', '.', $normalized);
+        } else {
+            $normalized = str_replace(',', '.', $normalized);
+        }
 
         if (! is_numeric($normalized)) {
             throw ValidationException::withMessages(['amount' => [__('billing.amount')]]);
