@@ -25,6 +25,7 @@ class Task extends Model
         'department_id',
         'category_id',
         'parent_id',
+        'sort_order',
         'title',
         'description',
         // description_format is intentionally NOT fillable — set via attribute
@@ -94,6 +95,7 @@ class Task extends Model
             'review_sla_notified_at' => 'datetime',
             'priority' => 'integer',
             'rework_count' => 'integer',
+            'sort_order' => 'integer',
         ];
     }
 
@@ -140,7 +142,7 @@ class Task extends Model
 
     public function subtasks(): HasMany
     {
-        return $this->hasMany(self::class, 'parent_id')->orderBy('number');
+        return $this->hasMany(self::class, 'parent_id')->orderBy('sort_order')->orderBy('number');
     }
 
     /** Other subtasks this task is waiting on. */

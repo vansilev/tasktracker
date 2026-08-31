@@ -694,6 +694,22 @@ new #[Layout('components.tasks-layout')] class extends Component
         }
     }
 
+    /**
+     * @param  list<int|string>  $orderedIds
+     */
+    public function reorderSubtasks(array $orderedIds, TaskService $tasks): void
+    {
+        try {
+            $tasks->reorderSubtasks(auth()->user(), $this->task, $orderedIds);
+        } catch (ValidationException $e) {
+            $this->task->load(['subtasks.assignee:id,name', 'subtasks.blockers:id,number,status']);
+
+            return;
+        }
+
+        $this->task->load(['subtasks.assignee:id,name', 'subtasks.blockers:id,number,status']);
+    }
+
     public function deleteChecklistItem(int $itemId, TaskService $tasks): void
     {
         $item = TaskChecklistItem::query()->where('task_id', $this->task->id)->findOrFail($itemId);
@@ -1127,25 +1143,57 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: {{ $subtaskProgressPercent }}%"></div>
                         </div>
                     @endif
-                    <ul class="space-y-1.5">
-                        @forelse ($task->subtasks as $subtask)
-                            <li>
-                                <a href="{{ route('tasks.show', $subtask) }}" wire:navigate
-                                   class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-                                    <span class="shrink-0 text-xs text-gray-500 mt-0.5">#{{ $subtask->number }}</span>
-                                    <span class="flex-1 min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
-                                    @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
-                                        <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
-                                    @endif
-                                    <x-status-badge :status="$subtask->status" class="shrink-0" />
-                                    <span class="shrink-0 text-xs text-gray-500 max-w-[7rem] truncate">{{ $subtask->assignee?->name }}</span>
-                                    <span class="shrink-0 text-xs text-gray-500">{{ $subtask->deadline?->timezone(config('app.timezone'))->format('d.m.Y') ?? '—' }}</span>
-                                </a>
-                            </li>
-                        @empty
-                            <p class="text-sm text-gray-500 py-2 text-center">{{ __('No subtasks yet.') }}</p>
-                        @endforelse
-                    </ul>
+                    @if ($task->subtasks->isEmpty())
+                        <p class="text-sm text-gray-500 py-2 text-center">{{ __('No subtasks yet.') }}</p>
+                    @else
+                        <ul class="space-y-1.5"
+                            @if ($canCreateSubtask && $task->subtasks->count() > 1) x-data="subtaskSort" @endif>
+                            @foreach ($task->subtasks as $subtask)
+                                <li wire:key="subtask-{{ $subtask->id }}"
+                                    data-subtask-id="{{ $subtask->id }}"
+                                    @if ($canCreateSubtask && $task->subtasks->count() > 1)
+                                        @dragover.prevent="over({{ $subtask->id }})"
+                                        @drop.prevent="drop({{ $subtask->id }})"
+                                        :class="overId === {{ $subtask->id }} && draggingId !== {{ $subtask->id }} ? 'ring-1 ring-indigo-300 rounded-lg' : ''"
+                                    @endif>
+                                    <div class="flex items-center gap-1.5 py-1.5 px-1 rounded-lg hover:bg-gray-50 transition-colors">
+                                        @if ($canCreateSubtask && $task->subtasks->count() > 1)
+                                            <button type="button"
+                                                    draggable="true"
+                                                    class="shrink-0 inline-flex items-center justify-center size-5 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none"
+                                                    aria-label="{{ __('Drag to reorder') }}"
+                                                    @dragstart="start({{ $subtask->id }}, $event)"
+                                                    @dragend="end()"
+                                                    @click.stop>
+                                                <svg class="block size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                                    <circle cx="3" cy="3" r="1.15"/>
+                                                    <circle cx="8" cy="3" r="1.15"/>
+                                                    <circle cx="13" cy="3" r="1.15"/>
+                                                    <circle cx="3" cy="8" r="1.15"/>
+                                                    <circle cx="8" cy="8" r="1.15"/>
+                                                    <circle cx="13" cy="8" r="1.15"/>
+                                                    <circle cx="3" cy="13" r="1.15"/>
+                                                    <circle cx="8" cy="13" r="1.15"/>
+                                                    <circle cx="13" cy="13" r="1.15"/>
+                                                </svg>
+                                            </button>
+                                        @endif
+                                        <a href="{{ route('tasks.show', $subtask) }}" wire:navigate
+                                           class="flex flex-1 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 leading-5">
+                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
+                                            <span class="flex-1 min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
+                                            @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
+                                                <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
+                                            @endif
+                                            <x-status-badge :status="$subtask->status" class="shrink-0" />
+                                            <span class="shrink-0 text-sm text-gray-500 max-w-[7rem] truncate">{{ $subtask->assignee?->name }}</span>
+                                            <span class="shrink-0 text-sm tabular-nums text-gray-500">{{ $subtask->deadline?->timezone(config('app.timezone'))->format('d.m.Y') ?? '—' }}</span>
+                                        </a>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 </x-card>
                 @endunless
 

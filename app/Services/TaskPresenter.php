@@ -105,6 +105,7 @@ class TaskPresenter
                     'title' => $sub->title,
                     'status' => $sub->status->value,
                     'assignee' => $this->user($sub->assignee),
+                    'deadline' => optional($sub->deadline)?->toIso8601String(),
                 ])->values()->all(),
             'blockers' => $task->blockers
                 ->map(fn (Task $blocker) => [

@@ -71,6 +71,7 @@
     "Add subtask": "Add subtask",
     "To subtask": "To subtask",
     "No subtasks yet.": "No subtasks yet.",
+    "Drag to reorder": "Drag to reorder",
     "Part of #:number · :title": "Part of #:number · :title",
     "This task has :count open subtasks.": "This task has :count open subtasks.",
     "Waiting on": "Waiting on",

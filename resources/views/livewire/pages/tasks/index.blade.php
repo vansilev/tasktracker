@@ -434,7 +434,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $idsOnPage = $onPage->pluck('id');
 
         $onPage->load([
-            'subtasks' => fn ($q) => $q->orderBy('number')->with(['assignee:id,name', 'blockers:id,number,status']),
+            'subtasks' => fn ($q) => $q->with(['assignee:id,name', 'blockers:id,number,status']),
         ]);
 
         $roots = $onPage->reject(
@@ -1297,6 +1297,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         @foreach ($task->subtasks as $subtask)
 
+                            @php $childDeadline = $this->deadlineMeta($subtask); @endphp
+
                             <div class="relative cursor-pointer px-4 py-3"
                                  style="display: none; padding-left: 5rem; background:#eef2ff;"
                                  :style="open ? 'display: block; padding-left: 5rem; background:#eef2ff;' : 'display: none;'"
@@ -1322,7 +1324,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                         </div>
 
-                                        <p class="mt-0.5 text-xs text-gray-500">{{ $subtask->assignee?->name }}</p>
+                                        <p class="mt-0.5 text-xs text-gray-500">
+                                            {{ $subtask->assignee?->name }}
+                                            <span aria-hidden="true">&middot;</span>
+                                            <span class="{{ $childDeadline['class'] }}">{{ $childDeadline['text'] }}</span>
+                                        </p>
 
                                     </div>
 

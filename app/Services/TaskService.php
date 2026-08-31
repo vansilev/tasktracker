@@ -96,6 +96,7 @@ class TaskService
                 'department_id' => $assignee->department_id,
                 'category_id' => $category->id,
                 'parent_id' => $parent?->id,
+                'sort_order' => $parent ? $this->nextSubtaskSortOrder($parent) : 0,
                 'title' => $data['title'],
                 'description' => '',
                 'priority' => (int) $data['priority'],
@@ -243,6 +244,53 @@ class TaskService
 
             return $child;
         });
+    }
+
+    /**
+     * @param  list<int|string>  $orderedIds
+     */
+    public function reorderSubtasks(User $actor, Task $parent, array $orderedIds): void
+    {
+        Gate::forUser($actor)->authorize('createSubtask', $parent);
+
+        $ids = collect($orderedIds)
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        if ($ids->isEmpty() || $ids->count() !== $ids->unique()->count()) {
+            throw ValidationException::withMessages([
+                'ordered_ids' => [__('task.subtask_reorder_mismatch')],
+            ]);
+        }
+
+        DB::transaction(function () use ($parent, $ids) {
+            Task::query()->whereKey($parent->id)->lockForUpdate()->first();
+
+            $childIds = Task::query()
+                ->where('parent_id', $parent->id)
+                ->pluck('id');
+
+            if ($childIds->sort()->values()->all() !== $ids->sort()->values()->all()) {
+                throw ValidationException::withMessages([
+                    'ordered_ids' => [__('task.subtask_reorder_mismatch')],
+                ]);
+            }
+
+            foreach ($ids as $order => $id) {
+                Task::query()->whereKey($id)->update(['sort_order' => $order]);
+            }
+        });
+    }
+
+    private function nextSubtaskSortOrder(Task $parent): int
+    {
+        Task::query()->whereKey($parent->id)->lockForUpdate()->first();
+
+        $max = Task::withTrashed()
+            ->where('parent_id', $parent->id)
+            ->max('sort_order');
+
+        return $max === null ? 0 : (int) $max + 1;
     }
 
     private function resolveParent(User $initiator, mixed $parentId): ?Task

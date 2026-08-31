@@ -287,6 +287,66 @@ class TaskSubtaskTest extends TestCase
             });
     }
 
+    public function test_new_subtask_is_appended_and_order_can_be_rearranged(): void
+    {
+        [$parent, , $assignee] = $this->makeParent();
+        $service = app(TaskService::class);
+        $first = $service->createSubtask($assignee, $parent, [
+            'title' => 'Later deadline',
+            'deadline' => now()->addDays(10)->toDateString(),
+        ]);
+        $second = $service->createSubtask($assignee, $parent, [
+            'title' => 'Sooner deadline',
+            'deadline' => now()->addDay()->toDateString(),
+        ]);
+
+        $parent->refresh()->load('subtasks');
+        $this->assertSame([$first->id, $second->id], $parent->subtasks->pluck('id')->all());
+        $this->assertSame([0, 1], $parent->subtasks->pluck('sort_order')->all());
+
+        $this->actingAs($assignee);
+
+        Volt::test('pages.tasks.show', ['task' => $parent])
+            ->assertSee('Sooner deadline')
+            ->assertSee($second->deadline->timezone(config('app.timezone'))->format('d.m.Y'))
+            ->call('reorderSubtasks', [$second->id, $first->id])
+            ->assertHasNoErrors();
+
+        $parent->refresh()->load('subtasks');
+        $this->assertSame([$second->id, $first->id], $parent->subtasks->pluck('id')->all());
+        $this->assertSame([0, 1], $parent->subtasks->pluck('sort_order')->all());
+    }
+
+    public function test_user_without_create_permission_cannot_reorder_subtasks(): void
+    {
+        [$parent, $initiator] = $this->makeParent();
+        $service = app(TaskService::class);
+        $first = $service->createSubtask($initiator, $parent, ['title' => 'One']);
+        $second = $service->createSubtask($initiator, $parent, ['title' => 'Two']);
+
+        $perms = array_values(array_filter(
+            $this->defaultPermissions(),
+            fn ($p) => $p !== Permission::CreateTask->value,
+        ));
+        $viewerRole = $this->createRoleWithPermissions($perms);
+        $viewer = $this->createUserInDepartment($parent->department, 'Viewer '.uniqid(), role: $viewerRole);
+        $parent->watchers()->attach($viewer);
+
+        $this->expectException(AuthorizationException::class);
+        $service->reorderSubtasks($viewer, $parent, [$second->id, $first->id]);
+    }
+
+    public function test_reorder_rejects_incomplete_id_list(): void
+    {
+        [$parent, , $assignee] = $this->makeParent();
+        $service = app(TaskService::class);
+        $first = $service->createSubtask($assignee, $parent, ['title' => 'One']);
+        $service->createSubtask($assignee, $parent, ['title' => 'Two']);
+
+        $this->expectException(ValidationException::class);
+        $service->reorderSubtasks($assignee, $parent, [$first->id]);
+    }
+
     public function test_child_page_shows_parent_link(): void
     {
         [$parent, , $assignee] = $this->makeParent(['title' => 'Parent title']);

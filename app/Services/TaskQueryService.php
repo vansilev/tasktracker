@@ -29,7 +29,7 @@ class TaskQueryService
                 'category:id,name',
                 'parent:id,number,title',
                 'checklistItems:id,task_id,is_done',
-                'subtasks:id,parent_id,number,status',
+                'subtasks:id,parent_id,number,status,sort_order',
             ]);
 
         $this->applyTab($query, $user, (string) ($filters['tab'] ?? 'all'));
@@ -58,7 +58,7 @@ class TaskQueryService
             'department:id,name',
             'category:id,name',
             'parent:id,number,title,status',
-            'subtasks' => fn ($q) => $q->orderBy('number')->with(['assignee:id,name,email']),
+            'subtasks' => fn ($q) => $q->with(['assignee:id,name,email']),
             'blockers:id,number,title,status',
             'watchers:id,name,email',
             'checklistItems',

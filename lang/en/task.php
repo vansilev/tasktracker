@@ -28,6 +28,7 @@ return [
     'parent_not_found' => 'Parent task was not found.',
     'parent_must_be_root' => 'A subtask cannot have its own subtasks.',
     'subtask_title_required' => 'Enter a subtask title.',
+    'subtask_reorder_mismatch' => 'Subtask list changed. Refresh and try again.',
     'checklist_item_not_on_parent' => 'That checklist item does not belong to this task.',
     'blocker_only_siblings' => 'You can only wait on another subtask of the same parent.',
     'blocker_self' => 'A task cannot wait on itself.',

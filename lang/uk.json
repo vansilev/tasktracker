@@ -71,6 +71,7 @@
     "Add subtask": "Додати підзадачу",
     "To subtask": "У підзадачу",
     "No subtasks yet.": "Підзадач поки немає.",
+    "Drag to reorder": "Перетягнути",
     "Part of #:number · :title": "Частина #:number · :title",
     "This task has :count open subtasks.": "У задачі ще :count відкритих підзадач.",
     "Waiting on": "Чекає",
