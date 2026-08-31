@@ -268,9 +268,12 @@ class TaskService
 
             $childIds = Task::query()
                 ->where('parent_id', $parent->id)
-                ->pluck('id');
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->sort()
+                ->values();
 
-            if ($childIds->sort()->values()->all() !== $ids->sort()->values()->all()) {
+            if ($childIds->all() !== $ids->sort()->values()->all()) {
                 throw ValidationException::withMessages([
                     'ordered_ids' => [__('task.subtask_reorder_mismatch')],
                 ]);

@@ -700,7 +700,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     public function reorderSubtasks(array $orderedIds, TaskService $tasks): void
     {
         try {
-            $tasks->reorderSubtasks(auth()->user(), $this->task, $orderedIds);
+        $tasks->reorderSubtasks(auth()->user(), $this->task, array_values($orderedIds));
         } catch (ValidationException $e) {
             $this->task->load(['subtasks.assignee:id,name', 'subtasks.blockers:id,number,status']);
 
@@ -1152,9 +1152,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 <li wire:key="subtask-{{ $subtask->id }}"
                                     data-subtask-id="{{ $subtask->id }}"
                                     @if ($canCreateSubtask && $task->subtasks->count() > 1)
-                                        @dragover.prevent="over({{ $subtask->id }})"
-                                        @drop.prevent="drop({{ $subtask->id }})"
-                                        :class="overId === {{ $subtask->id }} && draggingId !== {{ $subtask->id }} ? 'ring-1 ring-indigo-300 rounded-lg' : ''"
+                                        @dragover.prevent="over({{ $subtask->id }}, $event)"
+                                        @drop.prevent="persist()"
                                     @endif>
                                     <div class="flex items-center gap-1.5 py-1.5 px-1 rounded-lg hover:bg-gray-50 transition-colors">
                                         @if ($canCreateSubtask && $task->subtasks->count() > 1)
@@ -1163,7 +1162,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                                     class="shrink-0 inline-flex items-center justify-center size-5 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none"
                                                     aria-label="{{ __('Drag to reorder') }}"
                                                     @dragstart="start({{ $subtask->id }}, $event)"
-                                                    @dragend="end()"
+                                                    @dragend="persist()"
                                                     @click.stop>
                                                 <svg class="block size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                                                     <circle cx="3" cy="3" r="1.15"/>

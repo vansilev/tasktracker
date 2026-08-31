@@ -315,6 +315,10 @@ class TaskSubtaskTest extends TestCase
         $parent->refresh()->load('subtasks');
         $this->assertSame([$second->id, $first->id], $parent->subtasks->pluck('id')->all());
         $this->assertSame([0, 1], $parent->subtasks->pluck('sort_order')->all());
+
+        $service->reorderSubtasks($assignee, $parent, [(string) $first->id, (string) $second->id]);
+        $parent->refresh()->load('subtasks');
+        $this->assertSame([$first->id, $second->id], $parent->subtasks->pluck('id')->all());
     }
 
     public function test_user_without_create_permission_cannot_reorder_subtasks(): void

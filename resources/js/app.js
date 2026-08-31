@@ -6,9 +6,8 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('richTextEditor', richTextEditor);
     window.Alpine.data('subtaskSort', () => ({
         draggingId: null,
-        overId: null,
         start(id, event) {
-            this.draggingId = id;
+            this.draggingId = Number(id);
             event.dataTransfer.effectAllowed = 'move';
             event.dataTransfer.setData('text/plain', String(id));
             const row = event.currentTarget.closest('li');
@@ -16,35 +15,38 @@ document.addEventListener('alpine:init', () => {
                 event.dataTransfer.setDragImage(row, 16, 16);
             }
         },
-        over(id) {
-            if (this.draggingId !== null && this.draggingId !== id) {
-                this.overId = id;
-            }
-        },
-        drop(id) {
-            if (this.draggingId === null || this.draggingId === id) {
-                this.end();
+        over(id, event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            const draggingId = this.draggingId;
+            if (draggingId === null || draggingId === Number(id)) {
                 return;
             }
 
+            const dragged = this.$el.querySelector(`[data-subtask-id="${draggingId}"]`);
+            const target = event.currentTarget;
+            if (! dragged || ! target || dragged === target) {
+                return;
+            }
+
+            const rect = target.getBoundingClientRect();
+            const after = event.clientY > rect.top + rect.height / 2;
+            const pivot = after ? target.nextElementSibling : target;
+            if (pivot === dragged || dragged.nextElementSibling === pivot) {
+                return;
+            }
+
+            this.$el.insertBefore(dragged, pivot);
+        },
+        persist() {
+            if (this.draggingId === null) {
+                return;
+            }
+
+            this.draggingId = null;
             const ids = [...this.$el.querySelectorAll('[data-subtask-id]')]
                 .map((el) => Number(el.dataset.subtaskId));
-            const from = ids.indexOf(this.draggingId);
-            const to = ids.indexOf(id);
-
-            if (from === -1 || to === -1) {
-                this.end();
-                return;
-            }
-
-            ids.splice(from, 1);
-            ids.splice(to, 0, this.draggingId);
-            this.end();
             this.$wire.reorderSubtasks(ids);
-        },
-        end() {
-            this.draggingId = null;
-            this.overId = null;
         },
     }));
 });
