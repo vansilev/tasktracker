@@ -5,15 +5,17 @@
 
 @php
     $isImage = $attachment->isImage();
-    $href = $isImage
+    $isPdf = $attachment->isPdf();
+    $href = ($isImage || $isPdf)
         ? route('tasks.attachments.view', $attachment)
         : route('tasks.attachments.download', $attachment);
+    $previewKind = $isImage ? 'image' : ($isPdf ? 'pdf' : null);
 @endphp
 
 <li {{ $attributes->merge(['class' => 'flex items-start justify-between gap-2 text-sm']) }}>
     <div class="min-w-0 flex-1">
         @if ($isImage)
-            <a href="{{ $href }}" class="block group">
+            <a href="{{ $href }}" @if ($previewKind) data-attachment-preview="{{ $previewKind }}" @endif class="block group">
                 <img
                     src="{{ $href }}"
                     alt="{{ $attachment->filename }}"
@@ -23,7 +25,7 @@
                 <span class="mt-1 block text-xs text-indigo-600 group-hover:text-indigo-800 truncate">{{ $attachment->filename }}</span>
             </a>
         @else
-            <a href="{{ $href }}" class="text-indigo-600 hover:text-indigo-800 hover:underline truncate block">
+            <a href="{{ $href }}" @if ($previewKind) data-attachment-preview="{{ $previewKind }}" @endif class="text-indigo-600 hover:text-indigo-800 hover:underline truncate block">
                 {{ $attachment->filename }}
             </a>
         @endif

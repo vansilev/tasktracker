@@ -130,5 +130,8 @@ class TaskShowPageTest extends TestCase
             '/attachments\/\d+\/view"[^>]*target="_blank"/',
             $html,
         );
+        $this->assertStringContainsString('data-attachment-preview="pdf"', $html);
+        $this->assertStringContainsString('data-attachment-lightbox-prev', $html);
+        $this->assertStringContainsString('data-attachment-lightbox-pdf', $html);
     }
 }

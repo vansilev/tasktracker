@@ -1713,10 +1713,26 @@ new #[Layout('components.tasks-layout')] class extends Component
                 data-attachment-lightbox-close
                 class="absolute top-4 right-4 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
                 aria-label="{{ __('Close') }}">✕</button>
-        <div class="relative z-10 flex h-full w-full items-center justify-center p-12 pointer-events-none">
-            <img data-attachment-lightbox-image alt="" class="max-h-[90vh] max-w-[90vw] object-contain pointer-events-auto rounded-lg shadow-2xl">
+        <button type="button"
+                data-attachment-lightbox-prev
+                hidden
+                class="absolute left-3 top-1/2 z-10 -translate-y-1/2 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
+                aria-label="{{ __('Previous') }}">‹</button>
+        <button type="button"
+                data-attachment-lightbox-next
+                hidden
+                class="absolute right-3 top-1/2 z-10 -translate-y-1/2 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
+                aria-label="{{ __('Next') }}">›</button>
+        <div class="relative z-10 flex h-full w-full flex-col items-center justify-center p-12 pointer-events-none">
+            <img data-attachment-lightbox-image alt="" class="max-h-[80vh] max-w-[90vw] object-contain pointer-events-auto rounded-lg shadow-2xl">
+            <iframe data-attachment-lightbox-pdf hidden title="" class="h-[80vh] w-full max-w-5xl pointer-events-auto rounded-lg bg-white shadow-2xl"></iframe>
+            <p data-attachment-lightbox-error hidden class="max-w-md rounded-lg bg-white px-5 py-4 text-sm text-gray-800 pointer-events-auto">{{ __('Could not preview this PDF.') }}</p>
         </div>
-        <p data-attachment-lightbox-name hidden class="absolute bottom-4 left-0 right-0 z-10 px-4 text-center text-sm text-white/80 truncate"></p>
+        <div class="absolute bottom-4 left-0 right-0 z-10 px-4 text-center text-sm text-white/80">
+            <p data-attachment-lightbox-counter hidden class="mb-1 tabular-nums"></p>
+            <p data-attachment-lightbox-name hidden class="truncate"></p>
+            <a data-attachment-lightbox-download hidden href="#" class="mt-1 inline-block text-indigo-200 hover:text-white underline">{{ __('Download') }}</a>
+        </div>
     </div>
 </div>
 

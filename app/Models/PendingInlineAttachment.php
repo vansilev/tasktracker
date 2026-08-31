@@ -37,4 +37,10 @@ class PendingInlineAttachment extends Model
     {
         return str_starts_with((string) $this->mime, 'image/');
     }
+
+    public function isPdf(): bool
+    {
+        return $this->mime === 'application/pdf'
+            || str_ends_with(strtolower((string) $this->filename), '.pdf');
+    }
 }

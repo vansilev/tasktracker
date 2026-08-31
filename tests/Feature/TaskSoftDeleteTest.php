@@ -189,7 +189,7 @@ class TaskSoftDeleteTest extends TestCase
             ->assertHeader('content-disposition', 'inline; filename="screenshot.png"');
     }
 
-    public function test_non_image_view_falls_back_to_download(): void
+    public function test_pdf_view_is_inline(): void
     {
         Storage::fake('attachments');
 
@@ -215,6 +215,36 @@ class TaskSoftDeleteTest extends TestCase
             ->get(route('tasks.attachments.view', $attachment));
 
         $response->assertOk();
+        $this->assertStringContainsString('inline', (string) $response->headers->get('content-disposition'));
+        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('content-type'));
+    }
+
+    public function test_office_document_view_falls_back_to_download(): void
+    {
+        Storage::fake('attachments');
+
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator Doc', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee Doc', role: $role);
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        $path = 'tasks/'.$task->id.'/notes.docx';
+        Storage::disk('attachments')->put($path, 'docx');
+
+        $attachment = TaskAttachment::query()->create([
+            'task_id' => $task->id,
+            'filename' => 'notes.docx',
+            'path' => $path,
+            'mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'size' => 4,
+            'uploaded_by' => $initiator->id,
+        ]);
+
+        $response = $this->actingAs($initiator)
+            ->get(route('tasks.attachments.view', $attachment));
+
+        $response->assertOk();
         $this->assertStringContainsString('attachment', (string) $response->headers->get('content-disposition'));
     }
 
@@ -225,5 +255,8 @@ class TaskSoftDeleteTest extends TestCase
 
         $this->assertTrue($image->isImage());
         $this->assertFalse($pdf->isImage());
+        $this->assertTrue($pdf->isPdf());
+        $this->assertTrue($pdf->isPreviewable());
+        $this->assertFalse($image->isPdf());
     }
 }

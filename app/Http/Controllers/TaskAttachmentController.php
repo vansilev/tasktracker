@@ -94,14 +94,14 @@ class TaskAttachmentController extends Controller
         PendingInlineAttachment $pending,
         PendingInlineAttachmentService $attachments,
     ): BinaryFileResponse {
-        if (! $pending->isImage()) {
+        if (! $pending->isImage() && ! $pending->isPdf()) {
             return $this->downloadPending($pending, $attachments);
         }
 
         $path = $attachments->downloadPath($pending, auth()->user());
 
         return Response::file($path, [
-            'Content-Type' => $pending->mime,
+            'Content-Type' => $pending->isPdf() ? 'application/pdf' : $pending->mime,
             'Content-Disposition' => 'inline; filename="'.$pending->filename.'"',
         ]);
     }
@@ -117,14 +117,14 @@ class TaskAttachmentController extends Controller
 
     public function view(TaskAttachment $attachment, TaskAttachmentService $attachments): BinaryFileResponse
     {
-        if (! $attachment->isImage()) {
+        if (! $attachment->isPreviewable()) {
             return $this->download($attachment, $attachments);
         }
 
         $path = $attachments->downloadPath($attachment, auth()->user());
 
         return Response::file($path, [
-            'Content-Type' => $attachment->mime,
+            'Content-Type' => $attachment->isPdf() ? 'application/pdf' : $attachment->mime,
             'Content-Disposition' => 'inline; filename="'.$attachment->filename.'"',
         ]);
     }
