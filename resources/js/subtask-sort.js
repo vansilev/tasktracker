@@ -3,7 +3,32 @@
  *
  * Drag state lives in this closure, not on the Alpine proxy: Alpine v3 wraps
  * data in a reactive Proxy, and holding a DOM node (the ghost) there is unsafe.
+ *
+ * Subtask titles are `a[wire:navigate]`. Alpine Navigate opens them from the
+ * link's mouseup handler (then requestAnimationFrame), not from click. A
+ * click-only guard after drop is too late. After a drag we cancel that
+ * pending alpine:navigate and the leftover click.
  */
+let suppressSubtaskOpen = false;
+
+function blockClickIfDragging(event) {
+    if (! suppressSubtaskOpen) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+}
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('click', blockClickIfDragging, true);
+    document.addEventListener('alpine:navigate', (event) => {
+        if (suppressSubtaskOpen) {
+            event.preventDefault();
+        }
+    }, true);
+}
+
 export default function subtaskSort() {
     let pendingId = null;
     let draggingId = null;
@@ -64,6 +89,7 @@ export default function subtaskSort() {
             pendingId = Number(id);
             draggingId = null;
             didDrag = false;
+            suppressSubtaskOpen = false;
             startX = event.clientX;
             startY = event.clientY;
 
@@ -102,6 +128,7 @@ export default function subtaskSort() {
             draggingId = pendingId;
             pendingId = null;
             didDrag = true;
+            suppressSubtaskOpen = true;
 
             const dragged = row(this.$el, draggingId);
             if (! dragged) {
@@ -178,10 +205,15 @@ export default function subtaskSort() {
             draggingId = null;
 
             if (didDrag) {
-                document.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }, { capture: true, once: true });
+                // pointerup runs before mouseup; Alpine Navigate opens on the
+                // next animation frame after mouseup. Hold the guard past that.
+                const release = () => {
+                    suppressSubtaskOpen = false;
+                };
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(release);
+                });
+                setTimeout(release, 100);
             }
 
             if (changed) {
