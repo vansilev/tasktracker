@@ -1157,9 +1157,6 @@ new #[Layout('components.tasks-layout')] class extends Component
                                                     class="shrink-0 inline-flex items-center justify-center size-5 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none touch-none"
                                                     aria-label="{{ __('Drag to reorder') }}"
                                                     @pointerdown="onDown({{ $subtask->id }}, $event)"
-                                                    @pointermove="onMove($event)"
-                                                    @pointerup="persist()"
-                                                    @pointercancel="persist()"
                                                     @click.stop>
                                                 <svg class="block size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                                                     <circle cx="3" cy="3" r="1.15"/>
