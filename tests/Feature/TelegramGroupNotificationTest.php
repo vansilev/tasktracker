@@ -256,6 +256,57 @@ class TelegramGroupNotificationTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_reply_tags_original_author_in_group_message(): void
+    {
+        $this->enableGroup();
+
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $commenter = $this->createUserInDepartment($dept, 'Commenter', role: $role);
+        $commenter->update(['telegram_chat_id' => '888']);
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+        $task->watchers()->attach($commenter->id);
+
+        $parent = app(TaskService::class)->addComment($task, $commenter, 'Стартовый');
+        Http::assertSentCount(1);
+
+        app(TaskService::class)->addComment($task, $assignee, 'Ответ', parentCommentId: $parent->id);
+
+        Http::assertSent(function ($request) {
+            $text = (string) $request['text'];
+
+            return str_contains($text, 'tg://user?id=888')
+                && str_contains($text, 'вам ответили на комментарий');
+        });
+    }
+
+    public function test_reaction_posts_group_message_to_comment_author(): void
+    {
+        $this->enableGroup();
+
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $assignee->update(['telegram_chat_id' => '999']);
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        $comment = app(TaskService::class)->addComment($task, $assignee, 'Нужен взгляд');
+        Http::assertSentCount(1);
+
+        app(TaskService::class)->toggleCommentReaction($comment, $initiator, '👍');
+
+        Http::assertSent(function ($request) {
+            $text = (string) $request['text'];
+
+            return str_contains($text, 'tg://user?id=999')
+                && str_contains($text, 'на ваш комментарий')
+                && str_contains($text, '👍');
+        });
+    }
+
     public function test_rework_tags_assignee_and_includes_reason(): void
     {
         $this->enableGroup();

@@ -19,6 +19,8 @@ class TelegramGroupMessageBuilder
         'assignee' => '🎯',
         'watcher' => '👀',
         'mentioned' => '📣',
+        'replied' => '💬',
+        'reacted' => '👍',
     ];
 
     public function __construct(private TelegramMentionFormatter $mentions) {}
@@ -122,18 +124,25 @@ class TelegramGroupMessageBuilder
 
     /**
      * @param  Collection<int, User>  $mentioned
+     * @param  Collection<int, User>  $repliedTo
      */
-    public function forCommented(Task $task, User $actor, string $excerpt, Collection $mentioned): string
-    {
+    public function forCommented(
+        Task $task,
+        User $actor,
+        string $excerpt,
+        Collection $mentioned,
+        Collection $repliedTo,
+    ): string {
         $lines = [$this->headerLine('💬', 'notification.group.commented_header', $task)];
 
-        $roles = $this->commentRoles($task, $actor, $mentioned);
+        $roles = $this->commentRoles($task, $actor, $mentioned, $repliedTo);
 
         $this->pushBlock($lines, [
             $this->roleLine($roles['initiator'], 'notification.group.commented_initiator', role: 'initiator'),
             $this->roleLine($roles['assignee'], 'notification.group.commented_assignee', role: 'assignee'),
             $this->roleLine($roles['watcher'], 'notification.group.commented_watchers', role: 'watcher'),
             $this->roleLine($roles['mentioned'], 'notification.group.commented_mentioned', role: 'mentioned'),
+            $this->roleLine($roles['replied'], 'notification.group.commented_replied', role: 'replied'),
         ]);
         $this->pushBlock($lines, [$this->highlightedPriorityLine($task)]);
         $this->pushBlock($lines, [$this->quotedLine($actor, $excerpt)]);
@@ -142,10 +151,33 @@ class TelegramGroupMessageBuilder
         return $this->join($lines);
     }
 
+    public function forReacted(
+        Task $task,
+        User $actor,
+        User $author,
+        string $excerpt,
+        string $emoji,
+    ): string {
+        $lines = [$this->headerLine($emoji, 'notification.group.reacted_header', $task)];
+
+        $this->pushBlock($lines, [
+            $this->roleLine([$author], 'notification.group.reacted_author', [
+                'actor' => $this->mentions->escape($actor->name),
+                'emoji' => $emoji,
+            ], 'reacted'),
+        ]);
+        $this->pushBlock($lines, [$this->quotedLine($actor, $excerpt)]);
+        $this->pushBlock($lines, [$this->openLink($task)]);
+
+        return $this->join($lines);
+    }
+
     /**
-     * @return array{initiator: list<User>, assignee: list<User>, watcher: list<User>, mentioned: list<User>}
+     * @param  Collection<int, User>  $mentioned
+     * @param  Collection<int, User>  $repliedTo
+     * @return array{initiator: list<User>, assignee: list<User>, watcher: list<User>, mentioned: list<User>, replied: list<User>}
      */
-    private function commentRoles(Task $task, User $actor, Collection $mentioned): array
+    private function commentRoles(Task $task, User $actor, Collection $mentioned, Collection $repliedTo): array
     {
         $tagAssignee = (bool) config('services.telegram.group_tag_assignee_on_comment', true);
         $byId = [];
@@ -170,6 +202,10 @@ class TelegramGroupMessageBuilder
             }
         }
 
+        foreach ($repliedTo as $user) {
+            $byId[$user->id] = ['user' => $user, 'role' => 'replied'];
+        }
+
         unset($byId[$actor->id]);
 
         $grouped = [
@@ -177,6 +213,7 @@ class TelegramGroupMessageBuilder
             'assignee' => [],
             'watcher' => [],
             'mentioned' => [],
+            'replied' => [],
         ];
 
         foreach ($byId as $row) {

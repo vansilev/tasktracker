@@ -11,6 +11,7 @@ use App\Models\Department;
 use App\Models\Task;
 use App\Models\TaskChecklistItem;
 use App\Models\TaskComment;
+use App\Models\TaskCommentReaction;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -587,12 +588,15 @@ class TaskService
 
     /**
      * @param  ContentSource  $source  Editor markup is sanitized; literal text is escaped.
+     * @param  list<int>  $quotedCommentIds
      */
     public function addComment(
         Task $task,
         User $user,
         string $body,
         ContentSource $source = ContentSource::Editor,
+        ?int $parentCommentId = null,
+        array $quotedCommentIds = [],
     ): TaskComment {
         Gate::forUser($user)->authorize('comment', $task);
 
@@ -602,13 +606,97 @@ class TaskService
         ]);
         // body_format is not mass-assignable.
         $comment->body_format = ContentFormat::Html;
+
+        $quoteIds = $this->resolveQuoteIds($task, $parentCommentId, $quotedCommentIds);
+        if ($quoteIds !== []) {
+            $comment->parent_comment_id = $quoteIds[0];
+        }
+
         $comment->save();
+
+        if ($quoteIds !== []) {
+            $sync = [];
+            foreach ($quoteIds as $position => $quotedId) {
+                $sync[$quotedId] = ['position' => $position];
+            }
+            $comment->quotedComments()->sync($sync);
+        }
 
         $mentioned = $this->mentions->processCommentMentions($task, $comment);
 
         $this->notifications->notifyComment($task, $user, $comment, $mentioned);
 
         return $comment;
+    }
+
+    /**
+     * @param  list<int>  $quotedCommentIds
+     * @return list<int>
+     */
+    private function resolveQuoteIds(Task $task, ?int $parentCommentId, array $quotedCommentIds): array
+    {
+        $requested = [];
+        if ($parentCommentId !== null) {
+            $requested[] = (int) $parentCommentId;
+        }
+        foreach ($quotedCommentIds as $id) {
+            $requested[] = (int) $id;
+        }
+
+        $requested = array_values(array_unique(array_filter($requested)));
+        if ($requested === []) {
+            return [];
+        }
+
+        $existing = $task->comments()
+            ->whereIn('id', $requested)
+            ->pluck('id')
+            ->all();
+        $existingSet = array_flip(array_map('intval', $existing));
+
+        $ordered = [];
+        foreach ($requested as $id) {
+            if (! isset($existingSet[$id])) {
+                continue;
+            }
+            $ordered[] = $id;
+            if (count($ordered) >= TaskComment::MAX_QUOTES) {
+                break;
+            }
+        }
+
+        return $ordered;
+    }
+
+    public function toggleCommentReaction(TaskComment $comment, User $user, string $emoji): bool
+    {
+        Gate::forUser($user)->authorize('comment', $comment->task);
+
+        if (! TaskCommentReaction::isAllowed($emoji)) {
+            throw ValidationException::withMessages([
+                'emoji' => __('Invalid reaction.'),
+            ]);
+        }
+
+        $existing = $comment->reactions()
+            ->where('user_id', $user->id)
+            ->where('emoji', $emoji)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+
+            return false;
+        }
+
+        $comment->reactions()->create([
+            'user_id' => $user->id,
+            'emoji' => $emoji,
+        ]);
+
+        $this->notifications->notifyCommentReaction($comment->task, $user, $comment->fresh(), $emoji);
+
+        return true;
     }
 
     /**

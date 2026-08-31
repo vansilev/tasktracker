@@ -240,6 +240,27 @@ HTML;
         $this->assertStringNotContainsString('<script', $result);
     }
 
+    public function test_sanitize_keeps_comment_quote_blockquote(): void
+    {
+        $html = '<blockquote class="comment-quote" data-quoted-comment-id="42"><p><strong>CRM Manager</strong> — preview</p></blockquote>';
+        $result = $this->service->sanitize($html);
+
+        $this->assertStringContainsString('data-quoted-comment-id="42"', $result);
+        $this->assertStringContainsString('class="comment-quote"', $result);
+        $this->assertStringContainsString('CRM Manager', $result);
+        $this->assertStringContainsString('preview', $result);
+    }
+
+    public function test_sanitize_keeps_stacked_comment_quote(): void
+    {
+        $html = '<blockquote class="comment-quote" data-quoted-comment-id="42"><p><strong>CRM Manager</strong></p><p>preview</p></blockquote>';
+        $result = $this->service->sanitize($html);
+
+        $this->assertStringContainsString('data-quoted-comment-id="42"', $result);
+        $this->assertStringContainsString('CRM Manager', $result);
+        $this->assertStringContainsString('preview', $result);
+    }
+
     public function test_sanitize_keeps_chip_after_stripping_tiptap_extra_attrs(): void
     {
         $html = '<p>hello <span class="mention" data-type="mention" data-id="2" data-label="Максим Гольдт" data-mention-suggestion-char="@" contenteditable="false">@Максим Гольдт</span></p>';

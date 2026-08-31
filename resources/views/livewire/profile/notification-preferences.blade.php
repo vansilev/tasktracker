@@ -12,6 +12,8 @@ new class extends Component
         'task_status_changed' => 'task.status_changed',
         'task_commented' => 'task.commented',
         'task_mentioned' => 'task.mentioned',
+        'task_comment_replied' => 'task.comment_replied',
+        'task_comment_reacted' => 'task.comment_reacted',
         'task_deadline_approaching' => 'task.deadline_approaching',
         'task_overdue' => 'task.overdue',
         'task_review_sla_expired' => 'task.review_sla_expired',

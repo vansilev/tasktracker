@@ -15,6 +15,7 @@ class TaskComment extends Model
     protected $fillable = [
         'task_id',
         'author_id',
+        'parent_comment_id',
         'body',
         // body_format is intentionally NOT fillable — set via attribute
         // assignment / forceFill on trusted write paths only.
@@ -97,6 +98,68 @@ class TaskComment extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(TaskAttachment::class, 'comment_id');
+    }
+
+    public const MAX_QUOTES = 8;
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_comment_id');
+    }
+
+    public function replies(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_comment_id');
+    }
+
+    public function quotedComments(): BelongsToMany
+    {
+        return $this->belongsToMany(self::class, 'task_comment_quotes', 'task_comment_id', 'quoted_comment_id')
+            ->withPivot('position')
+            ->withTimestamps()
+            ->orderByPivot('position');
+    }
+
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(TaskCommentReaction::class);
+    }
+
+    public function quoteExcerpt(int $limit = 140): string
+    {
+        $text = trim((string) ($this->body_text ?: app(HtmlContentService::class)->toPlainText($this->body)));
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+
+        if (mb_strlen($text) <= $limit) {
+            return $text;
+        }
+
+        return mb_substr($text, 0, $limit - 1).'…';
+    }
+
+    /** @return list<int> */
+    public static function quotedIdsFromHtml(string $html): array
+    {
+        if ($html === '' || ! str_contains($html, 'data-quoted-comment-id')) {
+            return [];
+        }
+
+        preg_match_all('/data-quoted-comment-id\s*=\s*["\']?(\d+)/i', $html, $matches);
+
+        $ids = [];
+        foreach ($matches[1] ?? [] as $id) {
+            $id = (int) $id;
+            if ($id > 0 && ! in_array($id, $ids, true)) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
+    }
+
+    public function quotesAreInline(): bool
+    {
+        return str_contains((string) $this->body, 'data-quoted-comment-id');
     }
 
     public function canBeEditedBy(User $user): bool

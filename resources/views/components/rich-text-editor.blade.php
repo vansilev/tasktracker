@@ -6,6 +6,7 @@
     'key' => null,
     'enableMentions' => false,
     'enableInlineAttachments' => false,
+    'enableCommentQuotes' => false,
     'inlineUploadUrl' => null,
 ])
 
@@ -27,34 +28,35 @@
     $icon = 'h-4 w-4 shrink-0';
 @endphp
 
-{{-- wire:ignore on the Alpine root: Livewire must not morph this subtree.
-     Ignoring only the inner mount leaves Alpine to destroy/recreate TipTap while
-     the old ProseMirror DOM stays — that yields "mismatched transaction" on toolbar clicks.
-     Values still reach the server via $wire.set. --}}
-<div
-    wire:key="{{ $editorKey }}"
-    wire:ignore
-    @if ($enableInlineAttachments) data-inline-attachments="true" @endif
-    x-data="richTextEditor({
-        property: @js($model),
-        placeholder: @js($placeholder),
-        ariaLabel: @js($ariaLabel),
-        enableMentions: @js((bool) $enableMentions),
-        enableInlineAttachments: @js((bool) $enableInlineAttachments),
-        inlineUploadUrl: @js($inlineUploadUrl),
-        labels: {
-            linkPrompt: @js(__('editor.link_prompt')),
-            linkInvalid: @js(__('editor.link_invalid')),
-            mentionList: @js(__('editor.mention_list')),
-            mentionEmpty: @js(__('editor.mention_empty')),
-            attach: @js(__('editor.attach')),
-            attachFailed: @js(__('editor.attach_failed')),
-        },
-    })"
-    x-on:livewire:navigating.window="teardown()"
-    {{ $attributes->merge(['class' => 'rich-text-editor']) }}
->
+{{-- wire:ignore.self keeps the Alpine/TipTap instance alive while still letting
+     Livewire morph the optional banner (quote chip) between toolbar and editor.
+     Toolbar + ProseMirror stay on nested wire:ignore so remorph does not rebuild TipTap. --}}
+<div {{ $attributes->merge(['class' => 'rich-text-editor']) }}>
     <div class="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
+        <div
+            wire:key="{{ $editorKey }}"
+            wire:ignore.self
+            @if ($enableInlineAttachments) data-inline-attachments="true" @endif
+            x-data="richTextEditor({
+                property: @js($model),
+                placeholder: @js($placeholder),
+                ariaLabel: @js($ariaLabel),
+                enableMentions: @js((bool) $enableMentions),
+                enableInlineAttachments: @js((bool) $enableInlineAttachments),
+                enableCommentQuotes: @js((bool) $enableCommentQuotes),
+                inlineUploadUrl: @js($inlineUploadUrl),
+                labels: {
+                    linkPrompt: @js(__('editor.link_prompt')),
+                    linkInvalid: @js(__('editor.link_invalid')),
+                    mentionList: @js(__('editor.mention_list')),
+                    mentionEmpty: @js(__('editor.mention_empty')),
+                    attach: @js(__('editor.attach')),
+                    attachFailed: @js(__('editor.attach_failed')),
+                },
+            })"
+            x-on:livewire:navigating.window="teardown()"
+        >
+        <div wire:ignore>
         <div
             role="toolbar"
             aria-label="{{ __('editor.toolbar') }}"
@@ -203,15 +205,23 @@
                     title="{{ __('editor.table_delete') }}"
                     @mousedown.prevent @click="run((c) => c.deleteTable())">{{ __('editor.table_delete') }}</button>
         </div>
+        </div>
 
-        <div class="rte-surface relative">
+        <div>
+            @isset($banner)
+                {{ $banner }}
+            @endisset
+        </div>
+
+        <div wire:ignore class="rte-surface relative">
             @if ($placeholder !== '')
                 <p x-show="isEmpty" x-cloak
                    class="pointer-events-none absolute left-3 top-3 m-0 select-none text-sm text-gray-400">{{ $placeholder }}</p>
             @endif
             <div x-ref="editor"
-                 class="prose prose-sm max-w-none px-3 py-3 text-gray-800"
+                 class="prose prose-sm max-w-none px-3 pt-2 pb-3 text-gray-800"
                  style="min-height: {{ $minHeight }}"></div>
+        </div>
         </div>
     </div>
 </div>

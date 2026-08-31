@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\UserNotificationPreference;
 use App\Notifications\TaskAssignedNotification;
 use App\Notifications\TaskCommentedNotification;
+use App\Notifications\TaskCommentReactedNotification;
+use App\Notifications\TaskCommentRepliedNotification;
 use App\Notifications\TaskDeadlineApproachingNotification;
 use App\Notifications\TaskMentionedNotification;
 use App\Notifications\TaskOverdueNotification;
@@ -77,20 +79,52 @@ class TaskNotificationService
         bool $isEdit = false,
     ): void {
         $task->loadMissing(['initiator', 'assignee', 'watchers']);
+        $comment->loadMissing(['parent.author', 'quotedComments.author']);
 
         $mentionedIds = $mentioned->pluck('id')->all();
         $excerpt = $this->commentExcerpt($comment);
+        $quoted = $comment->quotedComments->isNotEmpty()
+            ? $comment->quotedComments
+            : collect($comment->parent ? [$comment->parent] : []);
+        $repliedTo = $quoted
+            ->map(fn ($quotedComment) => $quotedComment->author)
+            ->filter()
+            ->unique('id')
+            ->reject(fn (User $user) => $user->id === $actor->id)
+            ->values();
+        $repliedIds = $repliedTo->pluck('id')->all();
 
         $commentRecipients = collect([$task->initiator, $task->assignee])
             ->merge($task->watchers)
-            ->reject(fn (User $user) => in_array($user->id, $mentionedIds, true));
+            ->reject(fn (User $user) => in_array($user->id, $mentionedIds, true)
+                || in_array($user->id, $repliedIds, true));
 
-        $this->sendTaskMentioned($task, $actor, $excerpt, $mentioned);
+        $mentionedWithoutReply = $mentioned->reject(
+            fn (User $user) => in_array($user->id, $repliedIds, true),
+        );
+
+        $this->sendTaskCommentReplied($task, $actor, $excerpt, $repliedTo);
+        $this->sendTaskMentioned($task, $actor, $excerpt, $mentionedWithoutReply);
         $this->sendTaskCommented($task, $actor, $excerpt, $commentRecipients);
 
         if (! $isEdit) {
-            $this->group->notifyCommented($task, $actor, $excerpt, $mentioned);
+            $this->group->notifyCommented($task, $actor, $excerpt, $mentioned, $repliedTo);
         }
+    }
+
+    public function notifyCommentReaction(Task $task, User $actor, TaskComment $comment, string $emoji): void
+    {
+        $comment->loadMissing('author');
+        $excerpt = $this->commentExcerpt($comment);
+
+        $this->sendToUsers(
+            collect([$comment->author]),
+            $actor,
+            'task.comment_reacted',
+            fn () => new TaskCommentReactedNotification($task, $actor, $excerpt, $emoji),
+        );
+
+        $this->group->notifyReacted($task, $actor, $comment->author, $excerpt, $emoji);
     }
 
     /**
@@ -258,6 +292,19 @@ class TaskNotificationService
             $actor,
             'task.mentioned',
             fn () => new TaskMentionedNotification($task, $actor, $excerpt),
+        );
+    }
+
+    /**
+     * @param  Collection<int, User>  $recipients
+     */
+    private function sendTaskCommentReplied(Task $task, User $actor, string $excerpt, Collection $recipients): void
+    {
+        $this->sendToUsers(
+            $recipients,
+            $actor,
+            'task.comment_replied',
+            fn () => new TaskCommentRepliedNotification($task, $actor, $excerpt),
         );
     }
 

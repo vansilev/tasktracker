@@ -82,6 +82,32 @@ trait FormatsTaskNotificationMessage
         ]);
     }
 
+    protected function commentRepliedLine(Task $task, User $actor, string $excerpt, User $notifiable): string
+    {
+        return $this->localizedLine($notifiable, 'notification.task_comment_replied', [
+            'number' => $task->number,
+            'title' => $task->title,
+            'actor' => $actor->name,
+            'excerpt' => $excerpt,
+        ]);
+    }
+
+    protected function commentReactedLine(
+        Task $task,
+        User $actor,
+        string $excerpt,
+        string $emoji,
+        User $notifiable,
+    ): string {
+        return $this->localizedLine($notifiable, 'notification.task_comment_reacted', [
+            'number' => $task->number,
+            'title' => $task->title,
+            'actor' => $actor->name,
+            'excerpt' => $excerpt,
+            'emoji' => $emoji,
+        ]);
+    }
+
     protected function deadlineApproachingLine(Task $task, User $notifiable): string
     {
         return $this->localizedLine($notifiable, 'notification.task_deadline_approaching', [

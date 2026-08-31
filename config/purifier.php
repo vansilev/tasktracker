@@ -40,7 +40,7 @@ return [
             // additionally rejects any img whose src is not an attachment view URL.
             // span is the TipTap mention chip: class + data-id/label/type survive
             // sanitize so display keeps spaces and the parser still knows who it is.
-            'HTML.Allowed' => 'p,br,strong,em,u,s,h1,h2,h3,h4,h5,h6,ul,ol,li,a[href|title],blockquote,code,pre,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col[span],colgroup[span],img[src|alt|title],span[class|data-id|data-label|data-type]',
+            'HTML.Allowed' => 'p,br,strong,em,u,s,h1,h2,h3,h4,h5,h6,ul,ol,li,a[href|title],blockquote[class|data-quoted-comment-id],code,pre,table,thead,tbody,tr,th[colspan|rowspan],td[colspan|rowspan],colgroup,col[span],colgroup[span],img[src|alt|title],span[class|data-id|data-label|data-type]',
             'CSS.AllowedProperties' => [],
             'AutoFormat.AutoParagraph' => false,
             'AutoFormat.RemoveEmpty' => false,
@@ -66,7 +66,7 @@ return [
         ],
         'custom_definition' => [
             'id' => 'html5-definitions',
-            'rev' => 3,
+            'rev' => 4,
             'debug' => false,
             'elements' => [
                 // http://developers.whatwg.org/sections.html
@@ -128,6 +128,8 @@ return [
             ['span', 'data-id', 'Text'],
             ['span', 'data-label', 'Text'],
             ['span', 'data-type', 'Enum#mention'],
+            ['blockquote', 'class', 'Text'],
+            ['blockquote', 'data-quoted-comment-id', 'Text'],
         ],
         'custom_elements' => [
             ['u', 'Inline', 'Inline', 'Common'],

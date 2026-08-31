@@ -54,6 +54,7 @@ new class extends Component
             'title' => $data['task_title'] ?? '',
             'actor' => $data['actor_name'] ?? '',
             'excerpt' => $data['comment_excerpt'] ?? '',
+            'emoji' => $data['emoji'] ?? '',
         ];
 
         return match ($data['event'] ?? '') {
@@ -68,6 +69,8 @@ new class extends Component
             ])),
             'task.commented' => __('notification.task_commented', $params),
             'task.mentioned' => __('notification.task_mentioned', $params),
+            'task.comment_replied' => __('notification.task_comment_replied', $params),
+            'task.comment_reacted' => __('notification.task_comment_reacted', $params),
             'task.deadline_approaching' => __('notification.task_deadline_approaching', array_merge($params, [
                 'deadline' => $this->formatDateTime($data['deadline'] ?? null),
             ])),

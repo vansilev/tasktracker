@@ -1,10 +1,12 @@
-import { Editor } from '@tiptap/core';
+import { Editor, Node, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Mention from '@tiptap/extension-mention';
 import Underline from '@tiptap/extension-underline';
+import Blockquote from '@tiptap/extension-blockquote';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import { NodeSelection, Plugin, TextSelection } from '@tiptap/pm/state';
 import { createMentionSuggestion } from './mention-suggestion';
 
 /**
@@ -41,7 +43,10 @@ function buildExtensions({ enableMentions = false, mentionSearch = null, mention
             link: false,
             underline: false,
             heading: { levels: [1, 2, 3] },
+            blockquote: false,
         }),
+        Blockquote,
+        commentQuoteNode(),
         Underline,
         Link.configure({
             openOnClick: false,
@@ -78,6 +83,185 @@ function buildExtensions({ enableMentions = false, mentionSearch = null, mention
     return extensions;
 }
 
+function parseQuoteInner(element) {
+    const paragraphs = [...element.querySelectorAll('p')];
+    if (paragraphs.length >= 2) {
+        return {
+            author: (paragraphs[0].textContent || '').trim(),
+            excerpt: paragraphs.slice(1).map((p) => (p.textContent || '').trim()).filter(Boolean).join(' '),
+        };
+    }
+
+    const strong = element.querySelector('strong');
+    const author = (strong?.textContent || '').trim();
+    const full = (element.textContent || '').replace(/\s+/g, ' ').trim();
+    if (! author) {
+        return { author: '', excerpt: full };
+    }
+
+    let excerpt = full;
+    if (full.startsWith(author)) {
+        excerpt = full.slice(author.length).replace(/^\s*[—–-]\s*/, '').trim();
+    }
+
+    return { author, excerpt };
+}
+
+function commentQuoteChildren(author, excerpt) {
+    const children = [['p', {}, ['strong', {}, author]]];
+    if (excerpt) {
+        children.push(['p', {}, excerpt]);
+    }
+
+    return children;
+}
+
+function isCommentQuoteSelection(selection) {
+    return selection instanceof NodeSelection && selection.node.type.name === 'commentQuote';
+}
+
+function caretAfterCommentQuote(view, text = '') {
+    const pos = view.state.selection.to;
+    const next = view.state.doc.resolve(pos).nodeAfter;
+    if (next && next.type.name === 'paragraph') {
+        const insertAt = pos + 1;
+        let tr = text === ''
+            ? view.state.tr.setSelection(TextSelection.create(view.state.doc, insertAt))
+            : view.state.tr.insertText(text, insertAt);
+        if (text !== '') {
+            tr = tr.setSelection(TextSelection.create(tr.doc, insertAt + text.length));
+        }
+        view.dispatch(tr);
+
+        return;
+    }
+
+    const schema = view.state.schema;
+    const paragraph = text === ''
+        ? schema.nodes.paragraph.create()
+        : schema.nodes.paragraph.create(null, schema.text(text));
+    let tr = view.state.tr.insert(pos, paragraph);
+    const caret = text === '' ? pos + 1 : pos + 1 + text.length;
+    tr = tr.setSelection(TextSelection.create(tr.doc, caret));
+    view.dispatch(tr);
+}
+
+/**
+ * Cited comment: a solid chip, not a normal blockquote.
+ * Toolbar «Цитата» stays the editable Blockquote above.
+ */
+function commentQuoteNode() {
+    return Node.create({
+        name: 'commentQuote',
+        group: 'block',
+        atom: true,
+        selectable: true,
+        draggable: false,
+        isolating: true,
+        priority: 1000,
+        addAttributes() {
+            return {
+                commentId: {
+                    default: null,
+                    parseHTML: (element) => element.getAttribute('data-quoted-comment-id'),
+                    renderHTML: (attributes) => (
+                        attributes.commentId
+                            ? { 'data-quoted-comment-id': String(attributes.commentId) }
+                            : {}
+                    ),
+                },
+                author: {
+                    default: '',
+                    parseHTML: (element) => parseQuoteInner(element).author,
+                    rendered: false,
+                },
+                excerpt: {
+                    default: '',
+                    parseHTML: (element) => parseQuoteInner(element).excerpt,
+                    rendered: false,
+                },
+            };
+        },
+        parseHTML() {
+            return [
+                { tag: 'blockquote.comment-quote' },
+                { tag: 'blockquote[data-quoted-comment-id]' },
+            ];
+        },
+        renderHTML({ HTMLAttributes, node }) {
+            return [
+                'blockquote',
+                mergeAttributes(HTMLAttributes, { class: 'comment-quote' }),
+                ...commentQuoteChildren(node.attrs.author || '', node.attrs.excerpt || ''),
+            ];
+        },
+        addNodeView() {
+            return ({ node }) => {
+                const dom = document.createElement('blockquote');
+                dom.className = 'comment-quote';
+                dom.setAttribute('contenteditable', 'false');
+                if (node.attrs.commentId) {
+                    dom.setAttribute('data-quoted-comment-id', String(node.attrs.commentId));
+                }
+                const authorEl = document.createElement('p');
+                const strong = document.createElement('strong');
+                strong.textContent = node.attrs.author || '';
+                authorEl.appendChild(strong);
+                dom.appendChild(authorEl);
+                if (node.attrs.excerpt) {
+                    const textEl = document.createElement('p');
+                    textEl.textContent = node.attrs.excerpt;
+                    dom.appendChild(textEl);
+                }
+
+                return { dom };
+            };
+        },
+        addProseMirrorPlugins() {
+            return [
+                new Plugin({
+                    props: {
+                        handleTextInput(view, _from, _to, text) {
+                            if (! isCommentQuoteSelection(view.state.selection)) {
+                                return false;
+                            }
+
+                            caretAfterCommentQuote(view, text);
+
+                            return true;
+                        },
+                        handlePaste(view, event) {
+                            if (! isCommentQuoteSelection(view.state.selection)) {
+                                return false;
+                            }
+
+                            caretAfterCommentQuote(view, event.clipboardData?.getData('text/plain') ?? '');
+
+                            return true;
+                        },
+                        handleKeyDown(view, event) {
+                            if (! isCommentQuoteSelection(view.state.selection)) {
+                                return false;
+                            }
+                            if (event.key === 'Backspace' || event.key === 'Delete') {
+                                return false;
+                            }
+                            if (event.key !== 'Enter') {
+                                return false;
+                            }
+
+                            caretAfterCommentQuote(view, '');
+                            event.preventDefault();
+
+                            return true;
+                        },
+                    },
+                }),
+            ];
+        },
+    });
+}
+
 function schemeOf(url) {
     const match = /^([a-z][a-z0-9+.-]*):/i.exec(url);
 
@@ -100,6 +284,18 @@ function normalizeUrl(value) {
     }
 
     return isAllowedScheme(value) ? value : null;
+}
+
+function quotePayload(detail) {
+    if (Array.isArray(detail)) {
+        if (detail.length === 1 && detail[0] && typeof detail[0] === 'object' && ! Array.isArray(detail[0])) {
+            return detail[0];
+        }
+
+        return { id: detail[0], author: detail[1], excerpt: detail[2] };
+    }
+
+    return detail && typeof detail === 'object' ? detail : {};
 }
 
 function escapeHtml(value) {
@@ -190,6 +386,9 @@ export default function richTextEditor(config = {}) {
     // component, so multiple editors on one page each get their own closure.
     let editor = null;
     let uploadQueue = Promise.resolve();
+    // Clicking «Цитировать» blurs the editor and Chrome often resets
+    // ProseMirror's selection to the start. Remember the last real caret.
+    let lastCaretPos = 1;
 
     return {
         property: config.property,
@@ -197,6 +396,7 @@ export default function richTextEditor(config = {}) {
         labels: config.labels || {},
         enableMentions: Boolean(config.enableMentions),
         enableInlineAttachments: Boolean(config.enableInlineAttachments),
+        enableCommentQuotes: Boolean(config.enableCommentQuotes),
         inlineUploadUrl: config.inlineUploadUrl || null,
         isEmpty: true,
         inTable: false,
@@ -212,6 +412,7 @@ export default function richTextEditor(config = {}) {
         commitHookCleanup: null,
         mentionPopupEl: null,
         tornDown: false,
+        quoteListenerOff: null,
 
         init() {
             const initial = this.$wire?.get?.(this.property) ?? '';
@@ -282,6 +483,7 @@ export default function richTextEditor(config = {}) {
                     this.schedulePush();
                 },
                 onBlur: () => {
+                    this.rememberCaret();
                     // Clicking a mention row blurs the editor first. Syncing
                     // Livewire here remounts state and kills the popup.
                     if (this.mentionPopupEl?.isConnected) {
@@ -312,10 +514,61 @@ export default function richTextEditor(config = {}) {
             }
 
             this.registerCommitFlush();
+            this.registerQuoteListener();
         },
 
         destroy() {
             this.teardown();
+        },
+
+        registerQuoteListener() {
+            if (! this.enableCommentQuotes || typeof this.$wire?.on !== 'function') {
+                return;
+            }
+
+            this.quoteListenerOff = this.$wire.on('insert-comment-quote', (detail) => {
+                this.insertCommentQuote(quotePayload(detail));
+            });
+        },
+
+        rememberCaret() {
+            if (! editor || editor.isDestroyed) {
+                return;
+            }
+
+            lastCaretPos = editor.state.selection.to;
+        },
+
+        insertCommentQuote(detail = {}) {
+            if (! editor || editor.isDestroyed) {
+                return;
+            }
+
+            const id = Number(detail.id);
+            if (! Number.isFinite(id) || id <= 0) {
+                return;
+            }
+
+            const author = String(detail.author || '');
+            const excerpt = String(detail.excerpt || '');
+            const maxPos = editor.state.doc.content.size;
+            let pos = editor.isFocused ? editor.state.selection.to : lastCaretPos;
+            if (pos < 1 || pos > maxPos) {
+                pos = maxPos;
+            }
+
+            // Do not focus() first: that can snap the caret to the start of the
+            // document, which is why a second quote stacked under the first.
+            editor.chain().insertContentAt(pos, {
+                type: 'commentQuote',
+                attrs: {
+                    commentId: String(id),
+                    author,
+                    excerpt,
+                },
+            }).focus().run();
+            this.rememberCaret();
+            this.flushPush();
         },
 
         /**
@@ -360,6 +613,11 @@ export default function richTextEditor(config = {}) {
             if (this.commitHookCleanup) {
                 this.commitHookCleanup();
                 this.commitHookCleanup = null;
+            }
+
+            if (typeof this.quoteListenerOff === 'function') {
+                this.quoteListenerOff();
+                this.quoteListenerOff = null;
             }
 
             if (this.mentionPopupEl) {
@@ -473,6 +731,7 @@ export default function richTextEditor(config = {}) {
                 return;
             }
 
+            this.rememberCaret();
             this.isEmpty = editor.isEmpty;
             this.inTable = editor.isActive('table');
             this.active = {

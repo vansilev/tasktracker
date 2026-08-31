@@ -104,6 +104,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public string $editCommentBody = '';
 
+    public array $quoteCommentIds = [];
+
+    /** Stale Livewire snapshots from the single-quote UI still send this. */
+    public ?int $quoteCommentId = null;
+
     public array $uploadFiles = [];
 
     public array $commentFiles = [];
@@ -132,6 +137,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             'subtasks.blockers:id,number,status',
             'blockers:id,number,title,status',
             'comments.author', 'comments.mentionedUsers', 'comments.attachments',
+            'comments.parent.author', 'comments.quotedComments.author', 'comments.reactions',
             'histories.changedBy',
             'checklistItems', 'watchers', 'attachments.uploader',
         ]);
@@ -377,7 +383,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             'subtasks.assignee:id,name',
             'subtasks.blockers:id,number,status',
             'blockers:id,number,title,status',
-            'comments.author', 'comments.attachments', 'histories.changedBy', 'checklistItems', 'watchers',
+            'comments.author', 'comments.attachments', 'comments.parent.author', 'comments.reactions', 'histories.changedBy', 'checklistItems', 'watchers',
         ]);
     }
 
@@ -408,7 +414,12 @@ new #[Layout('components.tasks-layout')] class extends Component
             'commentFiles.*' => 'nullable|file|max:'.(int) $settings->get('attachment_max_kb', 10240),
         ]);
 
-        $comment = $tasks->addComment($this->task, auth()->user(), $this->commentBody);
+        $comment = $tasks->addComment(
+            $this->task,
+            auth()->user(),
+            $this->commentBody,
+            quotedCommentIds: $this->quotedIdsForNewComment(),
+        );
 
         foreach ($this->commentFiles as $file) {
             $attachments->store($this->task, auth()->user(), $file, $comment->id);
@@ -416,7 +427,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $this->commentBody = '';
         $this->commentFiles = [];
-        $this->task->load(['comments.author', 'comments.mentionedUsers', 'comments.attachments']);
+        $this->resetQuotes();
+        $this->reloadComments();
     }
 
     public function saveEdit(TaskService $tasks): void
@@ -474,6 +486,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             'subtasks.blockers:id,number,status',
             'blockers:id,number,title,status',
             'comments.author', 'comments.mentionedUsers', 'comments.attachments',
+            'comments.parent.author', 'comments.quotedComments.author', 'comments.reactions',
         ]);
         $this->editAssigneeDepartmentId = $this->task->department_id;
         $this->editAssigneeId = $this->task->assignee_id;
@@ -738,14 +751,124 @@ new #[Layout('components.tasks-layout')] class extends Component
         $tasks->updateComment($comment, auth()->user(), $this->editCommentBody);
         $this->editingCommentId = null;
         $this->editCommentBody = '';
-        $this->task->load(['comments.author', 'comments.mentionedUsers']);
+        $this->reloadComments();
     }
 
     public function deleteComment(int $commentId, TaskService $tasks): void
     {
         $comment = TaskComment::query()->where('task_id', $this->task->id)->findOrFail($commentId);
         $tasks->deleteComment($comment, auth()->user());
-        $this->task->load(['comments.author', 'comments.mentionedUsers']);
+        $this->syncQuotes(array_filter(
+            $this->quoteCommentIds,
+            fn ($id) => (int) $id !== $commentId,
+        ));
+        $this->reloadComments();
+    }
+
+    public function hydrate(): void
+    {
+        if ($this->quoteCommentId && $this->quoteCommentIds === []) {
+            $this->quoteCommentIds = $this->normalizedQuoteIds([$this->quoteCommentId]);
+        }
+        $this->syncQuotes($this->quoteCommentIds);
+    }
+
+    public function quoteComment(int $commentId): void
+    {
+        abort_unless(auth()->user()->can('comment', $this->task), 403);
+
+        $comment = TaskComment::query()
+            ->with('author')
+            ->where('task_id', $this->task->id)
+            ->findOrFail($commentId);
+        $ids = $this->normalizedQuoteIds($this->quoteCommentIds);
+        if (! in_array($comment->id, $ids, true) && count($ids) < \App\Models\TaskComment::MAX_QUOTES) {
+            $this->syncQuotes([...$ids, $comment->id]);
+        }
+        $this->editingCommentId = null;
+        $this->dispatch('insert-comment-quote',
+            id: $comment->id,
+            author: $comment->author?->name ?? '',
+            excerpt: $comment->quoteExcerpt(),
+        );
+        $this->skipRender();
+    }
+
+    public function removeQuote(int $commentId): void
+    {
+        $this->syncQuotes(array_values(array_filter(
+            $this->quoteCommentIds,
+            fn ($id) => (int) $id !== $commentId,
+        )));
+    }
+
+    public function cancelQuote(): void
+    {
+        $this->resetQuotes();
+    }
+
+    /** @param  list<int|string>  $ids */
+    private function syncQuotes(array $ids): void
+    {
+        $this->quoteCommentIds = $this->normalizedQuoteIds($ids);
+        $this->quoteCommentId = $this->quoteCommentIds === []
+            ? null
+            : $this->quoteCommentIds[array_key_last($this->quoteCommentIds)];
+    }
+
+    private function resetQuotes(): void
+    {
+        $this->quoteCommentIds = [];
+        $this->quoteCommentId = null;
+    }
+
+    /** @return list<int> */
+    private function quotedIdsForNewComment(): array
+    {
+        $fromHtml = TaskComment::quotedIdsFromHtml($this->commentBody);
+
+        return $fromHtml !== []
+            ? $fromHtml
+            : $this->normalizedQuoteIds($this->quoteCommentIds);
+    }
+
+    /** @return list<int> */
+    private function normalizedQuoteIds(array $ids): array
+    {
+        $normalized = [];
+        foreach ($ids as $id) {
+            $id = (int) $id;
+            if ($id <= 0 || in_array($id, $normalized, true)) {
+                continue;
+            }
+            $normalized[] = $id;
+        }
+
+        return $normalized;
+    }
+
+    public function toggleReaction(int $commentId, string $emoji, TaskService $tasks): void
+    {
+        $comment = TaskComment::query()->where('task_id', $this->task->id)->findOrFail($commentId);
+        $tasks->toggleCommentReaction($comment, auth()->user(), $emoji);
+        $this->reloadComments();
+    }
+
+    /** @return list<string> */
+    private function commentEagerLoad(): array
+    {
+        return [
+            'comments.author',
+            'comments.mentionedUsers',
+            'comments.attachments',
+            'comments.parent.author', 'comments.quotedComments.author',
+            'comments.reactions',
+        ];
+    }
+
+    private function reloadComments(): void
+    {
+        $this->task->load($this->commentEagerLoad());
     }
 
     public function uploadAttachment(TaskAttachmentService $attachments, SettingsService $settings): void
@@ -1244,7 +1367,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     </x-slot>
                     <div class="space-y-4 max-h-96 overflow-y-auto mb-4 pr-1">
                         @forelse ($task->comments as $comment)
-                            <div class="flex gap-2.5">
+                            <div class="flex gap-2.5" wire:key="comment-{{ $comment->id }}">
                                 <div class="shrink-0 w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-semibold">
                                     {{ $this->initials($comment->author->name) }}
                                 </div>
@@ -1273,7 +1396,22 @@ new #[Layout('components.tasks-layout')] class extends Component
                                                 <x-secondary-button type="button" wire:click="$set('editingCommentId', null)">{{ __('Cancel') }}</x-secondary-button>
                                             </div>
                                         </form>
-                                    @else
+                                        @else
+                                        @php
+                                            $quotedList = $comment->quotesAreInline()
+                                                ? collect()
+                                                : ($comment->relationLoaded('quotedComments') && $comment->quotedComments->isNotEmpty()
+                                                    ? $comment->quotedComments
+                                                    : collect($comment->parent ? [$comment->parent] : []));
+                                        @endphp
+                                        @foreach ($quotedList as $quoted)
+                                            <div class="mt-1.5 inline-block max-w-[22rem] rounded-md bg-indigo-50 pl-2.5 pr-2 py-1.5 border-l-4 border-indigo-400">
+                                                <p class="text-xs font-semibold leading-snug text-gray-800">{{ $quoted->author?->name }}</p>
+                                                @if ($quoted->quoteExcerpt() !== '')
+                                                    <p class="text-xs leading-snug text-gray-600 mt-0.5">{{ $quoted->quoteExcerpt() }}</p>
+                                                @endif
+                                            </div>
+                                        @endforeach
                                         <div class="prose prose-sm max-w-none text-gray-800 mt-1">{!! $comment->renderedBody() !!}</div>
                                         @if ($comment->attachments->isNotEmpty())
                                             <ul class="mt-2 space-y-2">
@@ -1282,11 +1420,98 @@ new #[Layout('components.tasks-layout')] class extends Component
                                                 @endforeach
                                             </ul>
                                         @endif
-                                        @if ($comment->canBeEditedBy(auth()->user()))
-                                            <div class="mt-1 flex gap-2">
+                                        @if ($canComment || $comment->reactions->isNotEmpty())
+                                        <div class="mt-1.5 flex flex-wrap items-center gap-1">
+                                            @foreach ($comment->reactions->groupBy('emoji') as $emoji => $group)
+                                                @php
+                                                    $reacted = $group->contains(fn ($reaction) => (int) $reaction->user_id === (int) auth()->id());
+                                                @endphp
+                                                @if ($canComment)
+                                                    <button type="button"
+                                                            wire:click="toggleReaction({{ $comment->id }}, '{{ $emoji }}')"
+                                                            class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs leading-none {{ $reacted ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-50 text-gray-600 hover:bg-gray-100' }}">
+                                                        <span>{{ $emoji }}</span>
+                                                        <span class="tabular-nums">{{ $group->count() }}</span>
+                                                    </button>
+                                                @else
+                                                    <span class="inline-flex items-center gap-0.5 rounded-full bg-gray-50 px-1.5 py-0.5 text-xs text-gray-600">
+                                                        <span>{{ $emoji }}</span>
+                                                        <span class="tabular-nums">{{ $group->count() }}</span>
+                                                    </span>
+                                                @endif
+                                            @endforeach
+                                            @if ($canComment)
+                                                <div class="relative"
+                                                     x-data="{
+                                                         open: false,
+                                                         style: '',
+                                                         togglePicker() {
+                                                             this.open = ! this.open;
+                                                             if (! this.open) return;
+                                                             this.$nextTick(() => {
+                                                                 const btn = this.$refs.trigger;
+                                                                 const panel = this.$refs.panel;
+                                                                 if (! btn || ! panel) return;
+                                                                 const r = btn.getBoundingClientRect();
+                                                                 const h = panel.offsetHeight || 108;
+                                                                 const w = panel.offsetWidth || 216;
+                                                                 let top = r.top - h - 6;
+                                                                 if (top < 8) top = r.bottom + 6;
+                                                                 if (top + h > window.innerHeight - 8) {
+                                                                     top = Math.max(8, window.innerHeight - h - 8);
+                                                                 }
+                                                                 let left = r.left;
+                                                                 if (left + w > window.innerWidth - 8) {
+                                                                     left = Math.max(8, window.innerWidth - w - 8);
+                                                                 }
+                                                                 this.style = 'top:' + top + 'px;left:' + left + 'px';
+                                                             });
+                                                         }
+                                                     }"
+                                                     @click.outside="open = false">
+                                                    <button type="button"
+                                                            x-ref="trigger"
+                                                            @click="togglePicker()"
+                                                            class="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                                            aria-label="{{ __('Add reaction') }}"
+                                                            title="{{ __('Add reaction') }}">
+                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                    </button>
+                                                    <div x-ref="panel"
+                                                         x-show="open"
+                                                         x-cloak
+                                                         x-transition
+                                                         class="fixed z-50 w-56 rounded-lg bg-white p-1.5 shadow-lg ring-1 ring-black/10"
+                                                         :style="style"
+                                                         style="display: none;">
+                                                        <div class="grid grid-cols-8 gap-0.5">
+                                                            @foreach (\App\Models\TaskCommentReaction::EMOJIS as $emoji)
+                                                                <button type="button"
+                                                                        wire:click="toggleReaction({{ $comment->id }}, '{{ $emoji }}')"
+                                                                        @click="open = false"
+                                                                        class="flex h-7 w-7 items-center justify-center rounded-md text-base leading-none hover:bg-gray-100">{{ $emoji }}</button>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @endif
+                                        @if ($canComment || $comment->canBeEditedBy(auth()->user()))
+                                        <div class="mt-1 flex gap-2">
+                                            @if ($canComment)
+                                                <button type="button"
+                                                        wire:click="quoteComment({{ $comment->id }})"
+                                                        @mousedown.prevent
+                                                        class="text-xs text-indigo-600 hover:text-indigo-800">{{ __('Quote') }}</button>
+                                            @endif
+                                            @if ($comment->canBeEditedBy(auth()->user()))
                                                 <button type="button" wire:click="startEditComment({{ $comment->id }})" class="text-xs text-indigo-600 hover:text-indigo-800">{{ __('Edit') }}</button>
                                                 <button type="button" wire:click="deleteComment({{ $comment->id }})" wire:confirm="{{ __('Delete this comment?') }}" class="text-xs text-red-600 hover:text-red-800">{{ __('Delete') }}</button>
-                                            </div>
+                                            @endif
+                                        </div>
                                         @endif
                                     @endif
                                 </div>
@@ -1308,6 +1533,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                             :inline-upload-url="$canUploadAttachment ? $inlineUploadUrl : null"
                             :placeholder="__('Write a comment...')"
                             :aria-label="__('Comments')"
+                            :enable-comment-quotes="true"
                         />
                         <x-input-error :messages="$errors->get('commentBody')" />
                         <p class="text-xs text-gray-500">{{ __('Mention hint') }}</p>

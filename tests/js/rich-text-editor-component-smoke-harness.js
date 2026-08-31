@@ -90,6 +90,29 @@ Alpine.data('appEditor', () => {
                 this.result = `error:${e.name}:${e.message}`;
             }
         },
+        runQuoteAfterBlur() {
+            try {
+                this.run((c) => c.setContent('<p>typed here</p>').focus('end'));
+                this.rememberCaret();
+                this.$refs.editor?.querySelector('.ProseMirror')?.blur();
+                this.insertCommentQuote({ id: 9, author: 'Ann', excerpt: 'said this' });
+                this.html = this.rawHtml();
+                const quote = this.$refs.editor?.querySelector('blockquote.comment-quote');
+                const typedAt = this.html.indexOf('typed here');
+                const quoteAt = this.html.indexOf('data-quoted-comment-id="9"');
+                if (! quote || quoteAt === -1) {
+                    this.result = `quote-missing:${this.html}`;
+                } else if (typedAt === -1 || typedAt > quoteAt) {
+                    this.result = `quote-not-after-caret:${this.html}`;
+                } else if (quote.getAttribute('contenteditable') !== 'false') {
+                    this.result = `quote-editable:${this.html}`;
+                } else {
+                    this.result = 'ok-quote-caret';
+                }
+            } catch (e) {
+                this.result = `error:${e.name}:${e.message}`;
+            }
+        },
     };
 });
 

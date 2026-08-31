@@ -34,10 +34,30 @@ class TelegramGroupNotifier
 
     /**
      * @param  Collection<int, User>  $mentioned
+     * @param  Collection<int, User>  $repliedTo
      */
-    public function notifyCommented(Task $task, User $actor, string $excerpt, Collection $mentioned): void
-    {
-        $this->dispatch($this->builder->forCommented($task, $actor, $excerpt, $mentioned));
+    public function notifyCommented(
+        Task $task,
+        User $actor,
+        string $excerpt,
+        Collection $mentioned,
+        Collection $repliedTo,
+    ): void {
+        $this->dispatch($this->builder->forCommented($task, $actor, $excerpt, $mentioned, $repliedTo));
+    }
+
+    public function notifyReacted(
+        Task $task,
+        User $actor,
+        ?User $author,
+        string $excerpt,
+        string $emoji,
+    ): void {
+        if ($author === null || $author->id === $actor->id || ! $author->is_active) {
+            return;
+        }
+
+        $this->dispatch($this->builder->forReacted($task, $actor, $author, $excerpt, $emoji));
     }
 
     public function isReady(): bool

@@ -55,6 +55,7 @@ function pageHtml() {
     <button type="button" id="bold" @mousedown.prevent @click="runBold()">Bold</button>
     <button type="button" id="table" @mousedown.prevent @click="runTable()">Table</button>
     <button type="button" id="paste" @mousedown.prevent @click="runPasteInsert()">Paste</button>
+    <button type="button" id="quote" @mousedown.prevent @click="runQuoteAfterBlur()">Quote</button>
     <div x-ref="editor"></div>
     <pre id="html" x-text="html"></pre>
     <pre id="result" x-text="result"></pre>
@@ -163,6 +164,26 @@ async function main() {
         html = (await page.locator('#html').innerText()).trim();
         console.log('component paste:', result, html);
         assert(result === 'ok-paste', `Paste/insert failed: ${result}`);
+
+        await page.click('#quote');
+        result = (await page.locator('#result').innerText()).trim();
+        html = (await page.locator('#html').innerText()).trim();
+        console.log('component quote caret:', result, html);
+        assert(result === 'ok-quote-caret', `Quote should land after typed text, not at the top: ${result}`);
+
+        await page.locator('blockquote.comment-quote').click();
+        await page.keyboard.type('INSIDE');
+        const quoteInner = (await page.locator('blockquote.comment-quote').innerHTML()).replace(/\s+/g, ' ');
+        const afterHtml = (await page.locator('.ProseMirror').innerHTML()).replace(/\s+/g, ' ');
+        console.log('component quote lock:', quoteInner, afterHtml.slice(0, 240));
+        assert(
+            quoteInner.includes('said this') && !quoteInner.includes('INSIDE'),
+            `В цитату нельзя дописывать, сейчас: ${quoteInner}`,
+        );
+        assert(
+            afterHtml.includes('data-quoted-comment-id="9"'),
+            `Цитата не должна пропадать от набора: ${afterHtml}`,
+        );
 
         assert(pageErrors.length === 0, `Page errors: ${pageErrors.join(' | ')}`);
         console.log('\nCOMPONENT SMOKE PASS: real richTextEditor factory works under Alpine.');

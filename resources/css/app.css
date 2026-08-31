@@ -141,6 +141,58 @@
         color: theme('colors.gray.500');
     }
 
+    .prose blockquote.comment-quote,
+    .rte-surface .ProseMirror blockquote.comment-quote {
+        display: block;
+        width: fit-content;
+        max-width: min(100%, 22rem);
+        margin: 0.5rem 0;
+        padding: 0.375rem 0.75rem;
+        border-left: 4px solid theme('colors.indigo.400');
+        background: theme('colors.indigo.50');
+        border-radius: 0.375rem;
+        font-style: normal;
+        font-weight: 400;
+        color: theme('colors.gray.700');
+        quotes: none;
+    }
+
+    .prose blockquote.comment-quote::before,
+    .prose blockquote.comment-quote::after,
+    .prose blockquote.comment-quote p:first-of-type::before,
+    .prose blockquote.comment-quote p:first-of-type::after {
+        content: none;
+    }
+
+    .prose blockquote.comment-quote p,
+    .rte-surface .ProseMirror blockquote.comment-quote p {
+        margin: 0;
+        font-size: 0.75rem;
+        line-height: 1.35;
+    }
+
+    .prose blockquote.comment-quote p:first-child,
+    .rte-surface .ProseMirror blockquote.comment-quote p:first-child {
+        font-weight: 600;
+        color: theme('colors.gray.800');
+    }
+
+    .prose blockquote.comment-quote p + p,
+    .rte-surface .ProseMirror blockquote.comment-quote p + p {
+        margin-top: 0.125rem;
+        font-weight: 400;
+        color: theme('colors.gray.600');
+    }
+
+    .rte-surface .ProseMirror blockquote.comment-quote {
+        cursor: default;
+    }
+
+    .rte-surface .ProseMirror blockquote.comment-quote.ProseMirror-selectednode {
+        outline: 2px solid theme('colors.indigo.400');
+        outline-offset: 1px;
+    }
+
     /* Inline task attachments inside prose (rendered) and TipTap surface. */
     .prose img,
     .rte-surface .ProseMirror img {
