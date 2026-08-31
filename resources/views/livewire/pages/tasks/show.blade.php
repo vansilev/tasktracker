@@ -1150,14 +1150,18 @@ new #[Layout('components.tasks-layout')] class extends Component
                             @if ($canCreateSubtask && $task->subtasks->count() > 1) x-data="subtaskSort" @endif>
                             @foreach ($task->subtasks as $subtask)
                                 <li wire:key="subtask-{{ $subtask->id }}"
-                                    data-subtask-id="{{ $subtask->id }}">
+                                    data-subtask-id="{{ $subtask->id }}"
+                                    @if ($canCreateSubtask && $task->subtasks->count() > 1)
+                                        class="touch-none cursor-grab active:cursor-grabbing [&_a]:cursor-grab"
+                                        @pointerdown="onDown({{ $subtask->id }}, $event)"
+                                    @endif>
                                     <div class="flex items-center gap-1.5 py-1.5 px-1 rounded-lg hover:bg-gray-50 transition-colors">
                                         @if ($canCreateSubtask && $task->subtasks->count() > 1)
                                             <button type="button"
-                                                    class="shrink-0 inline-flex items-center justify-center size-5 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none touch-none"
+                                                    class="shrink-0 inline-flex items-center justify-center size-7 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none touch-none"
                                                     aria-label="{{ __('Drag to reorder') }}"
-                                                    @pointerdown="onDown({{ $subtask->id }}, $event)"
-                                                    @click.stop>
+                                                    @click.stop
+                                                    tabindex="-1">
                                                 <svg class="block size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                                                     <circle cx="3" cy="3" r="1.15"/>
                                                     <circle cx="8" cy="3" r="1.15"/>
