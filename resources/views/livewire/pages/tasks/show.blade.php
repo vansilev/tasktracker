@@ -1153,7 +1153,6 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     data-subtask-id="{{ $subtask->id }}"
                                     @if ($canCreateSubtask && $task->subtasks->count() > 1)
                                         class="touch-none cursor-grab active:cursor-grabbing [&_a]:cursor-grab"
-                                        @pointerdown="onDown({{ $subtask->id }}, $event)"
                                     @endif>
                                     <div class="flex items-center gap-1.5 py-1.5 px-1 rounded-lg hover:bg-gray-50 transition-colors">
                                         @if ($canCreateSubtask && $task->subtasks->count() > 1)

@@ -45,6 +45,17 @@ export default function subtaskSort() {
     }
 
     return {
+        init() {
+            this.$el.addEventListener('pointerdown', (event) => {
+                const item = event.target.closest('[data-subtask-id]');
+                if (! item || ! this.$el.contains(item)) {
+                    return;
+                }
+
+                this.onDown(Number(item.dataset.subtaskId), event);
+            });
+        },
+
         onDown(id, event) {
             if (event.button != null && event.button !== 0) {
                 return;
