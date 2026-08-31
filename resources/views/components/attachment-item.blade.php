@@ -13,7 +13,7 @@
 <li {{ $attributes->merge(['class' => 'flex items-start justify-between gap-2 text-sm']) }}>
     <div class="min-w-0 flex-1">
         @if ($isImage)
-            <a href="{{ $href }}" target="_blank" rel="noopener noreferrer" class="block group">
+            <a href="{{ $href }}" class="block group">
                 <img
                     src="{{ $href }}"
                     alt="{{ $attachment->filename }}"

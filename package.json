@@ -5,7 +5,8 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "test:editor-smoke": "node tests/js/rich-text-editor-alpine-smoke.mjs && node tests/js/rich-text-editor-component-smoke.mjs && node tests/js/rich-text-editor-attach-smoke.mjs"
+        "test:editor-smoke": "node tests/js/rich-text-editor-alpine-smoke.mjs && node tests/js/rich-text-editor-component-smoke.mjs && node tests/js/rich-text-editor-attach-smoke.mjs",
+    "test:lightbox": "node tests/js/attachment-lightbox-path.mjs"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.2",

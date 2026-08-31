@@ -877,7 +877,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     }
 }; ?>
 
-<div class="space-y-4">
+<div class="space-y-4" x-data="attachmentLightbox">
     <div class="flex items-center justify-between gap-4">
         <a href="{{ route('tasks.index') }}" wire:navigate class="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
@@ -1697,6 +1697,27 @@ new #[Layout('components.tasks-layout')] class extends Component
             </div>
         </div>
     @endif
+
+    <div
+        data-attachment-lightbox
+        data-fallback-label="{{ __('Attachment') }}"
+        hidden
+        class="fixed inset-0 z-[80]"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        aria-label="{{ __('Attachment') }}"
+    >
+        <div data-attachment-lightbox-backdrop class="absolute inset-0 bg-black/80"></div>
+        <button type="button"
+                data-attachment-lightbox-close
+                class="absolute top-4 right-4 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
+                aria-label="{{ __('Close') }}">✕</button>
+        <div class="relative z-10 flex h-full w-full items-center justify-center p-12 pointer-events-none">
+            <img data-attachment-lightbox-image alt="" class="max-h-[90vh] max-w-[90vw] object-contain pointer-events-auto rounded-lg shadow-2xl">
+        </div>
+        <p data-attachment-lightbox-name hidden class="absolute bottom-4 left-0 right-0 z-10 px-4 text-center text-sm text-white/80 truncate"></p>
+    </div>
 </div>
 
 @script

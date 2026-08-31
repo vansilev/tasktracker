@@ -331,4 +331,24 @@ class TaskAttachmentTest extends TestCase
         $this->expectException(ValidationException::class);
         app(TaskAttachmentService::class)->store($task, $initiator, $file);
     }
+
+    public function test_image_view_returns_inline_file(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $initiator = $this->createUserInDepartment($dept, 'Initiator', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Assignee', role: $role);
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        $attachment = app(TaskAttachmentService::class)->store(
+            $task,
+            $initiator,
+            UploadedFile::fake()->image('shot.png'),
+        );
+
+        $this->actingAs($initiator)
+            ->get(route('tasks.attachments.view', $attachment))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png');
+    }
 }

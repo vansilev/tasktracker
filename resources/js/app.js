@@ -1,4 +1,5 @@
 import Chart from 'chart.js/auto';
+import attachmentLightbox from './attachment-lightbox';
 import richTextEditor from './rich-text-editor';
 import subtaskSort from './subtask-sort';
 
@@ -6,6 +7,7 @@ import subtaskSort from './subtask-sort';
 document.addEventListener('alpine:init', () => {
     window.Alpine.data('richTextEditor', richTextEditor);
     window.Alpine.data('subtaskSort', subtaskSort);
+    window.Alpine.data('attachmentLightbox', attachmentLightbox);
 });
 
 const chartInstances = new Map();

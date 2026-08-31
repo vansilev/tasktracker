@@ -108,4 +108,27 @@ class TaskShowPageTest extends TestCase
             ->get('/tasks/'.$task->id)
             ->assertOk();
     }
+
+    public function test_show_page_uses_lightbox_for_image_attachments(): void
+    {
+        ['task' => $task, 'initiator' => $initiator] = $this->createTaskWithFullContent();
+
+        app(TaskAttachmentService::class)->store(
+            $task,
+            $initiator,
+            UploadedFile::fake()->image('shot.png'),
+        );
+
+        $html = $this->actingAs($initiator)
+            ->get('/tasks/'.$task->id)
+            ->assertOk()
+            ->assertSee('shot.png', false)
+            ->assertSee('x-data="attachmentLightbox"', false)
+            ->getContent();
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/attachments\/\d+\/view"[^>]*target="_blank"/',
+            $html,
+        );
+    }
 }
