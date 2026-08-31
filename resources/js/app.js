@@ -6,47 +6,64 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('richTextEditor', richTextEditor);
     window.Alpine.data('subtaskSort', () => ({
         draggingId: null,
-        start(id, event) {
+        onDown(id, event) {
+            if (event.button != null && event.button !== 0) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
             this.draggingId = Number(id);
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', String(id));
-            const row = event.currentTarget.closest('li');
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const row = this.row(this.draggingId);
             if (row) {
-                event.dataTransfer.setDragImage(row, 16, 16);
+                row.classList.add('opacity-60');
             }
         },
-        over(id, event) {
-            event.preventDefault();
-            event.dataTransfer.dropEffect = 'move';
-            const draggingId = this.draggingId;
-            if (draggingId === null || draggingId === Number(id)) {
+        onMove(event) {
+            if (this.draggingId === null) {
                 return;
             }
 
-            const dragged = this.$el.querySelector(`[data-subtask-id="${draggingId}"]`);
-            const target = event.currentTarget;
-            if (! dragged || ! target || dragged === target) {
+            const dragged = this.row(this.draggingId);
+            if (! dragged) {
                 return;
             }
 
-            const rect = target.getBoundingClientRect();
-            const after = event.clientY > rect.top + rect.height / 2;
-            const pivot = after ? target.nextElementSibling : target;
-            if (pivot === dragged || dragged.nextElementSibling === pivot) {
-                return;
+            const others = [...this.$el.querySelectorAll('[data-subtask-id]')]
+                .filter((el) => el !== dragged);
+
+            for (const item of others) {
+                const rect = item.getBoundingClientRect();
+                if (event.clientY < rect.top + rect.height / 2) {
+                    if (dragged.nextElementSibling !== item) {
+                        this.$el.insertBefore(dragged, item);
+                    }
+                    return;
+                }
             }
 
-            this.$el.insertBefore(dragged, pivot);
+            if (dragged.nextElementSibling !== null) {
+                this.$el.appendChild(dragged);
+            }
         },
         persist() {
             if (this.draggingId === null) {
                 return;
             }
 
+            const row = this.row(this.draggingId);
+            if (row) {
+                row.classList.remove('opacity-60');
+            }
+
             this.draggingId = null;
             const ids = [...this.$el.querySelectorAll('[data-subtask-id]')]
                 .map((el) => Number(el.dataset.subtaskId));
             this.$wire.reorderSubtasks(ids);
+        },
+        row(id) {
+            return this.$el.querySelector(`[data-subtask-id="${id}"]`);
         },
     }));
 });

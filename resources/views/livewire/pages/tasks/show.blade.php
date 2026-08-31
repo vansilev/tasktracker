@@ -1150,19 +1150,16 @@ new #[Layout('components.tasks-layout')] class extends Component
                             @if ($canCreateSubtask && $task->subtasks->count() > 1) x-data="subtaskSort" @endif>
                             @foreach ($task->subtasks as $subtask)
                                 <li wire:key="subtask-{{ $subtask->id }}"
-                                    data-subtask-id="{{ $subtask->id }}"
-                                    @if ($canCreateSubtask && $task->subtasks->count() > 1)
-                                        @dragover.prevent="over({{ $subtask->id }}, $event)"
-                                        @drop.prevent="persist()"
-                                    @endif>
+                                    data-subtask-id="{{ $subtask->id }}">
                                     <div class="flex items-center gap-1.5 py-1.5 px-1 rounded-lg hover:bg-gray-50 transition-colors">
                                         @if ($canCreateSubtask && $task->subtasks->count() > 1)
                                             <button type="button"
-                                                    draggable="true"
-                                                    class="shrink-0 inline-flex items-center justify-center size-5 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none"
+                                                    class="shrink-0 inline-flex items-center justify-center size-5 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none touch-none"
                                                     aria-label="{{ __('Drag to reorder') }}"
-                                                    @dragstart="start({{ $subtask->id }}, $event)"
-                                                    @dragend="persist()"
+                                                    @pointerdown="onDown({{ $subtask->id }}, $event)"
+                                                    @pointermove="onMove($event)"
+                                                    @pointerup="persist()"
+                                                    @pointercancel="persist()"
                                                     @click.stop>
                                                 <svg class="block size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                                                     <circle cx="3" cy="3" r="1.15"/>
@@ -1177,7 +1174,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                                 </svg>
                                             </button>
                                         @endif
-                                        <a href="{{ route('tasks.show', $subtask) }}" wire:navigate
+                                        <a href="{{ route('tasks.show', $subtask) }}" wire:navigate draggable="false"
                                            class="flex flex-1 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 leading-5">
                                             <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
                                             <span class="flex-1 min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
