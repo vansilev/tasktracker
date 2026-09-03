@@ -30,6 +30,10 @@ class SmokeRoutesTest extends TestCase
             ->assertOk();
 
         $this->actingAs($user)
+            ->get('/notifications')
+            ->assertOk();
+
+        $this->actingAs($user)
             ->get('/tasks/create')
             ->assertOk();
     }

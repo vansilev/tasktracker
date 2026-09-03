@@ -18,6 +18,7 @@ Volt::route('dashboard', 'pages.dashboard')
     ->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Volt::route('notifications', 'pages.notifications.index')->name('notifications.index');
     Volt::route('tasks', 'pages.tasks.index')->name('tasks.index');
     Volt::route('tasks/create', 'pages.tasks.create')->name('tasks.create');
     Volt::route('tasks/{task}', 'pages.tasks.show')->name('tasks.show');
