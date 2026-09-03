@@ -160,6 +160,7 @@ class TaskQueryService
                 : ($user->department_id
                     ? $query->where('department_id', $user->department_id)
                     : $query->whereRaw('0 = 1')),
+            'action' => app(TaskActionQueueService::class)->applyScope($query, $user),
             default => null,
         };
     }

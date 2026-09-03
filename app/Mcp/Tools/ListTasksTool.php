@@ -24,7 +24,7 @@ class ListTasksTool extends Tool
         $user = $api->actor($request->user() instanceof User ? $request->user() : null);
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:255'],
-            'tab' => ['nullable', 'in:all,assigned,created,watching,department'],
+            'tab' => ['nullable', 'in:all,assigned,created,watching,department,action'],
             'status' => ['nullable', 'string', 'max:50'],
             'open' => ['nullable', 'boolean'],
             'overdue' => ['nullable', 'boolean'],
@@ -58,7 +58,7 @@ class ListTasksTool extends Tool
     {
         return [
             'q' => $schema->string()->description('Search number, title, description, comments.'),
-            'tab' => $schema->string()->enum(['all', 'assigned', 'created', 'watching', 'department'])->description('assigned = my tasks as executor.'),
+            'tab' => $schema->string()->enum(['all', 'assigned', 'created', 'watching', 'department', 'action'])->description('assigned = my tasks as executor. action = needs my action.'),
             'status' => $schema->string()->description('Exact status value, e.g. in_progress. If set, overrides default open=true.'),
             'open' => $schema->boolean()->description('Only open statuses. Default true. Set false to include completed/rejected/cancelled.'),
             'overdue' => $schema->boolean(),

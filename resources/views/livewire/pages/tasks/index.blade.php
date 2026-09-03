@@ -15,6 +15,8 @@ use App\Models\Task;
 
 use App\Models\User;
 
+use App\Services\TaskActionQueueService;
+
 use App\Services\TaskService;
 
 use App\Services\TaskVisibilityService;
@@ -209,6 +211,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
 
+        $queue = app(TaskActionQueueService::class);
+
         $query = match ($this->tab) {
 
             'created' => $query->where('initiator_id', $user->id),
@@ -222,6 +226,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                     : $query->whereRaw('0 = 1')),
 
             'all' => $query,
+
+            'action' => $queue->applyScope($query, $user),
 
             default => $query->where('assignee_id', $user->id),
 
@@ -340,13 +346,29 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
 
-        $this->applySorting($query);
+        $actionGroup = [];
+        $actionSections = [];
+        $actionCount = $queue->count($user);
 
         $boardColumns = [];
         if ($this->layout === 'board') {
+            $this->applySorting($query);
             $boardColumns = $this->buildBoardColumns($query);
             $tasks = new \Illuminate\Pagination\LengthAwarePaginator(collect(), 0, 25);
+        } elseif ($this->tab === 'action') {
+            $built = $queue->buildSections($query, $user, function ($sectionQuery) {
+                $this->applySorting($sectionQuery);
+            });
+            $actionGroup = $built['group'];
+            $actionSections = collect($built['sections'])->keyBy('key');
+            $tasks = new \Illuminate\Pagination\LengthAwarePaginator(
+                $built['items'],
+                $built['items']->count(),
+                max($built['items']->count(), 1),
+                1,
+            );
         } else {
+            $this->applySorting($query);
             $tasks = $query->paginate(25);
             $this->nestSubtasksOnPage($tasks);
         }
@@ -367,6 +389,12 @@ new #[Layout('components.tasks-layout')] class extends Component
             'users' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
 
             'activeFilterCount' => $this->activeFilterCount(),
+
+            'actionGroup' => $actionGroup,
+
+            'actionSections' => $actionSections,
+
+            'actionCount' => $actionCount,
 
             'bulkTransitions' => $this->sharedTransitions($selectedTasks),
 
@@ -1231,7 +1259,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     private function applyUiState(array $f): void
     {
-        $tabs = ['assigned', 'created', 'watching', 'department', 'all'];
+        $tabs = ['action', 'assigned', 'created', 'watching', 'department', 'all'];
         if (isset($f['tab']) && in_array($f['tab'], $tabs, true)) {
             $this->tab = $f['tab'];
         }
@@ -1563,6 +1591,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             @foreach ([
 
+                'action' => __('Needs my action'),
+
                 'assigned' => __('Assigned to me'),
 
                 'created' => __('Created by me'),
@@ -1576,12 +1606,16 @@ new #[Layout('components.tasks-layout')] class extends Component
             ] as $key => $label)
 
                 <button type="button" wire:click="$set('tab', '{{ $key }}')"
+                        @if ($key === 'action') data-ui="action-tab" @endif
 
-                        class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                        class="shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
 
                             {{ $tab === $key ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
 
                     {{ $label }}
+                    @if ($key === 'action' && $actionCount > 0)
+                        <span data-ui="action-count" class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-semibold text-white">{{ $actionCount }}</span>
+                    @endif
 
                 </button>
 
@@ -2003,7 +2037,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         @if ($tasks->isEmpty())
 
-            <x-empty-state :title="$activeFilterCount > 0 ? __('No matching tasks') : __('No tasks yet')">
+            <x-empty-state :title="$tab === 'action' ? __('Nothing needs your action') : ($activeFilterCount > 0 ? __('No matching tasks') : __('No tasks yet'))">
 
                 <x-slot name="icon">
 
@@ -2011,7 +2045,9 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 </x-slot>
 
-                {{ $activeFilterCount > 0 ? __('Clear filters to see more tasks.') : __('Create a task to get started.') }}
+                {{ $tab === 'action'
+                    ? __('Tasks waiting on others stay in Assigned and Created.')
+                    : ($activeFilterCount > 0 ? __('Clear filters to see more tasks.') : __('Create a task to get started.')) }}
 
                 <x-slot name="action">
 
@@ -2043,7 +2079,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         @else
 
-            <div class="relative">
+            <div class="relative" @if ($tab === 'action') data-ui="action-queue" @endif>
 
             <div wire:loading.class.remove="hidden" wire:loading.class="flex" wire:target="tab,status,departmentId,categoryId,assigneeId,initiatorId,urgentOnly,overdueOnly,sortBy,sortDir" class="absolute inset-0 z-10 hidden bg-white/90">
                 <x-skeleton class="w-full" />
@@ -2097,11 +2133,24 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </tr>
                     </thead>
 
+                    @php $lastActionSection = null; @endphp
                     @foreach ($tasks as $task)
                         @php
                             $deadline = $this->deadlineMeta($task);
                             $rowMenu = \Illuminate\Support\Js::from($this->rowActions($task));
+                            $sectionKey = $actionGroup[$task->id] ?? null;
                         @endphp
+                        @if ($sectionKey && $sectionKey !== $lastActionSection)
+                            @php $lastActionSection = $sectionKey; @endphp
+                            <tbody>
+                                <tr data-ui="action-section" data-action-section="{{ $sectionKey }}">
+                                    <td colspan="6" class="bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        {{ $actionSections[$sectionKey]['label'] ?? $sectionKey }}
+                                        <span class="font-medium normal-case text-slate-400">· {{ $actionSections[$sectionKey]['count'] ?? 0 }}</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        @endif
                         <tbody class="divide-y divide-gray-50" x-data="{ open: false }">
                             <tr class="cursor-pointer transition-colors group {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-indigo-50 hover:bg-indigo-50' : 'odd:bg-white even:bg-gray-50/50 hover:bg-gray-50' }}"
                                 x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
@@ -2122,7 +2171,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 </td>
                                 <td class="px-4 py-2.5 max-w-md">
                                     <div class="flex items-center gap-1.5 min-w-0 leading-5">
-                                        @if (! $task->isSubtask() && $task->subtasks->isNotEmpty())
+                                        @if ($tab !== 'action' && ! $task->isSubtask() && $task->subtasks->isNotEmpty())
                                             <button type="button"
                                                     class="inline-flex shrink-0 items-center justify-center rounded-md shadow-sm"
                                                     style="background:#4f46e5;color:#fff;width:22px;height:22px;"
@@ -2175,7 +2224,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     {{ $deadline['text'] }}
                                 </td>
                             </tr>
-                            @foreach ($task->subtasks as $subtask)
+                            @foreach ($tab === 'action' ? [] : $task->subtasks as $subtask)
                                 @php
                                     $childDeadline = $this->deadlineMeta($subtask);
                                     $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
@@ -2232,12 +2281,22 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             <div class="md:hidden divide-y divide-gray-100">
 
+                @php $lastMobileActionSection = null; @endphp
                 @foreach ($tasks as $task)
 
                     @php
                         $deadline = $this->deadlineMeta($task);
                         $rowMenu = \Illuminate\Support\Js::from($this->rowActions($task));
+                        $sectionKey = $actionGroup[$task->id] ?? null;
                     @endphp
+
+                    @if ($sectionKey && $sectionKey !== $lastMobileActionSection)
+                        @php $lastMobileActionSection = $sectionKey; @endphp
+                        <div data-ui="action-section" data-action-section="{{ $sectionKey }}" class="bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {{ $actionSections[$sectionKey]['label'] ?? $sectionKey }}
+                            <span class="font-medium normal-case text-slate-400">· {{ $actionSections[$sectionKey]['count'] ?? 0 }}</span>
+                        </div>
+                    @endif
 
                     <div class="transition-colors {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-indigo-50' : 'hover:bg-gray-50' }}" x-data="{ open: false }">
 
@@ -2270,7 +2329,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                         <div class="flex items-center gap-1.5 min-w-0 leading-5">
 
-                                            @if (! $task->isSubtask() && $task->subtasks->isNotEmpty())
+                                            @if ($tab !== 'action' && ! $task->isSubtask() && $task->subtasks->isNotEmpty())
 
                                                 <button type="button"
                                                         class="inline-flex shrink-0 items-center justify-center rounded-md shadow-sm"
@@ -2349,7 +2408,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         </div>
 
-                        @foreach ($task->subtasks as $subtask)
+                        @foreach ($tab === 'action' ? [] : $task->subtasks as $subtask)
 
                             @php
                                 $childDeadline = $this->deadlineMeta($subtask);

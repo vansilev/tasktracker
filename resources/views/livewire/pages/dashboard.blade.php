@@ -347,7 +347,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
                 @endif
             </div>
             <div class="mt-3 pt-3 border-t border-gray-100">
-                <a href="{{ route('tasks.index', ['tab' => 'created', 'status' => 'on_review']) }}" wire:navigate class="text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                <a href="{{ route('tasks.index', ['tab' => 'action']) }}" wire:navigate class="text-xs font-medium text-indigo-600 hover:text-indigo-800">
                     {{ __('Show all') }} ({{ $onReview['count'] }})
                 </a>
             </div>
