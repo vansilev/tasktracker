@@ -146,6 +146,9 @@ new #[Layout('components.tasks-layout')] class extends Component
     public bool $filtersOpen = false;
 
     #[Url]
+    public string $layout = 'list';
+
+    #[Url]
     public ?int $peek = null;
 
     public array $selectedIds = [];
@@ -160,14 +163,28 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public ?int $activeSavedFilterId = null;
 
+    public ?int $pendingKanbanId = null;
+
+    public ?string $pendingKanbanStatus = null;
+
+    public string $kanbanComment = '';
+
+    public string $pendingKanbanTaskLabel = '';
+
+    public string $pendingKanbanToLabel = '';
+
     public function mount(): void
     {
+        if (! $this->requestHasListState()) {
+            $this->restorePersistedUiState();
+        }
+
         $default = SavedFilter::query()
             ->where('user_id', auth()->id())
             ->where('is_default', true)
             ->first();
 
-        if ($default && $this->activeFilterCount() === 0 && $this->tab === 'assigned' && $this->sortBy === 'priority' && $this->sortDir === 'desc') {
+        if ($default && $this->activeFilterCount() === 0 && $this->tab === 'assigned' && $this->layout === 'list' && $this->sortBy === 'priority' && $this->sortDir === 'desc') {
             $this->applySavedFilterValues($default);
         }
 
@@ -230,7 +247,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
 
-        if ($this->status !== '') {
+        if ($this->status !== '' && $this->layout !== 'board') {
 
             $query->where('status', $this->status);
 
@@ -325,13 +342,21 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $this->applySorting($query);
 
-        $tasks = $query->paginate(25);
-        $this->nestSubtasksOnPage($tasks);
+        $boardColumns = [];
+        if ($this->layout === 'board') {
+            $boardColumns = $this->buildBoardColumns($query);
+            $tasks = new \Illuminate\Pagination\LengthAwarePaginator(collect(), 0, 25);
+        } else {
+            $tasks = $query->paginate(25);
+            $this->nestSubtasksOnPage($tasks);
+        }
         $selectedTasks = $this->selectedTasks();
 
         return [
 
             'tasks' => $tasks,
+
+            'boardColumns' => $boardColumns,
 
             'departments' => Department::query()->active()->orderBy('name')->get(['id', 'name']),
 
@@ -479,6 +504,135 @@ new #[Layout('components.tasks-layout')] class extends Component
         return $count;
     }
 
+    /** @return list<TaskStatus> */
+    private function boardStatuses(): array
+    {
+        return [
+            TaskStatus::New,
+            TaskStatus::InProgress,
+            TaskStatus::AwaitingInitiator,
+            TaskStatus::OnReview,
+            TaskStatus::Rework,
+            TaskStatus::Postponed,
+            TaskStatus::Completed,
+        ];
+    }
+
+    private function buildBoardColumns($query): array
+    {
+        $columns = [];
+
+        foreach ($this->boardStatuses() as $status) {
+            $columnQuery = (clone $query)->where('status', $status->value);
+            $total = (clone $columnQuery)->toBase()->getCountForPagination();
+            $items = $columnQuery->limit(40)->get();
+
+            $columns[] = [
+                'status' => $status->value,
+                'label' => $status->label(),
+                'badge' => $status->badgeClasses(),
+                'total' => $total,
+                'tasks' => $items,
+            ];
+        }
+
+        return $columns;
+    }
+
+    public function setLayout(string $layout): void
+    {
+        if (! in_array($layout, ['list', 'board'], true)) {
+            return;
+        }
+
+        $this->layout = $layout;
+        $this->pendingKanbanId = null;
+        $this->pendingKanbanStatus = null;
+        $this->pendingKanbanTaskLabel = '';
+        $this->pendingKanbanToLabel = '';
+        $this->kanbanComment = '';
+        $this->resetPage();
+        $this->clearSelection();
+        $this->persistUiState();
+    }
+
+    public function kanbanMove(int $taskId, string $status): void
+    {
+        $task = $this->accessibleTask($taskId);
+        $target = TaskStatus::from($status);
+
+        if ($task->status === $target) {
+            return;
+        }
+
+        if (TaskStatus::requiresComment($target, $task->status)) {
+            $this->pendingKanbanId = $task->id;
+            $this->pendingKanbanStatus = $target->value;
+            $this->pendingKanbanTaskLabel = '#'.$task->number.' · '.($task->title ?: $task->plainDescription());
+            $this->pendingKanbanToLabel = $target->label();
+            $this->kanbanComment = '';
+
+            return;
+        }
+
+        $this->applyKanbanTransition($task, $target, null);
+    }
+
+    public function confirmKanbanMove(): void
+    {
+        if (! $this->pendingKanbanId || ! $this->pendingKanbanStatus) {
+            return;
+        }
+
+        $task = $this->accessibleTask($this->pendingKanbanId);
+        $target = TaskStatus::from($this->pendingKanbanStatus);
+        $comment = trim($this->kanbanComment);
+
+        if (TaskStatus::requiresComment($target, $task->status) && $comment === '') {
+            $this->js('window.uiToast('.json_encode(__('Add a comment for this status change')).')');
+
+            return;
+        }
+
+        $this->applyKanbanTransition($task, $target, $comment);
+        $this->clearKanbanPrompt();
+    }
+
+    public function cancelKanbanMove(): void
+    {
+        $this->clearKanbanPrompt();
+    }
+
+    private function clearKanbanPrompt(): void
+    {
+        $this->pendingKanbanId = null;
+        $this->pendingKanbanStatus = null;
+        $this->pendingKanbanTaskLabel = '';
+        $this->pendingKanbanToLabel = '';
+        $this->kanbanComment = '';
+    }
+
+    private function applyKanbanTransition(Task $task, TaskStatus $target, ?string $comment): void
+    {
+        try {
+            $undo = app(TaskWorkflowService::class)->transition(
+                $task,
+                auth()->user(),
+                $target,
+                $comment,
+                ContentSource::PlainText,
+            );
+            $this->js(app(TaskWorkflowService::class)->undoToastScript(
+                __('Status changed to :status', ['status' => $target->label()]),
+                auth()->user(),
+                [$undo],
+            ));
+            $this->dispatch('task-peek-updated');
+        } catch (\InvalidArgumentException|AuthorizationException $e) {
+            $this->js('window.uiToast('.json_encode($e->getMessage()).')');
+        }
+    }
+
     private function nestSubtasksOnPage($paginator): void
     {
         $onPage = $paginator->getCollection();
@@ -547,6 +701,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->sortDir = 'desc';
 
         $this->resetPage();
+        $this->persistUiState();
 
     }
 
@@ -556,6 +711,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     {
         $this->sortDir = $this->sortDir === 'asc' ? 'desc' : 'asc';
         $this->resetPage();
+        $this->persistUiState();
     }
 
     public function sortByColumn(string $column): void
@@ -573,6 +729,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         }
 
         $this->resetPage();
+        $this->persistUiState();
     }
 
     #[On('task-quick-transition')]
@@ -1030,32 +1187,92 @@ new #[Layout('components.tasks-layout')] class extends Component
             'overdueOnly' => $this->overdueOnly,
             'sortBy' => $this->sortBy,
             'sortDir' => $this->sortDir,
+            'layout' => $this->layout,
         ];
+    }
+
+    private function requestHasListState(): bool
+    {
+        return request()->hasAny([
+            'tab', 'layout', 'search', 'status', 'departmentId', 'categoryId',
+            'urgentOnly', 'priorityMin', 'priorityMax', 'assigneeId', 'initiatorId',
+            'periodType', 'periodFrom', 'periodTo', 'overdueOnly', 'sortBy', 'sortDir',
+        ]);
+    }
+
+    private function persistUiState(): void
+    {
+        $payload = $this->currentFiltersPayload();
+        $payload['userId'] = auth()->id();
+        cookie()->queue(cookie('tasktracker_tasks_ui', json_encode($payload), 60 * 24 * 400));
+        $this->js('window.taskUiState && window.taskUiState.save('.json_encode($payload).')');
+    }
+
+    private function restorePersistedUiState(): void
+    {
+        $userId = (int) auth()->id();
+        $raw = request()->cookie('tasktracker_tasks_ui');
+        $fromCookie = is_string($raw) ? json_decode($raw, true) : null;
+        if (is_array($fromCookie) && (int) ($fromCookie['userId'] ?? 0) === $userId) {
+            $this->applyUiState($fromCookie);
+
+            return;
+        }
+
+        $this->js('const saved = window.taskUiState?.load('.$userId.'); if (saved && typeof saved === "object") { $wire.restoreUiState(saved); }');
+    }
+
+    public function restoreUiState(array $state): void
+    {
+        $this->applyUiState($state);
+        $this->filtersOpen = $this->activeFilterCount() > 0;
+        $this->persistUiState();
+    }
+
+    private function applyUiState(array $f): void
+    {
+        $tabs = ['assigned', 'created', 'watching', 'department', 'all'];
+        if (isset($f['tab']) && in_array($f['tab'], $tabs, true)) {
+            $this->tab = $f['tab'];
+        }
+        $this->search = is_string($f['search'] ?? null) ? $f['search'] : $this->search;
+        $statuses = array_map(fn (TaskStatus $status) => $status->value, TaskStatus::cases());
+        if (array_key_exists('status', $f) && ($f['status'] === '' || in_array($f['status'], $statuses, true))) {
+            $this->status = $f['status'];
+        }
+        $this->departmentId = isset($f['departmentId']) ? ($f['departmentId'] !== null ? (int) $f['departmentId'] : null) : $this->departmentId;
+        $this->categoryId = isset($f['categoryId']) ? ($f['categoryId'] !== null ? (int) $f['categoryId'] : null) : $this->categoryId;
+        $this->urgentOnly = array_key_exists('urgentOnly', $f) ? (bool) $f['urgentOnly'] : $this->urgentOnly;
+        $this->priorityMin = array_key_exists('priorityMin', $f) ? ($f['priorityMin'] !== null ? (int) $f['priorityMin'] : null) : $this->priorityMin;
+        $this->priorityMax = array_key_exists('priorityMax', $f) ? ($f['priorityMax'] !== null ? (int) $f['priorityMax'] : null) : $this->priorityMax;
+        $this->assigneeId = isset($f['assigneeId']) ? ($f['assigneeId'] !== null ? (int) $f['assigneeId'] : null) : $this->assigneeId;
+        $this->initiatorId = isset($f['initiatorId']) ? ($f['initiatorId'] !== null ? (int) $f['initiatorId'] : null) : $this->initiatorId;
+        if (isset($f['periodType']) && in_array($f['periodType'], ['created_at', 'deadline'], true)) {
+            $this->periodType = $f['periodType'];
+        }
+        $this->periodFrom = array_key_exists('periodFrom', $f) ? $f['periodFrom'] : $this->periodFrom;
+        $this->periodTo = array_key_exists('periodTo', $f) ? $f['periodTo'] : $this->periodTo;
+        $this->overdueOnly = array_key_exists('overdueOnly', $f) ? (bool) $f['overdueOnly'] : $this->overdueOnly;
+        $sorts = ['priority', 'title', 'status', 'department', 'deadline'];
+        if (isset($f['sortBy']) && in_array($f['sortBy'], $sorts, true)) {
+            $this->sortBy = $f['sortBy'];
+        }
+        if (isset($f['sortDir']) && in_array($f['sortDir'], ['asc', 'desc'], true)) {
+            $this->sortDir = $f['sortDir'];
+        }
+        $savedLayout = $f['layout'] ?? $this->layout;
+        $this->layout = in_array($savedLayout, ['list', 'board'], true) ? $savedLayout : $this->layout;
+        $this->resetPage();
+        $this->clearSelection();
+        $this->persistUiState();
     }
 
     private function applySavedFilterValues(SavedFilter $filter): void
     {
-        $f = $filter->filters;
-        $this->tab = $f['tab'] ?? 'assigned';
-        $this->search = $f['search'] ?? '';
-        $this->status = $f['status'] ?? '';
-        $this->departmentId = $f['departmentId'] ?? null;
-        $this->categoryId = $f['categoryId'] ?? null;
-        $this->urgentOnly = $f['urgentOnly'] ?? false;
-        $this->priorityMin = $f['priorityMin'] ?? null;
-        $this->priorityMax = $f['priorityMax'] ?? null;
-        $this->assigneeId = $f['assigneeId'] ?? null;
-        $this->initiatorId = $f['initiatorId'] ?? null;
-        $this->periodType = $f['periodType'] ?? 'created_at';
-        $this->periodFrom = $f['periodFrom'] ?? null;
-        $this->periodTo = $f['periodTo'] ?? null;
-        $this->overdueOnly = $f['overdueOnly'] ?? false;
-        $this->sortBy = $f['sortBy'] ?? 'priority';
-        $this->sortDir = $f['sortDir'] ?? 'desc';
+        $this->applyUiState($filter->filters ?? []);
         $this->activeSavedFilterId = $filter->id;
         $this->filtersOpen = $this->activeFilterCount() > 0;
-        $this->resetPage();
-        $this->clearSelection();
+        $this->persistUiState();
     }
 
     public function saveCurrentFilter(): void
@@ -1168,6 +1385,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             $this->resetPage();
             $this->clearSelection();
+            $this->persistUiState();
 
         }
 
@@ -1521,6 +1739,24 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 </div>
 
+                <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+                    <button
+                        type="button"
+                        wire:click="setLayout('list')"
+                        class="rounded-md px-2.5 py-1.5 text-sm font-medium {{ $layout === 'list' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900' }}"
+                    >
+                        {{ __('List') }}
+                    </button>
+                    <button
+                        type="button"
+                        wire:click="setLayout('board')"
+                        data-ui="kanban-toggle"
+                        class="rounded-md px-2.5 py-1.5 text-sm font-medium {{ $layout === 'board' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900' }}"
+                    >
+                        {{ __('Board') }}
+                    </button>
+                </div>
+
             </div>
 
         </div>
@@ -1715,6 +1951,54 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
 
+    @if ($layout === 'board')
+        @include('livewire.pages.tasks.partials.kanban')
+
+        @if ($pendingKanbanId && $pendingKanbanStatus)
+            <div
+                data-ui="kanban-comment-dialog"
+                class="fixed inset-0 z-50 overflow-y-auto"
+                wire:keydown.escape.window="cancelKanbanMove"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="kanban-comment-title"
+            >
+                <div class="fixed inset-0 bg-gray-900/50" wire:click="cancelKanbanMove"></div>
+                <div class="relative mx-auto mt-[18vh] w-full max-w-md px-4">
+                    <form wire:submit="confirmKanbanMove" class="relative rounded-xl border border-gray-100 bg-white p-5 shadow-xl">
+                        <h2 id="kanban-comment-title" class="text-base font-semibold text-gray-900">
+                            {{ __('Comment required') }}
+                        </h2>
+                        <p class="mt-1 text-sm text-gray-600">
+                            {{ __('To move :task to :status, write why.', [
+                                'task' => $pendingKanbanTaskLabel,
+                                'status' => $pendingKanbanToLabel,
+                            ]) }}
+                        </p>
+                        <label class="mt-4 block">
+                            <span class="mb-1 block text-xs font-medium text-gray-700">{{ __('Comment') }}</span>
+                            <textarea
+                                wire:model="kanbanComment"
+                                rows="4"
+                                required
+                                autofocus
+                                class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                placeholder="{{ __('Write a comment...') }}"
+                            ></textarea>
+                        </label>
+                        <div class="mt-4 flex justify-end gap-2">
+                            <x-action-button variant="ghost" type="button" wire:click="cancelKanbanMove">
+                                {{ __('Cancel') }}
+                            </x-action-button>
+                            <x-action-button variant="primary" type="submit">
+                                {{ __('Confirm') }}
+                            </x-action-button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endif
+    @else
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
         @if ($tasks->isEmpty())
@@ -2146,6 +2430,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         @endif
 
     </div>
+    @endif
 
     @if (count($selectedIds) > 0)
         <div

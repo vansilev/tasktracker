@@ -339,5 +339,12 @@
     "Remove default": "Убрать из умолчания",
     "Delete view": "Удалить вид",
     "Delete this view?": "Удалить этот вид?",
-    "Resize preview panel": "Изменить ширину панели предпросмотра"
+    "Resize preview panel": "Изменить ширину панели предпросмотра",
+    "List": "Список",
+    "Board": "Доска",
+    "No tasks": "Нет задач",
+    "Showing :shown of :total": "Показано :shown из :total",
+    "Drag a card to another column to change its status.": "Перетащите карточку в другую колонку, чтобы сменить статус.",
+    "Comment required": "Нужен комментарий",
+    "To move :task to :status, write why.": "Чтобы перенести :task в «:status», напишите почему."
 }

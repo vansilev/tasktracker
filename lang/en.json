@@ -339,5 +339,12 @@
     "Remove default": "Remove default",
     "Delete view": "Delete view",
     "Delete this view?": "Delete this view?",
-    "Resize preview panel": "Resize preview panel"
+    "Resize preview panel": "Resize preview panel",
+    "List": "List",
+    "Board": "Board",
+    "No tasks": "No tasks",
+    "Showing :shown of :total": "Showing :shown of :total",
+    "Drag a card to another column to change its status.": "Drag a card to another column to change its status.",
+    "Comment required": "Comment required",
+    "To move :task to :status, write why.": "To move :task to :status, write why."
 }

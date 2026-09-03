@@ -1,6 +1,7 @@
 import Chart from 'chart.js/auto';
 import attachmentLightbox from './attachment-lightbox';
 import richTextEditor from './rich-text-editor';
+import kanbanBoard, { bindKanbanBoard, bindTaskUiState } from './kanban-board';
 import subtaskSort from './subtask-sort';
 import registerUiKit, { bindUiShortcuts } from './ui-kit';
 
@@ -9,10 +10,13 @@ document.addEventListener('alpine:init', () => {
     registerUiKit(window.Alpine);
     window.Alpine.data('richTextEditor', richTextEditor);
     window.Alpine.data('subtaskSort', subtaskSort);
+    window.Alpine.data('kanbanBoard', kanbanBoard);
     window.Alpine.data('attachmentLightbox', attachmentLightbox);
 });
 
 bindUiShortcuts();
+bindKanbanBoard();
+bindTaskUiState();
 
 const chartInstances = new Map();
 

@@ -526,4 +526,117 @@ class TaskUiKitTest extends TestCase
         // Should not have changed tab since filter belongs to another user
         $this->assertSame('assigned', Volt::test('pages.tasks.index')->get('tab'));
     }
+
+    public function test_board_layout_renders_kanban_columns(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Board User', role: $role);
+        $this->createTask($user, $user, $this->createCategory(), [
+            'title' => 'Board visible task',
+            'status' => TaskStatus::New,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/tasks?tab=all&layout=board')
+            ->assertOk()
+            ->assertSee('data-ui="kanban"', false)
+            ->assertSee('data-kanban-column="new"', false)
+            ->assertSee('data-ui="kanban-toggle"', false)
+            ->assertSee('Board visible task')
+            ->assertDontSee('data-ui="task-select-all"', false);
+    }
+
+    public function test_kanban_move_updates_status(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Board Move User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), [
+            'title' => 'Board move task',
+            'status' => TaskStatus::New,
+        ]);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->set('layout', 'board')
+            ->call('kanbanMove', $task->id, TaskStatus::InProgress->value)
+            ->assertHasNoErrors();
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+    }
+
+    public function test_kanban_move_requires_comment_when_needed(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Board Comment User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), [
+            'title' => 'Board comment task',
+            'status' => TaskStatus::InProgress,
+        ]);
+
+        $this->actingAs($user);
+
+        $component = Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->set('layout', 'board')
+            ->call('kanbanMove', $task->id, TaskStatus::Postponed->value);
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+        $this->assertSame($task->id, $component->get('pendingKanbanId'));
+        $component
+            ->assertSee('data-ui="kanban-comment-dialog"', false)
+            ->assertSee('Comment required')
+            ->assertSee('Board comment task')
+            ->assertSee('Postponed');
+
+        $component
+            ->set('kanbanComment', 'Wait for the client')
+            ->call('confirmKanbanMove');
+
+        $this->assertSame(TaskStatus::Postponed, $task->fresh()->status);
+    }
+
+    public function test_last_board_layout_is_restored_from_cookie(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Remember User', role: $role);
+        $this->createTask($user, $user, $this->createCategory(), [
+            'title' => 'Remembered board task',
+            'status' => TaskStatus::New,
+        ]);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.tasks.index')
+            ->call('restoreUiState', [
+                'userId' => $user->id,
+                'tab' => 'all',
+                'layout' => 'board',
+                'search' => '',
+                'status' => '',
+                'sortBy' => 'priority',
+                'sortDir' => 'desc',
+            ])
+            ->assertSet('layout', 'board')
+            ->assertSet('tab', 'all');
+
+        $this->withCookie('tasktracker_tasks_ui', json_encode([
+            'userId' => $user->id,
+            'tab' => 'all',
+            'layout' => 'board',
+            'search' => '',
+            'status' => '',
+            'sortBy' => 'priority',
+            'sortDir' => 'desc',
+        ]))
+            ->get('/tasks')
+            ->assertOk()
+            ->assertSee('data-ui="kanban"', false)
+            ->assertSee('Remembered board task');
+    }
 }

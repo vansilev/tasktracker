@@ -69,8 +69,16 @@ class TaskWorkflowService
             return [];
         }
 
-        $assigneeTransitions = $this->transitionsForAssignee($status, $isAssignee, $isHead);
-        $initiatorTransitions = $this->transitionsForInitiator($status, $isInitiator, $isAssignee);
+        $assigneeTransitions = $this->transitionsForAssignee(
+            $status,
+            $isAssignee || $isAdmin || $isHead,
+            $isHead || $isAdmin,
+        );
+        $initiatorTransitions = $this->transitionsForInitiator(
+            $status,
+            $isInitiator || $isAdmin,
+            $isAssignee,
+        );
 
         $transitions = array_merge($assigneeTransitions, $initiatorTransitions);
 

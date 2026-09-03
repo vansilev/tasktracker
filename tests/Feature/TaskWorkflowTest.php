@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\Permission;
+use App\Enums\SystemType;
 use App\Enums\TaskStatus;
+use App\Models\User;
 use App\Services\TaskWorkflowService;
 use Illuminate\Auth\Access\AuthorizationException;
 use InvalidArgumentException;
@@ -76,6 +78,38 @@ class TaskWorkflowTest extends TestCase
         $task = $this->createTask($initiator, $assignee, $this->createCategory());
 
         app(TaskWorkflowService::class)->transition($task, $initiator, TaskStatus::InProgress);
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+    }
+
+    public function test_admin_can_take_new_task_in_progress_when_not_assignee(): void
+    {
+        $dept = $this->createDepartment();
+        $initiator = $this->createUserInDepartment($dept, 'Workflow Initiator');
+        $assignee = $this->createUserInDepartment($dept, 'Workflow Assignee');
+        $admin = $this->createUserInDepartment($dept, 'Workflow Admin', SystemType::Admin);
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        app(TaskWorkflowService::class)->transition($task, $admin, TaskStatus::InProgress);
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+    }
+
+    public function test_department_head_can_take_new_task_in_progress(): void
+    {
+        $head = User::factory()->create([
+            'name' => 'Workflow Head',
+            'email' => 'workflow.head@tcsavant.com',
+            'system_type' => SystemType::DeptHead,
+            'email_verified_at' => now(),
+        ]);
+        $dept = $this->createDepartment('IT', $head);
+        $head->update(['department_id' => $dept->id]);
+        $initiator = $this->createUserInDepartment($dept, 'Headed Initiator');
+        $assignee = $this->createUserInDepartment($dept, 'Headed Assignee');
+        $task = $this->createTask($initiator, $assignee, $this->createCategory());
+
+        app(TaskWorkflowService::class)->transition($task, $head->fresh(), TaskStatus::InProgress);
 
         $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
     }
