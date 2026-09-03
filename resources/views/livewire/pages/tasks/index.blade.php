@@ -7,7 +7,9 @@ use App\Enums\TaskStatus;
 
 use App\Models\Category;
 
-use App\Models\Department;
+    use App\Models\Department;
+
+use App\Models\SavedFilter;
 
 use App\Models\Task;
 
@@ -17,7 +19,7 @@ use App\Services\TaskService;
 
 use App\Services\TaskVisibilityService;
 
-use App\Services\TaskWorkflowService;
+    use App\Services\TaskWorkflowService;
 
 use Carbon\Carbon;
 
@@ -27,7 +29,7 @@ use Illuminate\Validation\ValidationException;
 
 use Livewire\Attributes\Layout;
 
-use Livewire\Attributes\On;
+    use Livewire\Attributes\On;
 
 use Livewire\Attributes\Url;
 
@@ -154,10 +156,21 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public string $bulkComment = '';
 
+    public string $savedFilterName = '';
 
+    public ?int $activeSavedFilterId = null;
 
     public function mount(): void
     {
+        $default = SavedFilter::query()
+            ->where('user_id', auth()->id())
+            ->where('is_default', true)
+            ->first();
+
+        if ($default && $this->activeFilterCount() === 0 && $this->tab === 'assigned' && $this->sortBy === 'priority' && $this->sortDir === 'desc') {
+            $this->applySavedFilterValues($default);
+        }
+
         $this->filtersOpen = $this->activeFilterCount() > 0;
 
         if ($this->peek) {
@@ -336,6 +349,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             'canBulkWatch' => $selectedTasks->contains(fn (Task $task) => $user->can('manageWatchers', $task)),
 
+            'savedFilters' => SavedFilter::query()
+                ->where('user_id', $user->id)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(),
         ];
 
     }
@@ -991,6 +1009,149 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->bulkWatch(false);
     }
 
+    // ── Saved Filters ──────────────────────────────────────────
+
+    private function currentFiltersPayload(): array
+    {
+        return [
+            'tab' => $this->tab,
+            'search' => $this->search,
+            'status' => $this->status,
+            'departmentId' => $this->departmentId,
+            'categoryId' => $this->categoryId,
+            'urgentOnly' => $this->urgentOnly,
+            'priorityMin' => $this->priorityMin,
+            'priorityMax' => $this->priorityMax,
+            'assigneeId' => $this->assigneeId,
+            'initiatorId' => $this->initiatorId,
+            'periodType' => $this->periodType,
+            'periodFrom' => $this->periodFrom,
+            'periodTo' => $this->periodTo,
+            'overdueOnly' => $this->overdueOnly,
+            'sortBy' => $this->sortBy,
+            'sortDir' => $this->sortDir,
+        ];
+    }
+
+    private function applySavedFilterValues(SavedFilter $filter): void
+    {
+        $f = $filter->filters;
+        $this->tab = $f['tab'] ?? 'assigned';
+        $this->search = $f['search'] ?? '';
+        $this->status = $f['status'] ?? '';
+        $this->departmentId = $f['departmentId'] ?? null;
+        $this->categoryId = $f['categoryId'] ?? null;
+        $this->urgentOnly = $f['urgentOnly'] ?? false;
+        $this->priorityMin = $f['priorityMin'] ?? null;
+        $this->priorityMax = $f['priorityMax'] ?? null;
+        $this->assigneeId = $f['assigneeId'] ?? null;
+        $this->initiatorId = $f['initiatorId'] ?? null;
+        $this->periodType = $f['periodType'] ?? 'created_at';
+        $this->periodFrom = $f['periodFrom'] ?? null;
+        $this->periodTo = $f['periodTo'] ?? null;
+        $this->overdueOnly = $f['overdueOnly'] ?? false;
+        $this->sortBy = $f['sortBy'] ?? 'priority';
+        $this->sortDir = $f['sortDir'] ?? 'desc';
+        $this->activeSavedFilterId = $filter->id;
+        $this->filtersOpen = $this->activeFilterCount() > 0;
+        $this->resetPage();
+        $this->clearSelection();
+    }
+
+    public function saveCurrentFilter(): void
+    {
+        $name = trim($this->savedFilterName);
+        if ($name === '') {
+            return;
+        }
+
+        $filter = SavedFilter::create([
+            'user_id' => auth()->id(),
+            'name' => $name,
+            'filters' => $this->currentFiltersPayload(),
+        ]);
+
+        $this->savedFilterName = '';
+        $this->activeSavedFilterId = $filter->id;
+        $this->js('window.uiToast('.json_encode(__('View saved')).')');
+    }
+
+    public function loadSavedFilter(int $id): void
+    {
+        $filter = SavedFilter::query()
+            ->where('user_id', auth()->id())
+            ->whereKey($id)
+            ->first();
+
+        if (! $filter) {
+            return;
+        }
+
+        $this->applySavedFilterValues($filter);
+    }
+
+    public function updateSavedFilter(int $id): void
+    {
+        $filter = SavedFilter::query()
+            ->where('user_id', auth()->id())
+            ->whereKey($id)
+            ->first();
+
+        if (! $filter) {
+            return;
+        }
+
+        $filter->update(['filters' => $this->currentFiltersPayload()]);
+        $this->activeSavedFilterId = $filter->id;
+        $this->js('window.uiToast('.json_encode(__('View updated')).')');
+    }
+
+    public function toggleDefaultFilter(int $id): void
+    {
+        $filter = SavedFilter::query()
+            ->where('user_id', auth()->id())
+            ->whereKey($id)
+            ->first();
+
+        if (! $filter) {
+            return;
+        }
+
+        SavedFilter::query()
+            ->where('user_id', auth()->id())
+            ->where('id', '!=', $id)
+            ->update(['is_default' => false]);
+
+        $filter->update(['is_default' => ! $filter->is_default]);
+    }
+
+    public function deleteSavedFilter(int $id): void
+    {
+        SavedFilter::query()
+            ->where('user_id', auth()->id())
+            ->whereKey($id)
+            ->delete();
+
+        if ($this->activeSavedFilterId === $id) {
+            $this->activeSavedFilterId = null;
+        }
+
+        $this->js('window.uiToast('.json_encode(__('View deleted')).')');
+    }
+
+    public function renameSavedFilter(int $id, string $name): void
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return;
+        }
+
+        SavedFilter::query()
+            ->where('user_id', auth()->id())
+            ->whereKey($id)
+            ->update(['name' => $name]);
+    }
+
     public function updated($property): void
 
     {
@@ -1250,6 +1411,68 @@ new #[Layout('components.tasks-layout')] class extends Component
             </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
+
+                {{-- Saved Views --}}
+                <div x-data="{ svOpen: false }" class="relative">
+                    <button type="button"
+                            @click="svOpen = !svOpen"
+                            class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors
+                                {{ $activeSavedFilterId ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                        {{ $activeSavedFilterId ? $savedFilters->firstWhere('id', $activeSavedFilterId)?->name ?? __('Views') : __('Views') }}
+                        <svg class="w-3 h-3 shrink-0 transition-transform" :class="svOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+
+                    <div x-show="svOpen" x-cloak @click.outside="svOpen = false" x-transition
+                         class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-lg">
+                        <div class="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                            @forelse ($savedFilters as $sf)
+                                <div class="group flex items-center gap-2 px-3 py-2 hover:bg-gray-50 {{ $activeSavedFilterId === $sf->id ? 'bg-indigo-50' : '' }}">
+                                    <button type="button"
+                                            wire:click="loadSavedFilter({{ $sf->id }})"
+                                            @click="svOpen = false"
+                                            class="min-w-0 flex-1 truncate text-left text-sm font-medium {{ $activeSavedFilterId === $sf->id ? 'text-indigo-700' : 'text-gray-900' }}">
+                                        {{ $sf->name }}
+                                        @if ($sf->is_default)
+                                            <span class="ml-1 text-xs text-indigo-500">★</span>
+                                        @endif
+                                    </button>
+                                    <div class="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+                                        <button type="button" wire:click="updateSavedFilter({{ $sf->id }})"
+                                                class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                                title="{{ __('Overwrite with current filters') }}">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H16"/></svg>
+                                        </button>
+                                        <button type="button" wire:click="toggleDefaultFilter({{ $sf->id }})"
+                                                class="rounded p-1 {{ $sf->is_default ? 'text-indigo-500' : 'text-gray-400' }} hover:bg-gray-100 hover:text-indigo-600"
+                                                title="{{ $sf->is_default ? __('Remove default') : __('Set as default') }}">
+                                            <svg class="w-3.5 h-3.5" fill="{{ $sf->is_default ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                                        </button>
+                                        <button type="button" wire:click="deleteSavedFilter({{ $sf->id }})"
+                                                wire:confirm="{{ __('Delete this view?') }}"
+                                                class="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                                title="{{ __('Delete view') }}">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            @empty
+                                <p class="px-3 py-4 text-center text-sm text-gray-500">{{ __('No saved views yet') }}</p>
+                            @endforelse
+                        </div>
+                        <div class="border-t border-gray-100 p-2">
+                            <form wire:submit="saveCurrentFilter" class="flex items-center gap-2">
+                                <input type="text"
+                                       wire:model="savedFilterName"
+                                       class="min-w-0 flex-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                       placeholder="{{ __('Save current view as...') }}" />
+                                <x-action-button variant="primary" size="sm" type="submit">
+                                    {{ __('Save') }}
+                                </x-action-button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
 
                 <button type="button" wire:click="$toggle('filtersOpen')"
 

@@ -327,5 +327,16 @@
     "Comment": "Коментар",
     "Undo": "Скасувати",
     "Status restored": "Статус відновлено",
-    "Nothing to undo": "Немає що скасувати"
+    "Nothing to undo": "Немає що скасувати",
+    "Views": "Види",
+    "No saved views yet": "Немає збережених видів",
+    "Save current view as...": "Зберегти поточний вид як...",
+    "View saved": "Вид збережено",
+    "View updated": "Вид оновлено",
+    "View deleted": "Вид видалено",
+    "Overwrite with current filters": "Перезаписати поточними фільтрами",
+    "Set as default": "Зробити за замовчуванням",
+    "Remove default": "Прибрати зі замовчування",
+    "Delete view": "Видалити вид",
+    "Delete this view?": "Видалити цей вид?"
 }

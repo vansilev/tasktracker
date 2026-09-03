@@ -327,5 +327,16 @@
     "Comment": "Comment",
     "Undo": "Undo",
     "Status restored": "Status restored",
-    "Nothing to undo": "Nothing to undo"
+    "Nothing to undo": "Nothing to undo",
+    "Views": "Views",
+    "No saved views yet": "No saved views yet",
+    "Save current view as...": "Save current view as...",
+    "View saved": "View saved",
+    "View updated": "View updated",
+    "View deleted": "View deleted",
+    "Overwrite with current filters": "Overwrite with current filters",
+    "Set as default": "Set as default",
+    "Remove default": "Remove default",
+    "Delete view": "Delete view",
+    "Delete this view?": "Delete this view?"
 }

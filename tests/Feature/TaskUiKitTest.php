@@ -397,4 +397,132 @@ class TaskUiKitTest extends TestCase
         $this->assertSame(TaskStatus::InProgress, $visible->fresh()->status);
         $this->assertSame(TaskStatus::New, $hidden->fresh()->status);
     }
+
+    // ── Saved Filters ──────────────────────────────────────────
+
+    public function test_save_and_load_filter(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Filter User', role: $role);
+
+        $this->actingAs($user);
+
+        $component = Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->set('status', TaskStatus::InProgress->value)
+            ->set('savedFilterName', 'My view')
+            ->call('saveCurrentFilter');
+
+        $component->assertSee('My view');
+
+        $filter = \App\Models\SavedFilter::where('user_id', $user->id)->first();
+        $this->assertNotNull($filter);
+        $this->assertSame('My view', $filter->name);
+        $this->assertSame('all', $filter->filters['tab']);
+        $this->assertSame(TaskStatus::InProgress->value, $filter->filters['status']);
+
+        // Load it back after resetting
+        $component
+            ->call('resetFilters')
+            ->call('loadSavedFilter', $filter->id);
+
+        $this->assertSame('all', $component->get('tab'));
+        $this->assertSame(TaskStatus::InProgress->value, $component->get('status'));
+        $this->assertSame($filter->id, $component->get('activeSavedFilterId'));
+    }
+
+    public function test_update_saved_filter(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Filter User', role: $role);
+
+        $this->actingAs($user);
+
+        $filter = \App\Models\SavedFilter::create([
+            'user_id' => $user->id,
+            'name' => 'Old view',
+            'filters' => ['tab' => 'assigned', 'status' => '', 'sortBy' => 'priority', 'sortDir' => 'desc'],
+        ]);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'created')
+            ->set('status', TaskStatus::Completed->value)
+            ->call('updateSavedFilter', $filter->id);
+
+        $filter->refresh();
+        $this->assertSame('created', $filter->filters['tab']);
+        $this->assertSame(TaskStatus::Completed->value, $filter->filters['status']);
+    }
+
+    public function test_delete_saved_filter(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Filter User', role: $role);
+
+        $this->actingAs($user);
+
+        $filter = \App\Models\SavedFilter::create([
+            'user_id' => $user->id,
+            'name' => 'To delete',
+            'filters' => ['tab' => 'all'],
+        ]);
+
+        Volt::test('pages.tasks.index')
+            ->set('activeSavedFilterId', $filter->id)
+            ->call('deleteSavedFilter', $filter->id);
+
+        $this->assertNull(\App\Models\SavedFilter::find($filter->id));
+    }
+
+    public function test_toggle_default_filter(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Filter User', role: $role);
+
+        $this->actingAs($user);
+
+        $f1 = \App\Models\SavedFilter::create([
+            'user_id' => $user->id,
+            'name' => 'View A',
+            'filters' => ['tab' => 'all'],
+            'is_default' => true,
+        ]);
+        $f2 = \App\Models\SavedFilter::create([
+            'user_id' => $user->id,
+            'name' => 'View B',
+            'filters' => ['tab' => 'created'],
+        ]);
+
+        Volt::test('pages.tasks.index')
+            ->call('toggleDefaultFilter', $f2->id);
+
+        $this->assertTrue($f2->fresh()->is_default);
+        $this->assertFalse($f1->fresh()->is_default);
+    }
+
+    public function test_cannot_load_another_users_filter(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'User A', role: $role);
+        $other = $this->createUserInDepartment($dept, 'User B', role: $role);
+
+        $filter = \App\Models\SavedFilter::create([
+            'user_id' => $other->id,
+            'name' => 'Other view',
+            'filters' => ['tab' => 'all', 'status' => TaskStatus::Completed->value],
+        ]);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.tasks.index')
+            ->call('loadSavedFilter', $filter->id);
+
+        // Should not have changed tab since filter belongs to another user
+        $this->assertSame('assigned', Volt::test('pages.tasks.index')->get('tab'));
+    }
 }

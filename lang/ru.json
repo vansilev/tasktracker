@@ -327,5 +327,16 @@
     "Comment": "Комментарий",
     "Undo": "Отменить",
     "Status restored": "Статус восстановлен",
-    "Nothing to undo": "Нечего отменить"
+    "Nothing to undo": "Нечего отменить",
+    "Views": "Виды",
+    "No saved views yet": "Нет сохранённых видов",
+    "Save current view as...": "Сохранить текущий вид как...",
+    "View saved": "Вид сохранён",
+    "View updated": "Вид обновлён",
+    "View deleted": "Вид удалён",
+    "Overwrite with current filters": "Перезаписать текущими фильтрами",
+    "Set as default": "Сделать по умолчанию",
+    "Remove default": "Убрать из умолчания",
+    "Delete view": "Удалить вид",
+    "Delete this view?": "Удалить этот вид?"
 }
