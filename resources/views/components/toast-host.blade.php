@@ -8,6 +8,16 @@
             class="pointer-events-auto flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-3.5 py-3 text-sm text-gray-900 shadow-lg"
         >
             <p class="min-w-0 flex-1 leading-5" x-text="toast.message"></p>
+            <template x-if="toast.undo">
+                <button
+                    type="button"
+                    x-on:click="$store.toasts.undo(toast)"
+                    data-ui="toast-undo"
+                    class="shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+                >
+                    {{ __('Undo') }}
+                </button>
+            </template>
             <button
                 type="button"
                 class="shrink-0 rounded-md p-0.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700"

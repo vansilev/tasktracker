@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Enums\SystemType;
 use App\Enums\TaskStatus;
 use App\Models\User;
+use App\Services\TaskWorkflowService;
 use Livewire\Volt\Volt;
 use Tests\Support\CreatesTaskTrackerFixtures;
 use Tests\TestCase;
@@ -102,6 +103,59 @@ class TaskUiKitTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+    }
+
+    public function test_quick_transition_undo_restores_status(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Undo Toast User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), [
+            'title' => 'Undo this status',
+            'status' => TaskStatus::New,
+        ]);
+        $workflow = app(TaskWorkflowService::class);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('quickTransition', $task->id, TaskStatus::InProgress->value)
+            ->assertHasNoErrors();
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+
+        $token = $workflow->issueUndoToken($user, [[
+            'task_id' => $task->id,
+            'from' => TaskStatus::New->value,
+            'to' => TaskStatus::InProgress->value,
+            'snapshot' => [
+                'completed_at' => null,
+                'closed_by' => null,
+                'review_due_at' => null,
+                'rework_count' => 0,
+            ],
+        ]]);
+
+        Volt::test('layout.status-undo')
+            ->call('undo', $token)
+            ->assertHasNoErrors();
+
+        $this->assertSame(TaskStatus::New, $task->fresh()->status);
+    }
+
+    public function test_task_layout_mounts_status_undo_listener(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Undo Layout User', role: $role);
+        $this->createTask($user, $user, $this->createCategory(), ['title' => 'Undo layout task']);
+
+        $this->actingAs($user)
+            ->get('/tasks?tab=all')
+            ->assertOk()
+            ->assertSee('data-ui="status-undo"', false)
+            ->assertSee('data-ui="toast-undo"', false);
     }
 
     public function test_command_palette_finds_task_by_number(): void

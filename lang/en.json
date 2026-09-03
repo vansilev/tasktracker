@@ -324,5 +324,8 @@
     "Unwatch": "Unwatch",
     "Now watching :count tasks": "Now watching :count tasks",
     "Stopped watching :count tasks": "Stopped watching :count tasks",
-    "Comment": "Comment"
+    "Comment": "Comment",
+    "Undo": "Undo",
+    "Status restored": "Status restored",
+    "Nothing to undo": "Nothing to undo"
 }

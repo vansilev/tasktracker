@@ -9,12 +9,17 @@ use App\Models\Task;
 use App\Models\TaskHistory;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class TaskWorkflowService
 {
+    public const UNDO_TTL_SECONDS = 30;
+
     public function __construct(
         private TaskVisibilityService $visibility,
         private SettingsService $settings,
@@ -82,6 +87,7 @@ class TaskWorkflowService
 
     /**
      * @param  ContentSource  $commentSource  Editor markup is sanitized; literal text is escaped.
+     * @return array{task_id: int, from: string, to: string, snapshot: array<string, mixed>}
      */
     public function transition(
         Task $task,
@@ -89,7 +95,7 @@ class TaskWorkflowService
         TaskStatus $to,
         ?string $comment = null,
         ContentSource $commentSource = ContentSource::Editor,
-    ): void {
+    ): array {
         if (! Gate::forUser($user)->allows('transitionTo', [$task, $to])) {
             throw new AuthorizationException;
         }
@@ -101,6 +107,7 @@ class TaskWorkflowService
         }
 
         $from = $task->status;
+        $snapshot = $this->statusSnapshot($task);
 
         if (TaskStatus::requiresComment($to, $from) && blank($comment)) {
             throw new InvalidArgumentException(__('task.comment_required'));
@@ -154,6 +161,122 @@ class TaskWorkflowService
         });
 
         $this->notifications->notifyStatusChanged($task->fresh(), $user, $from, $to, $reasonExcerpt);
+
+        return [
+            'task_id' => $task->id,
+            'from' => $from->value,
+            'to' => $to->value,
+            'snapshot' => $snapshot,
+        ];
+    }
+
+    /** @param  list<array{task_id: int, from: string, to: string, snapshot: array<string, mixed>}>  $items */
+    public function issueUndoToken(User $user, array $items): string
+    {
+        $items = array_values(array_filter($items));
+        if ($items === []) {
+            return '';
+        }
+
+        $token = (string) Str::uuid();
+        Cache::put($this->undoCacheKey($token), [
+            'user_id' => $user->id,
+            'items' => $items,
+        ], now()->addSeconds(self::UNDO_TTL_SECONDS));
+
+        return $token;
+    }
+
+    public function undoToastScript(string $message, User $user, array $items): string
+    {
+        $token = $this->issueUndoToken($user, $items);
+        $options = ['timeout' => 5000];
+        if ($token !== '') {
+            $options['undo'] = [
+                'event' => 'task-undo-status',
+                'params' => ['token' => $token],
+            ];
+        }
+
+        return 'window.uiToast('.json_encode($message).', '.json_encode($options).')';
+    }
+
+    public function undo(User $user, string $token): int
+    {
+        $payload = Cache::pull($this->undoCacheKey($token));
+        if (! is_array($payload) || (int) ($payload['user_id'] ?? 0) !== (int) $user->id) {
+            throw new InvalidArgumentException(__('Nothing to undo'));
+        }
+
+        $done = 0;
+        foreach ($payload['items'] ?? [] as $item) {
+            if (is_array($item) && $this->applyUndoItem($user, $item)) {
+                $done++;
+            }
+        }
+
+        return $done;
+    }
+
+    private function undoCacheKey(string $token): string
+    {
+        return 'task-status-undo:'.$token;
+    }
+
+    /** @return array{completed_at: ?string, closed_by: mixed, review_due_at: ?string, rework_count: int} */
+    private function statusSnapshot(Task $task): array
+    {
+        return [
+            'completed_at' => $task->completed_at?->toIso8601String(),
+            'closed_by' => $task->closed_by,
+            'review_due_at' => $task->review_due_at?->toIso8601String(),
+            'rework_count' => (int) $task->rework_count,
+        ];
+    }
+
+    /** @param  array{task_id?: int, from?: string, to?: string, snapshot?: array<string, mixed>}  $item */
+    private function applyUndoItem(User $user, array $item): bool
+    {
+        $taskId = (int) ($item['task_id'] ?? 0);
+        $from = TaskStatus::tryFrom((string) ($item['from'] ?? ''));
+        $to = TaskStatus::tryFrom((string) ($item['to'] ?? ''));
+        $snapshot = is_array($item['snapshot'] ?? null) ? $item['snapshot'] : [];
+
+        if ($taskId < 1 || $from === null || $to === null) {
+            return false;
+        }
+
+        $task = $this->visibility->accessibleQuery($user)->whereKey($taskId)->first();
+        if ($task === null || $task->status !== $to) {
+            return false;
+        }
+
+        if (! Gate::forUser($user)->allows('transition', $task)) {
+            return false;
+        }
+
+        DB::transaction(function () use ($task, $user, $from, $to, $snapshot) {
+            $task->update([
+                'status' => $from,
+                'completed_at' => filled($snapshot['completed_at'] ?? null)
+                    ? Carbon::parse($snapshot['completed_at'])
+                    : null,
+                'closed_by' => $snapshot['closed_by'] ?? null,
+                'review_due_at' => filled($snapshot['review_due_at'] ?? null)
+                    ? Carbon::parse($snapshot['review_due_at'])
+                    : null,
+                'rework_count' => (int) ($snapshot['rework_count'] ?? $task->rework_count),
+            ]);
+
+            $this->logHistory($task, 'status', $to->value, $from->value, $user);
+            $this->audit->log('task.status_changed', $user, $task, [
+                'status' => $to->value,
+            ], [
+                'status' => $from->value,
+            ]);
+        });
+
+        return true;
     }
 
     public function logHistory(Task $task, string $field, ?string $old, ?string $new, User $user): void

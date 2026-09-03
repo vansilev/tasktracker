@@ -36,5 +36,6 @@
         <x-hover-card-host />
         <x-context-menu-host />
         <livewire:layout.command-palette />
+        <livewire:layout.status-undo />
     </body>
 </html>

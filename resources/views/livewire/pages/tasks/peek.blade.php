@@ -77,7 +77,7 @@ new class extends Component
     private function runTransition(Task $task, TaskStatus $to, ?string $comment = null): void
     {
         try {
-            app(TaskWorkflowService::class)->transition(
+            $undo = app(TaskWorkflowService::class)->transition(
                 $task,
                 auth()->user(),
                 $to,
@@ -86,7 +86,11 @@ new class extends Component
             );
             $this->pendingStatus = null;
             $this->comment = '';
-            $this->js('window.uiToast('.json_encode(__('Status changed to :status', ['status' => $to->label()])).')');
+            $this->js(app(TaskWorkflowService::class)->undoToastScript(
+                __('Status changed to :status', ['status' => $to->label()]),
+                auth()->user(),
+                [$undo],
+            ));
             $this->dispatch('task-peek-updated');
         } catch (\InvalidArgumentException|\Illuminate\Auth\Access\AuthorizationException $e) {
             $this->js('window.uiToast('.json_encode($e->getMessage()).')');

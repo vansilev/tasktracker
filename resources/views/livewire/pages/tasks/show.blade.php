@@ -21,6 +21,7 @@ use App\Services\TaskWorkflowService;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Features\SupportFileUploads\WithFileUploads;
 use Livewire\Volt\Component;
 
@@ -356,6 +357,12 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->transitionError = null;
     }
 
+    #[On('task-status-undone')]
+    public function onStatusUndone(): void
+    {
+        $this->task->refresh();
+    }
+
     private function performTransition(?string $status, ?string $comment = null): void
     {
         if ($status === null) {
@@ -363,7 +370,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         }
 
         try {
-            app(TaskWorkflowService::class)->transition(
+            $undo = app(TaskWorkflowService::class)->transition(
                 $this->task,
                 auth()->user(),
                 TaskStatus::from($status),
@@ -373,6 +380,11 @@ new #[Layout('components.tasks-layout')] class extends Component
             $this->pendingTransition = null;
             $this->transitionComment = '';
             $this->transitionError = null;
+            $this->js(app(TaskWorkflowService::class)->undoToastScript(
+                __('Status changed to :status', ['status' => TaskStatus::from($status)->label()]),
+                auth()->user(),
+                [$undo],
+            ));
         } catch (InvalidArgumentException $e) {
             $this->transitionError = $e->getMessage();
         }

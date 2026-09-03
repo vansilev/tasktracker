@@ -163,4 +163,76 @@ class TaskWorkflowTest extends TestCase
         $this->expectException(AuthorizationException::class);
         app(TaskWorkflowService::class)->transition($task, $assignee, TaskStatus::InProgress);
     }
+
+    public function test_undo_restores_previous_status_without_workflow_reverse(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Undo User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory());
+        $workflow = app(TaskWorkflowService::class);
+
+        $item = $workflow->transition($task, $user, TaskStatus::InProgress);
+        $token = $workflow->issueUndoToken($user, [$item]);
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+        $this->assertSame(1, $workflow->undo($user, $token));
+        $this->assertSame(TaskStatus::New, $task->fresh()->status);
+    }
+
+    public function test_undo_token_cannot_be_reused(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Undo Once User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory());
+        $workflow = app(TaskWorkflowService::class);
+        $token = $workflow->issueUndoToken($user, [
+            $workflow->transition($task, $user, TaskStatus::InProgress),
+        ]);
+
+        $this->assertSame(1, $workflow->undo($user, $token));
+        $this->expectException(InvalidArgumentException::class);
+        $workflow->undo($user, $token);
+    }
+
+    public function test_undo_token_is_tied_to_the_actor(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $actor = $this->createUserInDepartment($dept, 'Undo Actor', role: $role);
+        $other = $this->createUserInDepartment($dept, 'Undo Other', role: $role);
+        $task = $this->createTask($actor, $actor, $this->createCategory());
+        $workflow = app(TaskWorkflowService::class);
+        $token = $workflow->issueUndoToken($actor, [
+            $workflow->transition($task, $actor, TaskStatus::InProgress),
+        ]);
+
+        try {
+            $workflow->undo($other, $token);
+            $this->fail('Other users must not consume the undo token.');
+        } catch (InvalidArgumentException) {
+        }
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+    }
+
+    public function test_undo_restores_review_due_at_snapshot(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Undo Review User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), [
+            'status' => TaskStatus::InProgress,
+        ]);
+        $workflow = app(TaskWorkflowService::class);
+        $token = $workflow->issueUndoToken($user, [
+            $workflow->transition($task, $user, TaskStatus::OnReview),
+        ]);
+
+        $this->assertNotNull($task->fresh()->review_due_at);
+        $workflow->undo($user, $token);
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+        $this->assertNull($task->fresh()->review_due_at);
+    }
 }

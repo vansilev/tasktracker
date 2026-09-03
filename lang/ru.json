@@ -324,5 +324,8 @@
     "Unwatch": "Не наблюдать",
     "Now watching :count tasks": "Вы наблюдаете за задачами: :count",
     "Stopped watching :count tasks": "Больше не наблюдаете: :count",
-    "Comment": "Комментарий"
+    "Comment": "Комментарий",
+    "Undo": "Отменить",
+    "Status restored": "Статус восстановлен",
+    "Nothing to undo": "Нечего отменить"
 }

@@ -564,14 +564,18 @@ new #[Layout('components.tasks-layout')] class extends Component
         $target = TaskStatus::from($status);
 
         try {
-            app(TaskWorkflowService::class)->transition(
+            $undo = app(TaskWorkflowService::class)->transition(
                 $task,
                 auth()->user(),
                 $target,
                 $comment,
                 ContentSource::PlainText,
             );
-            $this->js('window.uiToast('.json_encode(__('Status changed to :status', ['status' => $target->label()])).')');
+            $this->js(app(TaskWorkflowService::class)->undoToastScript(
+                __('Status changed to :status', ['status' => $target->label()]),
+                auth()->user(),
+                [$undo],
+            ));
         } catch (\InvalidArgumentException|AuthorizationException $e) {
             $this->js('window.uiToast('.json_encode($e->getMessage()).')');
         }
@@ -750,10 +754,11 @@ new #[Layout('components.tasks-layout')] class extends Component
         $done = 0;
         $user = auth()->user();
         $workflow = app(TaskWorkflowService::class);
+        $undoItems = [];
 
         foreach ($tasks as $task) {
             try {
-                $workflow->transition(
+                $undoItems[] = $workflow->transition(
                     $task,
                     $user,
                     $target,
@@ -766,7 +771,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             }
         }
 
-        $this->toastBulkResult($done, $tasks->count());
+        $this->toastBulkResult($done, $tasks->count(), $undoItems);
 
         if ($done > 0) {
             $this->clearSelection();
@@ -820,12 +825,20 @@ new #[Layout('components.tasks-layout')] class extends Component
         }
     }
 
-    private function toastBulkResult(int $done, int $total): void
+    private function toastBulkResult(int $done, int $total, array $undoItems = []): void
     {
-        $this->js('window.uiToast('.json_encode(__('Updated :done of :total', [
+        $message = __('Updated :done of :total', [
             'done' => $done,
             'total' => $total,
-        ])).')');
+        ]);
+
+        if ($undoItems !== []) {
+            $this->js(app(TaskWorkflowService::class)->undoToastScript($message, auth()->user(), $undoItems));
+
+            return;
+        }
+
+        $this->js('window.uiToast('.json_encode($message).')');
     }
 
     #[On('task-open-peek')]

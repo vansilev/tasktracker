@@ -34,10 +34,24 @@ function dispatchLivewire(name, params) {
 export default function registerUiKit(Alpine) {
     Alpine.store('toasts', {
         items: [],
-        show(message, timeout = 3200) {
+        show(message, timeoutOrOptions = 3200) {
+            const options = typeof timeoutOrOptions === 'number'
+                ? { timeout: timeoutOrOptions }
+                : (timeoutOrOptions || {});
             const id = Date.now() + Math.random();
-            this.items.push({ id, message });
+            const timeout = options.timeout ?? 3200;
+            this.items.push({
+                id,
+                message,
+                undo: options.undo || null,
+            });
             window.setTimeout(() => this.dismiss(id), timeout);
+        },
+        undo(toast) {
+            this.dismiss(toast.id);
+            if (toast.undo?.event) {
+                dispatchLivewire(toast.undo.event, toast.undo.params || {});
+            }
         },
         dismiss(id) {
             this.items = this.items.filter((item) => item.id !== id);
@@ -276,8 +290,8 @@ export default function registerUiKit(Alpine) {
         },
     }));
 
-    window.uiToast = (message) => {
-        Alpine.store('toasts').show(message);
+    window.uiToast = (message, options) => {
+        Alpine.store('toasts').show(message, options);
     };
 
     window.uiCopy = async (text, message) => {
