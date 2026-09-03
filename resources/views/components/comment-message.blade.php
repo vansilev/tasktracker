@@ -29,7 +29,7 @@
 @endphp
 
 <div
-    {{ $attributes->merge(['class' => 'flex gap-2 '.($mine ? 'flex-row-reverse' : '')]) }}
+    {{ $attributes->merge(['class' => 'flex min-w-0 max-w-full gap-2 '.($mine ? 'flex-row-reverse' : '')]) }}
     data-ui="message"
     @if ($mine) data-mine="true" @endif
 >
@@ -45,7 +45,8 @@
         </div>
     @endif
 
-    <div @class(['min-w-0 max-w-[min(100%,28rem)]', 'items-end' => $mine])>
+    <div @class(['min-w-0 w-full max-w-full', 'text-right' => $mine])>
+        <div class="inline-block max-w-full text-left align-top">
         @unless ($stacked)
             <p @class(['mb-0.5 text-[11px] text-gray-500', 'text-right' => $mine])>
                 @unless ($mine)
@@ -78,7 +79,7 @@
             </form>
         @else
             <div @class([
-                'rounded-2xl px-3 py-2 text-sm text-gray-800',
+                'min-w-0 max-w-full overflow-hidden rounded-2xl px-3 py-2 text-sm text-gray-800',
                 'rounded-br-md bg-indigo-50 ring-1 ring-indigo-100' => $mine,
                 'rounded-bl-md bg-gray-50 ring-1 ring-gray-100' => ! $mine,
             ])>
@@ -95,7 +96,7 @@
                     </div>
                 @endforeach
 
-                <div class="prose prose-sm mt-0 max-w-none text-gray-800 [&_p]:mb-1 [&_p:last-child]:mb-0">
+                <div class="prose prose-sm mt-0 max-w-none break-words text-gray-800 [&_a]:break-all [&_p]:mb-1 [&_p:last-child]:mb-0 [&_pre]:max-w-full [&_table]:max-w-full">
                     {!! $comment->renderedBody() !!}
                 </div>
 
@@ -203,5 +204,6 @@
                 </div>
             @endif
         @endif
+        </div>
     </div>
 </div>

@@ -240,4 +240,23 @@
         border-color: theme('colors.indigo.300');
         background: theme('colors.indigo.50');
     }
+
+    /* Long URLs and unbreakable tokens must wrap inside comment bubbles
+       instead of stretching the thread and creating a horizontal scrollbar. */
+    [data-ui="message"] .prose,
+    [data-ui="message"] .prose p,
+    [data-ui="message"] .prose li {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    [data-ui="message"] .prose a {
+        overflow-wrap: anywhere;
+        word-break: break-all;
+    }
+
+    [data-ui="message"] .prose pre,
+    [data-ui="message"] .prose table {
+        max-width: 100%;
+    }
 }

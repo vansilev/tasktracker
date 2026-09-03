@@ -198,7 +198,7 @@ new class extends Component
                 @php
                     $thread = $comments->sortBy('created_at')->values();
                 @endphp
-                <div class="space-y-2.5">
+                <div class="min-w-0 space-y-2.5 overflow-x-hidden">
                     @forelse ($thread as $comment)
                         @php
                             $prev = $loop->index > 0 ? $thread[$loop->index - 1] : null;

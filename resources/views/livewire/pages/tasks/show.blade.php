@@ -1378,7 +1378,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @endphp
                     <div
                         data-ui="message-scroller"
-                        class="max-h-[min(32rem,60vh)] min-h-[8rem] space-y-3 overflow-y-auto px-5 py-4"
+                        class="max-h-[min(32rem,60vh)] min-h-[8rem] min-w-0 space-y-3 overflow-x-hidden overflow-y-auto px-5 py-4"
                         x-data
                         x-init="$nextTick(() => { $el.scrollTop = $el.scrollHeight })"
                     >

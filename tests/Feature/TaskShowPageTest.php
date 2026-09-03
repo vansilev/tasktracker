@@ -143,6 +143,8 @@ class TaskShowPageTest extends TestCase
             ->get('/tasks/'.$task->id)
             ->assertOk()
             ->assertSee('data-ui="message-scroller"', false)
+            ->assertSee('overflow-x-hidden', false)
+            ->assertSee('break-all', false)
             ->assertSee('data-ui="message"', false)
             ->assertSee('data-mine="true"', false)
             ->assertSee('Comment with file')
