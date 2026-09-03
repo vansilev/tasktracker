@@ -314,6 +314,8 @@
     "No tasks yet": "No tasks yet",
     "Clear filters to see more tasks.": "Clear filters to see more tasks.",
     "Create a task to get started.": "Create a task to get started.",
+    "New activity": "New activity",
+    ":count new": ":count new",
     "Copy link": "Copy link",
     "Copy link to #:number": "Copy link to #:number",
     "Link to #:number copied": "Link to #:number copied",

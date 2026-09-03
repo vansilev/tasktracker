@@ -2,6 +2,7 @@
 
 use App\Support\InAppNotification;
 use Illuminate\Notifications\DatabaseNotification;
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -44,6 +45,11 @@ new class extends Component
     public function markAllAsRead(): void
     {
         auth()->user()->unreadNotifications->markAsRead();
+    }
+
+    #[On('task-seen')]
+    public function refreshInbox(): void
+    {
     }
 
     /** @param  array<string, mixed>  $data */

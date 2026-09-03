@@ -35,7 +35,8 @@
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-1.5 min-w-0">
                                         <x-task-number :task="$task" />
-                                        <span class="truncate text-sm font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 60) }}</span>
+                                        <x-task-unread :count="(int) ($unreadCounts[$task->id] ?? 0)" />
+                                        <span class="truncate text-sm {{ ($unreadCounts[$task->id] ?? 0) > 0 ? 'font-semibold text-gray-950' : 'font-medium text-gray-900' }}">{{ $task->title ?: Str::limit($task->plainDescription(), 60) }}</span>
                                     </div>
                                     @if ($task->parent)
                                         <p class="mt-0.5 truncate text-xs text-indigo-600">

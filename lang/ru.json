@@ -314,6 +314,8 @@
     "No tasks yet": "Задач пока нет",
     "Clear filters to see more tasks.": "Сбросьте фильтры, чтобы увидеть больше задач.",
     "Create a task to get started.": "Создайте задачу, чтобы начать.",
+    "New activity": "Новая активность",
+    ":count new": ":count новых",
     "Copy link": "Скопировать ссылку",
     "Copy link to #:number": "Скопировать ссылку на #:number",
     "Link to #:number copied": "Ссылка на #:number скопирована",

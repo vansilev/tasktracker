@@ -3,6 +3,7 @@
 use App\Enums\ContentSource;
 use App\Enums\TaskStatus;
 use App\Models\Task;
+use App\Services\TaskUnreadService;
 use App\Services\TaskVisibilityService;
 use App\Services\TaskWorkflowService;
 use Livewire\Attributes\On;
@@ -27,6 +28,10 @@ new class extends Component
         $comments = $task
             ? $task->comments()->with('author:id,name')->latest()->limit(5)->get()
             : collect();
+
+        if ($task) {
+            app(TaskUnreadService::class)->markSeen($user, $task);
+        }
 
         return [
             'task' => $task,

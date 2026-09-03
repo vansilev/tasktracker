@@ -17,6 +17,8 @@ use App\Models\User;
 
 use App\Services\TaskActionQueueService;
 
+use App\Services\TaskUnreadService;
+
 use App\Services\TaskService;
 
 use App\Services\TaskVisibilityService;
@@ -407,6 +409,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(),
+
+            'unreadCounts' => app(TaskUnreadService::class)->counts(
+                $user,
+                $this->unreadTaskIds($tasks, $boardColumns),
+            ),
         ];
 
     }
@@ -1056,9 +1063,37 @@ new #[Layout('components.tasks-layout')] class extends Component
         $visible = app(TaskVisibilityService::class)
             ->accessibleQuery(auth()->user())
             ->where('number', $number)
-            ->exists();
+            ->first();
 
-        $this->peek = $visible ? $number : null;
+        $this->peek = $visible?->number;
+
+        if ($visible) {
+            app(TaskUnreadService::class)->markSeen(auth()->user(), $visible);
+            $this->dispatch('task-seen');
+        }
+    }
+
+    /**
+     * @param  iterable<int, Task>  $tasks
+     * @param  list<array{tasks?: iterable<int, Task>}>  $boardColumns
+     * @return list<int>
+     */
+    private function unreadTaskIds(iterable $tasks, array $boardColumns): array
+    {
+        $ids = collect();
+
+        foreach ($tasks as $task) {
+            $ids->push($task->id);
+            if ($task->relationLoaded('subtasks')) {
+                $ids = $ids->merge($task->subtasks->pluck('id'));
+            }
+        }
+
+        foreach ($boardColumns as $column) {
+            $ids = $ids->merge(collect($column['tasks'] ?? [])->pluck('id'));
+        }
+
+        return $ids->filter()->unique()->map(fn ($id) => (int) $id)->values()->all();
     }
 
     #[On('task-close-peek')]
@@ -2189,8 +2224,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <span class="inline-block shrink-0" style="width:22px;height:22px;" aria-hidden="true"></span>
                                         @endif
                                         <x-task-number :task="$task" />
+                                        <x-task-unread :count="(int) ($unreadCounts[$task->id] ?? 0)" />
                                         <span class="text-gray-400" aria-hidden="true">&middot;</span>
-                                        <span class="truncate font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
+                                        <span class="truncate {{ ($unreadCounts[$task->id] ?? 0) > 0 ? 'font-semibold text-gray-950' : 'font-medium text-gray-900' }}">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
                                         @if (($waitingOn = $task->waitingOnLabel()) !== '')
                                             <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
                                         @endif
@@ -2253,8 +2289,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <span aria-hidden="true" style="position:absolute;left:0.7rem;top:-10px;width:1.5px;background:#818cf8;{{ $loop->last ? 'height:calc(50% + 10px);' : 'bottom:-10px;' }}"></span>
                                             <span aria-hidden="true" style="position:absolute;left:0.7rem;top:50%;width:5.1rem;height:1.5px;background:#818cf8;margin-top:-0.75px;"></span>
                                             <x-task-number :task="$subtask" />
+                                            <x-task-unread :count="(int) ($unreadCounts[$subtask->id] ?? 0)" />
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
-                                            <span class="truncate text-gray-700">{{ $subtask->title }}</span>
+                                            <span class="truncate {{ ($unreadCounts[$subtask->id] ?? 0) > 0 ? 'font-semibold text-gray-900' : 'text-gray-700' }}">{{ $subtask->title }}</span>
                                             @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
                                                 <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
                                             @endif
@@ -2348,10 +2385,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             @endif
 
                                             <x-task-number :task="$task" />
+                                            <x-task-unread :count="(int) ($unreadCounts[$task->id] ?? 0)" />
 
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
-                                            <span class="truncate text-sm font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
+                                            <span class="truncate text-sm {{ ($unreadCounts[$task->id] ?? 0) > 0 ? 'font-semibold text-gray-950' : 'font-medium text-gray-900' }}">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
                                             @if (($waitingOn = $task->waitingOnLabel()) !== '')
                                                 <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
                                             @endif
@@ -2446,10 +2484,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         <div class="flex items-center gap-1.5 min-w-0 leading-5">
 
                                             <x-task-number :task="$subtask" />
+                                            <x-task-unread :count="(int) ($unreadCounts[$subtask->id] ?? 0)" />
 
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
-                                            <span class="truncate text-sm text-gray-700">{{ $subtask->title }}</span>
+                                            <span class="truncate text-sm {{ ($unreadCounts[$subtask->id] ?? 0) > 0 ? 'font-semibold text-gray-900' : 'text-gray-700' }}">{{ $subtask->title }}</span>
                                             @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
                                                 <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
                                             @endif

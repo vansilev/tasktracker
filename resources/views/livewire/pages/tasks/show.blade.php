@@ -17,6 +17,7 @@ use App\Services\TaskAttachmentService;
 use App\Services\TaskContentService;
 use App\Services\TaskHistoryPresenter;
 use App\Services\TaskService;
+use App\Services\TaskUnreadService;
 use App\Services\TaskWorkflowService;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
@@ -202,6 +203,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public function with(): array
     {
+        app(TaskUnreadService::class)->markSeen(auth()->user(), $this->task);
+
         return [
             'transitions' => app(TaskWorkflowService::class)->allowedTransitions(auth()->user(), $this->task),
             'assignees' => User::query()
