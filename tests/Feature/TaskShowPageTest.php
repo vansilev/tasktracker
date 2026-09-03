@@ -134,4 +134,24 @@ class TaskShowPageTest extends TestCase
         $this->assertStringContainsString('data-attachment-lightbox-prev', $html);
         $this->assertStringContainsString('data-attachment-lightbox-pdf', $html);
     }
+
+    public function test_comments_render_as_conversation_bubbles(): void
+    {
+        ['task' => $task, 'initiator' => $initiator, 'assignee' => $assignee] = $this->createTaskWithFullContent();
+
+        $this->actingAs($assignee)
+            ->get('/tasks/'.$task->id)
+            ->assertOk()
+            ->assertSee('data-ui="message-scroller"', false)
+            ->assertSee('data-ui="message"', false)
+            ->assertSee('data-mine="true"', false)
+            ->assertSee('Comment with file')
+            ->assertSee('comment-file.pdf');
+
+        $this->actingAs($initiator)
+            ->get('/tasks/'.$task->id)
+            ->assertOk()
+            ->assertSee('data-ui="message"', false)
+            ->assertDontSee('data-mine="true"', false);
+    }
 }

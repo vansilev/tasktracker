@@ -195,17 +195,28 @@ new class extends Component
 
             <div>
                 <p class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">{{ __('Comments') }}</p>
-                @forelse ($comments as $comment)
-                    <div class="border-t border-gray-50 py-2">
-                        <p class="text-xs text-gray-500">
-                            <span class="font-medium text-gray-700">{{ $comment->author?->name }}</span>
-                            · {{ $comment->created_at?->format('d.m.Y H:i') }}
-                        </p>
-                        <div class="prose prose-sm mt-1 max-w-none text-gray-800">{!! $comment->renderedBody() !!}</div>
-                    </div>
-                @empty
-                    <p class="text-sm text-gray-500">{{ __('No comments yet.') }}</p>
-                @endforelse
+                @php
+                    $thread = $comments->sortBy('created_at')->values();
+                @endphp
+                <div class="space-y-2.5">
+                    @forelse ($thread as $comment)
+                        @php
+                            $prev = $loop->index > 0 ? $thread[$loop->index - 1] : null;
+                            $stacked = $prev
+                                && (int) $prev->author_id === (int) $comment->author_id
+                                && $prev->created_at && $comment->created_at
+                                && $comment->created_at->diffInMinutes($prev->created_at) <= 8;
+                        @endphp
+                        <x-comment-message
+                            :comment="$comment"
+                            :mine="(int) $comment->author_id === (int) auth()->id()"
+                            :stacked="$stacked"
+                            compact
+                        />
+                    @empty
+                        <p class="text-sm text-gray-500">{{ __('No comments yet.') }}</p>
+                    @endforelse
+                </div>
             </div>
         </div>
 @endif

@@ -125,6 +125,10 @@ class TaskUiKitTest extends TestCase
         $role = $this->createRoleWithPermissions($this->defaultPermissions());
         $user = $this->createUserInDepartment($dept, 'Peek User', role: $role);
         $task = $this->createTask($user, $user, $this->createCategory(), ['title' => 'Peek visible task']);
+        $task->comments()->create([
+            'author_id' => $user->id,
+            'body' => 'Peek bubble comment',
+        ]);
 
         $this->actingAs($user)
             ->get('/tasks?tab=all&peek='.$task->number)
@@ -132,7 +136,9 @@ class TaskUiKitTest extends TestCase
             ->assertSee('Peek visible task')
             ->assertSee('data-ui="sheet"', false)
             ->assertSee('task-close-peek', false)
-            ->assertSee('$wire.openPeek('.$task->number.')', false);
+            ->assertSee('$wire.openPeek('.$task->number.')', false)
+            ->assertSee('data-ui="message"', false)
+            ->assertSee('Peek bubble comment');
     }
 
     public function test_open_peek_sets_state_and_close_clears_it(): void
