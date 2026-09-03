@@ -314,5 +314,15 @@
     "Command palette": "Command palette",
     "Search tasks or type a number...": "Search tasks or type a number…",
     "Status changed to :status": "Status changed to :status",
-    "Assigned to :name": "Assigned to :name"
+    "Assigned to :name": "Assigned to :name",
+    "Select #:number": "Select #:number",
+    "Select all on this page": "Select all on this page",
+    ":count selected": ":count selected",
+    "Clear selection": "Clear selection",
+    "Updated :done of :total": "Updated :done of :total",
+    "Watch": "Watch",
+    "Unwatch": "Unwatch",
+    "Now watching :count tasks": "Now watching :count tasks",
+    "Stopped watching :count tasks": "Stopped watching :count tasks",
+    "Comment": "Comment"
 }

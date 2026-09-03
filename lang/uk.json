@@ -314,5 +314,15 @@
     "Command palette": "Палітра команд",
     "Search tasks or type a number...": "Пошук задач або номер…",
     "Status changed to :status": "Статус змінено на :status",
-    "Assigned to :name": "Призначено: :name"
+    "Assigned to :name": "Призначено: :name",
+    "Select #:number": "Вибрати #:number",
+    "Select all on this page": "Вибрати все на сторінці",
+    ":count selected": "Вибрано: :count",
+    "Clear selection": "Скинути вибір",
+    "Updated :done of :total": "Оновлено :done з :total",
+    "Watch": "Спостерігати",
+    "Unwatch": "Не спостерігати",
+    "Now watching :count tasks": "Ви спостерігаєте за задачами: :count",
+    "Stopped watching :count tasks": "Більше не спостерігаєте: :count",
+    "Comment": "Коментар"
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Permission;
 use App\Enums\SystemType;
 use App\Enums\TaskStatus;
 use App\Models\User;
@@ -194,5 +195,152 @@ class TaskUiKitTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+    }
+
+    public function test_task_index_renders_bulk_selection_controls(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Bulk Ui User', role: $role);
+        $this->createTask($user, $user, $this->createCategory(), ['title' => 'Bulk checkbox task']);
+
+        $this->actingAs($user)
+            ->get('/tasks?tab=all')
+            ->assertOk()
+            ->assertSee('data-ui="task-select"', false)
+            ->assertSee('data-ui="task-select-all"', false)
+            ->assertDontSee('data-ui="bulk-bar"', false);
+    }
+
+    public function test_bulk_transition_updates_selected_tasks(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Bulk Status User', role: $role);
+        $category = $this->createCategory();
+        $first = $this->createTask($user, $user, $category, [
+            'title' => 'Bulk first',
+            'status' => TaskStatus::New,
+        ]);
+        $second = $this->createTask($user, $user, $category, [
+            'title' => 'Bulk second',
+            'status' => TaskStatus::New,
+        ]);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('toggleSelected', $first->id)
+            ->call('toggleSelected', $second->id)
+            ->assertSee('data-ui="bulk-bar"', false)
+            ->call('chooseBulkStatus', TaskStatus::InProgress->value)
+            ->assertHasNoErrors()
+            ->assertSet('selectedIds', []);
+
+        $this->assertSame(TaskStatus::InProgress, $first->fresh()->status);
+        $this->assertSame(TaskStatus::InProgress, $second->fresh()->status);
+    }
+
+    public function test_bulk_transition_requires_comment_when_needed(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Bulk Comment User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), [
+            'title' => 'Bulk cancel me',
+            'status' => TaskStatus::New,
+        ]);
+
+        $this->actingAs($user);
+
+        $component = Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('toggleSelected', $task->id)
+            ->call('chooseBulkStatus', TaskStatus::Cancelled->value)
+            ->assertSet('pendingBulkStatus', TaskStatus::Cancelled->value);
+
+        $component->call('confirmBulkAction');
+        $this->assertSame(TaskStatus::New, $task->fresh()->status);
+
+        $component->set('bulkComment', 'Not needed anymore')
+            ->call('confirmBulkAction')
+            ->assertSet('selectedIds', []);
+
+        $this->assertSame(TaskStatus::Cancelled, $task->fresh()->status);
+    }
+
+    public function test_bulk_assign_updates_selected_tasks(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions(array_merge(
+            $this->defaultPermissions(),
+            [Permission::EditAnyTask->value, Permission::AssignTask->value],
+        ), [$dept->id]);
+        $editor = $this->createUserInDepartment($dept, 'Bulk Assign Editor', role: $role);
+        $assignee = $this->createUserInDepartment($dept, 'Bulk Assign Target', role: $role);
+        $category = $this->createCategory();
+        $first = $this->createTask($editor, $editor, $category, ['title' => 'Assign first']);
+        $second = $this->createTask($editor, $editor, $category, ['title' => 'Assign second']);
+
+        $this->actingAs($editor);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('toggleSelected', $first->id)
+            ->call('toggleSelected', $second->id)
+            ->set('bulkAssigneeId', $assignee->id)
+            ->set('bulkComment', 'Handing these over')
+            ->call('confirmBulkAction')
+            ->assertHasNoErrors()
+            ->assertSet('selectedIds', []);
+
+        $this->assertSame($assignee->id, $first->fresh()->assignee_id);
+        $this->assertSame($assignee->id, $second->fresh()->assignee_id);
+    }
+
+    public function test_bulk_watch_adds_current_user(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Bulk Watch User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), ['title' => 'Watch me']);
+
+        $this->actingAs($user);
+        $this->assertFalse($task->watchers()->where('users.id', $user->id)->exists());
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('toggleSelected', $task->id)
+            ->call('bulkWatch')
+            ->assertSet('selectedIds', []);
+
+        $this->assertTrue($task->watchers()->where('users.id', $user->id)->exists());
+    }
+
+    public function test_inaccessible_selected_ids_are_ignored(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $owner = $this->createUserInDepartment($dept, 'Bulk Owner', role: $role);
+        $viewer = $this->createUserInDepartment($dept, 'Bulk Viewer', role: $role);
+        $visible = $this->createTask($viewer, $viewer, $this->createCategory(), [
+            'title' => 'Visible bulk task',
+            'status' => TaskStatus::New,
+        ]);
+        $hidden = $this->createTask($owner, $owner, $this->createCategory(), [
+            'title' => 'Hidden bulk task',
+            'status' => TaskStatus::New,
+        ]);
+
+        $this->actingAs($viewer);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->set('selectedIds', [(string) $visible->id, (string) $hidden->id])
+            ->call('chooseBulkStatus', TaskStatus::InProgress->value);
+
+        $this->assertSame(TaskStatus::InProgress, $visible->fresh()->status);
+        $this->assertSame(TaskStatus::New, $hidden->fresh()->status);
     }
 }

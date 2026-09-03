@@ -3,6 +3,7 @@
     'placeholder' => '',
     'disabled' => false,
     'searchPlaceholder' => null,
+    'up' => false,
 ])
 
 @php
@@ -18,7 +19,7 @@
         searchPlaceholder: {{ \Illuminate\Support\Js::from($searchPlaceholder) }},
     })"
     x-modelable="value"
-    x-on:keydown.escape.window="open && close()"
+    x-on:keydown.escape.window="if (open) { $event.preventDefault(); close(); }"
     x-on:mousedown.outside="close()"
     {{ $attributes->class('relative') }}
 >
@@ -41,7 +42,7 @@
     <div
         data-ui="combobox-panel"
         x-bind:class="{ 'is-open': open }"
-        class="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+        class="absolute z-50 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $up ? 'bottom-full mb-1' : 'mt-1' }}"
         role="presentation"
     >
         <div class="border-b border-gray-100 p-1.5">

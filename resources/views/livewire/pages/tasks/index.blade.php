@@ -146,6 +146,14 @@ new #[Layout('components.tasks-layout')] class extends Component
     #[Url]
     public ?int $peek = null;
 
+    public array $selectedIds = [];
+
+    public ?string $pendingBulkStatus = null;
+
+    public ?int $bulkAssigneeId = null;
+
+    public string $bulkComment = '';
+
 
 
     public function mount(): void
@@ -306,6 +314,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $tasks = $query->paginate(25);
         $this->nestSubtasksOnPage($tasks);
+        $selectedTasks = $this->selectedTasks();
 
         return [
 
@@ -320,6 +329,12 @@ new #[Layout('components.tasks-layout')] class extends Component
             'users' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
 
             'activeFilterCount' => $this->activeFilterCount(),
+
+            'bulkTransitions' => $this->sharedTransitions($selectedTasks),
+
+            'bulkAssigneeOptions' => $this->bulkAssigneeOptions($selectedTasks),
+
+            'canBulkWatch' => $selectedTasks->contains(fn (Task $task) => $user->can('manageWatchers', $task)),
 
         ];
 
@@ -644,6 +659,175 @@ new #[Layout('components.tasks-layout')] class extends Component
         return $task;
     }
 
+    /** @return list<int> */
+    private function selectedIdList(): array
+    {
+        return array_values(array_unique(array_filter(array_map('intval', $this->selectedIds))));
+    }
+
+    private function selectedTasks(): \Illuminate\Support\Collection
+    {
+        $ids = $this->selectedIdList();
+        if ($ids === []) {
+            return collect();
+        }
+
+        return app(TaskVisibilityService::class)
+            ->accessibleQuery(auth()->user())
+            ->whereIn('id', $ids)
+            ->get();
+    }
+
+    private function sharedTransitions(\Illuminate\Support\Collection $tasks): array
+    {
+        if ($tasks->isEmpty()) {
+            return [];
+        }
+
+        $user = auth()->user();
+        $workflow = app(TaskWorkflowService::class);
+        $sets = $tasks->map(function (Task $task) use ($user, $workflow) {
+            return collect($workflow->allowedTransitions($user, $task))
+                ->map(fn (TaskStatus $status) => $status->value);
+        });
+
+        $shared = $sets->reduce(
+            fn ($carry, $set) => $carry === null ? $set : $carry->intersect($set)->values()
+        );
+
+        return collect($shared)->map(function (string $value) use ($tasks) {
+            $status = TaskStatus::from($value);
+            $needsComment = $tasks->contains(
+                fn (Task $task) => TaskStatus::requiresComment($status, $task->status)
+            );
+            $reopen = $tasks->contains(
+                fn (Task $task) => $task->status === TaskStatus::Completed && $status === TaskStatus::InProgress
+            );
+
+            return [
+                'value' => $status->value,
+                'label' => $reopen ? __('task.reopen') : $status->label(),
+                'needsComment' => $needsComment,
+                'destructive' => in_array($status, [TaskStatus::Rejected, TaskStatus::Cancelled], true),
+            ];
+        })->values()->all();
+    }
+
+    private function bulkAssigneeOptions(\Illuminate\Support\Collection $tasks): array
+    {
+        $user = auth()->user();
+        $assignable = $tasks->filter(fn (Task $task) => $user->can('assign', $task));
+        $departmentIds = $assignable->pluck('department_id')->unique()->filter()->values();
+
+        if ($assignable->isEmpty() || $departmentIds->count() !== 1) {
+            return [];
+        }
+
+        return User::query()
+            ->where('is_active', true)
+            ->where('department_id', $departmentIds->first())
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $person) => ['value' => $person->id, 'label' => $person->name])
+            ->all();
+    }
+
+    private function applyBulkTransition(string $status): void
+    {
+        $target = TaskStatus::from($status);
+        $tasks = $this->selectedTasks();
+        $comment = trim($this->bulkComment);
+        $needsComment = $tasks->contains(
+            fn (Task $task) => TaskStatus::requiresComment($target, $task->status)
+        );
+
+        if ($needsComment && $comment === '') {
+            $this->js('window.uiToast('.json_encode(__('Add a comment for this status change')).')');
+
+            return;
+        }
+
+        $done = 0;
+        $user = auth()->user();
+        $workflow = app(TaskWorkflowService::class);
+
+        foreach ($tasks as $task) {
+            try {
+                $workflow->transition(
+                    $task,
+                    $user,
+                    $target,
+                    $needsComment ? $comment : null,
+                    ContentSource::PlainText,
+                );
+                $done++;
+            } catch (\InvalidArgumentException|AuthorizationException) {
+                // Skip tasks that cannot take this transition.
+            }
+        }
+
+        $this->toastBulkResult($done, $tasks->count());
+
+        if ($done > 0) {
+            $this->clearSelection();
+            $this->dispatch('task-peek-updated');
+        }
+    }
+
+    private function applyBulkAssign(int $userId): void
+    {
+        $user = auth()->user();
+        $tasks = $this->selectedTasks();
+        $comment = trim($this->bulkComment);
+        $changing = $tasks->filter(
+            fn (Task $task) => $user->can('assign', $task) && (int) $task->assignee_id !== $userId
+        );
+
+        if ($changing->isNotEmpty() && $comment === '') {
+            $this->js('window.uiToast('.json_encode(__('Reassignment comment')).')');
+
+            return;
+        }
+
+        $done = 0;
+        $service = app(TaskService::class);
+
+        foreach ($tasks as $task) {
+            if (! $user->can('assign', $task)) {
+                continue;
+            }
+
+            $isChange = (int) $task->assignee_id !== $userId;
+
+            try {
+                $service->update($task, $user, ['assignee_id' => $userId]);
+
+                if ($isChange) {
+                    $service->addComment($task, $user, $comment, ContentSource::PlainText);
+                }
+
+                $done++;
+            } catch (ValidationException|AuthorizationException) {
+                // Skip tasks that cannot be assigned to this user.
+            }
+        }
+
+        $this->toastBulkResult($done, $tasks->count());
+
+        if ($done > 0) {
+            $this->clearSelection();
+            $this->dispatch('task-peek-updated');
+        }
+    }
+
+    private function toastBulkResult(int $done, int $total): void
+    {
+        $this->js('window.uiToast('.json_encode(__('Updated :done of :total', [
+            'done' => $done,
+            'total' => $total,
+        ])).')');
+    }
+
     #[On('task-open-peek')]
     public function openPeek(int $number): void
     {
@@ -673,7 +857,126 @@ new #[Layout('components.tasks-layout')] class extends Component
         // Re-render the list so status/assignee match the peek panel.
     }
 
+    public function isSelected(int $id): bool
+    {
+        return in_array($id, $this->selectedIdList(), true);
+    }
 
+    public function toggleSelected(int $id): void
+    {
+        if ($id < 1) {
+            return;
+        }
+
+        $selected = $this->selectedIdList();
+        if (in_array($id, $selected, true)) {
+            $selected = array_values(array_filter($selected, fn (int $item) => $item !== $id));
+        } else {
+            $selected[] = $id;
+        }
+
+        $this->selectedIds = array_map(fn (int $item) => (string) $item, $selected);
+    }
+
+    public function toggleSelectPage(string $ids): void
+    {
+        $pageIds = array_values(array_filter(array_map('intval', explode(',', $ids))));
+        if ($pageIds === []) {
+            return;
+        }
+
+        $selected = $this->selectedIdList();
+        $allOnPage = collect($pageIds)->every(fn (int $id) => in_array($id, $selected, true));
+
+        if ($allOnPage) {
+            $selected = array_values(array_diff($selected, $pageIds));
+        } else {
+            $selected = array_values(array_unique([...$selected, ...$pageIds]));
+        }
+
+        $this->selectedIds = array_map(fn (int $id) => (string) $id, $selected);
+    }
+
+    public function clearSelection(): void
+    {
+        $this->selectedIds = [];
+        $this->pendingBulkStatus = null;
+        $this->bulkAssigneeId = null;
+        $this->bulkComment = '';
+    }
+
+    public function updatedBulkAssigneeId(mixed $value): void
+    {
+        if ($value) {
+            $this->pendingBulkStatus = null;
+        }
+    }
+
+    public function chooseBulkStatus(string $status): void
+    {
+        $this->bulkAssigneeId = null;
+        $target = TaskStatus::from($status);
+        $needsComment = $this->selectedTasks()
+            ->contains(fn (Task $task) => TaskStatus::requiresComment($target, $task->status));
+
+        if ($needsComment) {
+            $this->pendingBulkStatus = $status;
+
+            return;
+        }
+
+        $this->pendingBulkStatus = null;
+        $this->applyBulkTransition($status);
+    }
+
+    public function confirmBulkAction(): void
+    {
+        if ($this->pendingBulkStatus) {
+            $this->applyBulkTransition($this->pendingBulkStatus);
+
+            return;
+        }
+
+        if ($this->bulkAssigneeId) {
+            $this->applyBulkAssign((int) $this->bulkAssigneeId);
+        }
+    }
+
+    public function bulkWatch(bool $watch = true): void
+    {
+        $user = auth()->user();
+        $tasks = $this->selectedTasks();
+        $done = 0;
+
+        foreach ($tasks as $task) {
+            if (! $user->can('manageWatchers', $task)) {
+                continue;
+            }
+
+            if ($watch) {
+                $task->watchers()->syncWithoutDetaching([$user->id]);
+            } else {
+                $task->watchers()->detach($user->id);
+            }
+
+            $done++;
+        }
+
+        $message = $watch
+            ? __('Now watching :count tasks', ['count' => $done])
+            : __('Stopped watching :count tasks', ['count' => $done]);
+        $this->js('window.uiToast('.json_encode($message).')');
+
+        if ($done > 0) {
+            $this->clearSelection();
+            $this->dispatch('task-peek-updated');
+        }
+    }
+
+    public function bulkUnwatch(): void
+    {
+        $this->bulkWatch(false);
+    }
 
     public function updated($property): void
 
@@ -690,6 +993,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         ], true)) {
 
             $this->resetPage();
+            $this->clearSelection();
 
         }
 
@@ -849,7 +1153,17 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
 
-<div class="space-y-4">
+<div
+    class="space-y-4 {{ count($selectedIds) > 0 ? 'pb-24' : '' }}"
+    x-on:keydown.escape.window="
+        if ($event.defaultPrevented) return;
+        if (document.querySelector('[data-ui=command-palette],[data-ui=sheet],[data-ui=combobox-panel].is-open')) return;
+        if (window.uiContext?.open) return;
+        if (!$wire.selectedIds?.length) return;
+        $event.preventDefault();
+        $wire.clearSelection();
+    "
+>
 
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
@@ -1217,10 +1531,26 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             <div class="hidden md:block overflow-x-auto">
 
+                @php
+                    $pageIds = $tasks->pluck('id')->map(fn ($id) => (int) $id)->all();
+                @endphp
+
                 <table class="min-w-full divide-y divide-gray-100 text-sm">
 
                     <thead class="bg-gray-50/80">
                         <tr>
+                            <th class="w-10 px-2 py-2.5">
+                                <input
+                                    type="checkbox"
+                                    data-ui="task-select-all"
+                                    wire:key="select-all-md"
+                                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                    x-data
+                                    x-bind:checked="{{ \Illuminate\Support\Js::from($pageIds) }}.length > 0 && {{ \Illuminate\Support\Js::from($pageIds) }}.every((id) => ($wire.selectedIds || []).map(Number).includes(Number(id)))"
+                                    x-on:click.stop="$wire.toggleSelectPage('{{ implode(',', $pageIds) }}')"
+                                    aria-label="{{ __('Select all on this page') }}"
+                                >
+                            </th>
                             @foreach ([
                                 ['title', __('Title'), ''],
                                 ['status', __('Status'), ''],
@@ -1253,12 +1583,23 @@ new #[Layout('components.tasks-layout')] class extends Component
                             $rowMenu = \Illuminate\Support\Js::from($this->rowActions($task));
                         @endphp
                         <tbody class="divide-y divide-gray-50" x-data="{ open: false }">
-                            <tr class="cursor-pointer transition-colors group {{ (int) $peek === (int) $task->number ? 'bg-indigo-50 hover:bg-indigo-50' : 'odd:bg-white even:bg-gray-50/50 hover:bg-gray-50' }}"
+                            <tr class="cursor-pointer transition-colors group {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-indigo-50 hover:bg-indigo-50' : 'odd:bg-white even:bg-gray-50/50 hover:bg-gray-50' }}"
                                 x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
                                 x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"
                                 x-on:touchstart="window.uiContext.touchStart($event, {{ $rowMenu }})"
                                 x-on:touchmove="window.uiContext.touchCancel()"
                                 x-on:touchend="window.uiContext.touchCancel()">
+                                <td class="w-10 px-2 py-2.5" @click.stop>
+                                    <input
+                                        type="checkbox"
+                                        data-ui="task-select"
+                                        wire:key="select-md-{{ $task->id }}"
+                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        x-bind:checked="($wire.selectedIds || []).map(Number).includes({{ $task->id }})"
+                                        x-on:click.stop="$wire.toggleSelected({{ $task->id }})"
+                                        aria-label="{{ __('Select #:number', ['number' => $task->number]) }}"
+                                    >
+                                </td>
                                 <td class="px-4 py-2.5 max-w-md">
                                     <div class="flex items-center gap-1.5 min-w-0 leading-5">
                                         @if (! $task->isSubtask() && $task->subtasks->isNotEmpty())
@@ -1319,7 +1660,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     $childDeadline = $this->deadlineMeta($subtask);
                                     $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
                                 @endphp
-                                <tr class="cursor-pointer {{ (int) $peek === (int) $subtask->number ? 'ring-1 ring-inset ring-indigo-300' : '' }}"
+                                <tr class="cursor-pointer {{ (int) $peek === (int) $subtask->number || $this->isSelected($subtask->id) ? 'ring-1 ring-inset ring-indigo-300' : '' }}"
                                     style="display: none; background:#eef2ff;"
                                     :style="open ? 'display: table-row; background:#eef2ff;' : 'display: none;'"
                                     x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $subtask->number }})"
@@ -1327,6 +1668,17 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     x-on:touchstart="window.uiContext.touchStart($event, {{ $childMenu }})"
                                     x-on:touchmove="window.uiContext.touchCancel()"
                                     x-on:touchend="window.uiContext.touchCancel()">
+                                    <td class="w-10 px-2 py-2" @click.stop>
+                                        <input
+                                            type="checkbox"
+                                            data-ui="task-select"
+                                            wire:key="select-md-sub-{{ $subtask->id }}"
+                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            x-bind:checked="($wire.selectedIds || []).map(Number).includes({{ $subtask->id }})"
+                                            x-on:click.stop="$wire.toggleSelected({{ $subtask->id }})"
+                                            aria-label="{{ __('Select #:number', ['number' => $subtask->number]) }}"
+                                        >
+                                    </td>
                                     <td class="px-4 py-2 max-w-md">
                                         <div class="relative flex items-center gap-1.5 min-w-0 leading-5" style="padding-left: 6rem;">
                                             <span aria-hidden="true" style="position:absolute;left:0.7rem;top:-10px;width:1.5px;background:#818cf8;{{ $loop->last ? 'height:calc(50% + 10px);' : 'bottom:-10px;' }}"></span>
@@ -1367,7 +1719,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         $rowMenu = \Illuminate\Support\Js::from($this->rowActions($task));
                     @endphp
 
-                    <div class="transition-colors {{ (int) $peek === (int) $task->number ? 'bg-indigo-50' : 'hover:bg-gray-50' }}" x-data="{ open: false }">
+                    <div class="transition-colors {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-indigo-50' : 'hover:bg-gray-50' }}" x-data="{ open: false }">
 
                         <div class="cursor-pointer"
                              x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
@@ -1381,6 +1733,18 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <div class="space-y-2">
 
                                 <div class="flex items-start justify-between gap-2">
+
+                                    <div class="shrink-0 pt-0.5" @click.stop>
+                                        <input
+                                            type="checkbox"
+                                            data-ui="task-select"
+                                            wire:key="select-xs-{{ $task->id }}"
+                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            x-bind:checked="($wire.selectedIds || []).map(Number).includes({{ $task->id }})"
+                                            x-on:click.stop="$wire.toggleSelected({{ $task->id }})"
+                                            aria-label="{{ __('Select #:number', ['number' => $task->number]) }}"
+                                        >
+                                    </div>
 
                                     <div class="min-w-0 flex-1">
 
@@ -1472,7 +1836,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
                             @endphp
 
-                            <div class="relative cursor-pointer px-4 py-3 {{ (int) $peek === (int) $subtask->number ? 'ring-1 ring-inset ring-indigo-300' : '' }}"
+                            <div class="relative cursor-pointer px-4 py-3 {{ (int) $peek === (int) $subtask->number || $this->isSelected($subtask->id) ? 'ring-1 ring-inset ring-indigo-300' : '' }}"
                                  style="display: none; padding-left: 5rem; background:#eef2ff;"
                                  :style="open ? 'display: block; padding-left: 5rem; background:#eef2ff;' : 'display: none;'"
                                  x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $subtask->number }})"
@@ -1485,6 +1849,18 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 <span aria-hidden="true" style="position:absolute;left:1.75rem;top:1.25rem;width:2.75rem;height:1.5px;background:#818cf8;"></span>
 
                                 <div class="flex items-start justify-between gap-2">
+
+                                    <div class="shrink-0 pt-0.5" @click.stop>
+                                        <input
+                                            type="checkbox"
+                                            data-ui="task-select"
+                                            wire:key="select-xs-sub-{{ $subtask->id }}"
+                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            x-bind:checked="($wire.selectedIds || []).map(Number).includes({{ $subtask->id }})"
+                                            x-on:click.stop="$wire.toggleSelected({{ $subtask->id }})"
+                                            aria-label="{{ __('Select #:number', ['number' => $subtask->number]) }}"
+                                        >
+                                    </div>
 
                                     <div class="min-w-0">
 
@@ -1534,6 +1910,71 @@ new #[Layout('components.tasks-layout')] class extends Component
         @endif
 
     </div>
+
+    @if (count($selectedIds) > 0)
+        <div
+            data-ui="bulk-bar"
+            class="fixed inset-x-0 bottom-0 z-[45] border-t border-gray-200 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur"
+        >
+            <div class="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:px-6 lg:px-8">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-sm font-medium text-gray-900">
+                        {{ __(':count selected', ['count' => count($selectedIds)]) }}
+                    </span>
+                    <x-action-button variant="ghost" wire:click="clearSelection">
+                        {{ __('Clear selection') }}
+                    </x-action-button>
+
+                    @foreach ($bulkTransitions as $item)
+                        <x-action-button
+                            variant="{{ $item['destructive'] ? 'danger' : 'secondary' }}"
+                            wire:click="chooseBulkStatus('{{ $item['value'] }}')"
+                            @class(['ring-2 ring-indigo-500 ring-offset-1' => $pendingBulkStatus === $item['value']])
+                        >
+                            {{ $item['label'] }}
+                        </x-action-button>
+                    @endforeach
+
+                    @if (count($bulkAssigneeOptions) > 0)
+                        <div class="w-52">
+                            <x-combobox
+                                wire:model.live="bulkAssigneeId"
+                                :options="$bulkAssigneeOptions"
+                                :placeholder="__('Assign')"
+                                :up="true"
+                            />
+                        </div>
+                    @endif
+
+                    @if ($canBulkWatch)
+                        <x-action-button variant="secondary" wire:click="bulkWatch">
+                            {{ __('Watch') }}
+                        </x-action-button>
+                        <x-action-button variant="secondary" wire:click="bulkUnwatch">
+                            {{ __('Unwatch') }}
+                        </x-action-button>
+                    @endif
+                </div>
+
+                @if ($pendingBulkStatus || $bulkAssigneeId)
+                    <div class="flex flex-wrap items-end gap-2">
+                        <label class="min-w-0 flex-1">
+                            <span class="sr-only">{{ __('Comment') }}</span>
+                            <textarea
+                                wire:model="bulkComment"
+                                rows="2"
+                                class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                placeholder="{{ $pendingBulkStatus ? __('Add a comment for this status change') : __('Explain why the task is reassigned') }}"
+                            ></textarea>
+                        </label>
+                        <x-action-button variant="primary" wire:click="confirmBulkAction">
+                            {{ __('Confirm') }}
+                        </x-action-button>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
 
     @if ($peek)
         <x-sheet :open="true">
