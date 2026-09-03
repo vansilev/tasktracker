@@ -297,5 +297,14 @@
     "Row :row": "Row :row",
     "Task number already exists in the database": "Task number already exists in the database",
     "Row has no valid task number": "Row has no valid task number",
-    ":date (overdue :count days)": ":date (overdue :count days)"
+    ":date (overdue :count days)": ":date (overdue :count days)",
+    "Type to search...": "Type to search...",
+    "No options found.": "No options found.",
+    "No matching tasks": "No matching tasks",
+    "No tasks yet": "No tasks yet",
+    "Clear filters to see more tasks.": "Clear filters to see more tasks.",
+    "Create a task to get started.": "Create a task to get started.",
+    "Copy link": "Copy link",
+    "Copy link to #:number": "Copy link to #:number",
+    "Link to #:number copied": "Link to #:number copied"
 }

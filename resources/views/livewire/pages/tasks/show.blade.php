@@ -1024,7 +1024,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                 @endif
                 <div class="flex flex-wrap items-center gap-2">
                     <h1 class="text-lg font-semibold text-gray-900">
-                        #{{ $task->number }} · {{ $task->title }}
+                        <x-task-number :task="$task" class="text-lg font-semibold text-gray-400 hover:text-indigo-700" />
+                        · {{ $task->title }}
                     </h1>
                     <x-status-badge :status="$task->status" />
                     @if ($task->priority >= 9)
@@ -1195,19 +1196,22 @@ new #[Layout('components.tasks-layout')] class extends Component
                 @if ($canAssign)
                     <div>
                         <x-input-label :value="__('Department')" />
-                        <select wire:model.live="editAssigneeDepartmentId" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @foreach ($departments as $dept)
-                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                            @endforeach
-                        </select>
+                        <x-combobox
+                            class="mt-1"
+                            wire:model.live="editAssigneeDepartmentId"
+                            :options="$departments->map(fn ($dept) => ['value' => $dept->id, 'label' => $dept->name])->all()"
+                            :placeholder="__('Department')"
+                        />
                     </div>
                     <div>
                         <x-input-label :value="__('Assignee')" />
-                        <select wire:model="editAssigneeId" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @foreach ($assignees as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-                            @endforeach
-                        </select>
+                        <x-combobox
+                            class="mt-1"
+                            wire:key="edit-assignee-{{ $editAssigneeDepartmentId }}"
+                            wire:model="editAssigneeId"
+                            :options="$assignees->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])->all()"
+                            :placeholder="__('Assignee')"
+                        />
                     </div>
                     @if ($editAssigneeId && (int) $editAssigneeId !== (int) $task->assignee_id)
                         <div>
@@ -1805,24 +1809,25 @@ new #[Layout('components.tasks-layout')] class extends Component
                         <div class="space-y-4">
                             <div>
                                 <x-input-label :value="__('Department')" class="text-xs text-gray-500 font-medium" />
-                                <select wire:model.live="subtaskDepartmentId"
-                                        class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        @if(count($subtaskDepartments) === 1) disabled @endif>
-                                    @foreach ($subtaskDepartments as $dept)
-                                        <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                                    @endforeach
-                                </select>
+                                <x-combobox
+                                    class="mt-1"
+                                    wire:model.live="subtaskDepartmentId"
+                                    :disabled="count($subtaskDepartments) === 1"
+                                    :options="$subtaskDepartments->map(fn ($dept) => ['value' => $dept->id, 'label' => $dept->name])->all()"
+                                    :placeholder="__('— Select —')"
+                                />
                                 <x-input-error :messages="$errors->get('subtaskDepartmentId')" class="mt-1" />
                             </div>
 
                             <div>
                                 <x-input-label :value="__('Assignee')" class="text-xs text-gray-500 font-medium" />
-                                <select wire:model="subtaskAssigneeId" class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">{{ __('— Auto (head / queue) —') }}</option>
-                                    @foreach ($subtaskUsers as $u)
-                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                    @endforeach
-                                </select>
+                                <x-combobox
+                                    class="mt-1"
+                                    wire:key="subtask-assignee-{{ $subtaskDepartmentId }}"
+                                    wire:model="subtaskAssigneeId"
+                                    :options="collect([['value' => null, 'label' => __('— Auto (head / queue) —')]])->concat($subtaskUsers->map(fn ($u) => ['value' => $u->id, 'label' => $u->name]))->all()"
+                                    :placeholder="__('— Auto (head / queue) —')"
+                                />
                                 <p class="mt-1 text-xs text-gray-500">{{ __('If not selected, task goes to department head or assign queue.') }}</p>
                                 <x-input-error :messages="$errors->get('subtaskAssigneeId')" class="mt-1" />
                             </div>

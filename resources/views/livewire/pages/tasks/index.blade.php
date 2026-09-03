@@ -738,11 +738,15 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             <x-action-button variant="primary" size="md" type="button"
 
+                             data-shortcut="create-task"
+
                              onclick="Livewire.navigate('{{ route('tasks.create') }}')">
 
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
 
                 {{ __('Create task') }}
+
+                <x-kbd class="hidden sm:inline-flex border-indigo-400/40 bg-indigo-500 text-white">C</x-kbd>
 
             </x-action-button>
 
@@ -756,7 +760,18 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         <div class="flex flex-col lg:flex-row lg:items-center gap-3">
 
-            <x-text-input wire:model.live.debounce.300ms="search" class="w-full lg:flex-1 rounded-lg" placeholder="{{ __('Search tasks...') }}" />
+            <div class="relative w-full lg:flex-1">
+                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <x-text-input
+                    wire:model.live.debounce.300ms="search"
+                    data-shortcut="task-search"
+                    class="w-full rounded-lg pl-9 pr-12"
+                    placeholder="{{ __('Search tasks...') }}"
+                />
+                <x-kbd class="absolute right-2.5 top-1/2 -translate-y-1/2">/</x-kbd>
+            </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
 
@@ -823,17 +838,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <label class="block text-xs text-gray-500 mb-1">{{ __('Status') }}</label>
 
-                        <select wire:model.live="status" class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-
-                            <option value="">{{ __('All statuses') }}</option>
-
-                            @foreach ($statuses as $st)
-
-                                <option value="{{ $st->value }}">{{ $st->label() }}</option>
-
-                            @endforeach
-
-                        </select>
+                        <x-combobox
+                            wire:model.live="status"
+                            :options="collect([['value' => '', 'label' => __('All statuses')]])->concat(collect($statuses)->map(fn ($st) => ['value' => $st->value, 'label' => $st->label()]))->all()"
+                            :placeholder="__('All statuses')"
+                        />
 
                     </div>
 
@@ -841,17 +850,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <label class="block text-xs text-gray-500 mb-1">{{ __('Department') }}</label>
 
-                        <select wire:model.live="departmentId" class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-
-                            <option value="">{{ __('All departments') }}</option>
-
-                            @foreach ($departments as $dept)
-
-                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-
-                            @endforeach
-
-                        </select>
+                        <x-combobox
+                            wire:model.live="departmentId"
+                            :options="collect([['value' => null, 'label' => __('All departments')]])->concat($departments->map(fn ($dept) => ['value' => $dept->id, 'label' => $dept->name]))->all()"
+                            :placeholder="__('All departments')"
+                        />
 
                     </div>
 
@@ -859,17 +862,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <label class="block text-xs text-gray-500 mb-1">{{ __('Category') }}</label>
 
-                        <select wire:model.live="categoryId" class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-
-                            <option value="">{{ __('All categories') }}</option>
-
-                            @foreach ($categories as $cat)
-
-                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-
-                            @endforeach
-
-                        </select>
+                        <x-combobox
+                            wire:model.live="categoryId"
+                            :options="collect([['value' => null, 'label' => __('All categories')]])->concat($categories->map(fn ($cat) => ['value' => $cat->id, 'label' => $cat->name]))->all()"
+                            :placeholder="__('All categories')"
+                        />
 
                     </div>
 
@@ -877,17 +874,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <label class="block text-xs text-gray-500 mb-1">{{ __('Assignee') }}</label>
 
-                        <select wire:model.live="assigneeId" class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-
-                            <option value="">{{ __('All assignees') }}</option>
-
-                            @foreach ($users as $u)
-
-                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-
-                            @endforeach
-
-                        </select>
+                        <x-combobox
+                            wire:model.live="assigneeId"
+                            :options="collect([['value' => null, 'label' => __('All assignees')]])->concat($users->map(fn ($u) => ['value' => $u->id, 'label' => $u->name]))->all()"
+                            :placeholder="__('All assignees')"
+                        />
 
                     </div>
 
@@ -895,17 +886,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <label class="block text-xs text-gray-500 mb-1">{{ __('Initiator') }}</label>
 
-                        <select wire:model.live="initiatorId" class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-
-                            <option value="">{{ __('All initiators') }}</option>
-
-                            @foreach ($users as $u)
-
-                                <option value="{{ $u->id }}">{{ $u->name }}</option>
-
-                            @endforeach
-
-                        </select>
+                        <x-combobox
+                            wire:model.live="initiatorId"
+                            :options="collect([['value' => null, 'label' => __('All initiators')]])->concat($users->map(fn ($u) => ['value' => $u->id, 'label' => $u->name]))->all()"
+                            :placeholder="__('All initiators')"
+                        />
 
                     </div>
 
@@ -1035,21 +1020,31 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         @if ($tasks->isEmpty())
 
-            <x-empty-state>
+            <x-empty-state :title="$activeFilterCount > 0 ? __('No matching tasks') : __('No tasks yet')">
 
                 <x-slot name="icon">
 
-                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
 
                 </x-slot>
 
-                {{ __('No tasks found.') }}
+                {{ $activeFilterCount > 0 ? __('Clear filters to see more tasks.') : __('Create a task to get started.') }}
 
-                @can('create', \App\Models\Task::class)
+                <x-slot name="action">
 
-                    <x-slot name="action">
+                    @if ($activeFilterCount > 0)
+
+                        <x-action-button variant="secondary" type="button" wire:click="resetFilters">
+
+                            {{ __('Reset filters') }}
+
+                        </x-action-button>
+
+                    @elseif (auth()->user()->can('create', \App\Models\Task::class))
 
                         <x-action-button variant="primary" type="button"
+
+                                         data-shortcut="create-task"
 
                                          onclick="Livewire.navigate('{{ route('tasks.create') }}')">
 
@@ -1057,13 +1052,19 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         </x-action-button>
 
-                    </x-slot>
+                    @endif
 
-                @endcan
+                </x-slot>
 
             </x-empty-state>
 
         @else
+
+            <div class="relative">
+
+            <div wire:loading.class.remove="hidden" wire:loading.class="flex" wire:target="tab,status,departmentId,categoryId,assigneeId,initiatorId,urgentOnly,overdueOnly,sortBy,sortDir" class="absolute inset-0 z-10 hidden bg-white/90">
+                <x-skeleton class="w-full" />
+            </div>
 
             <div class="hidden md:block overflow-x-auto">
 
@@ -1121,7 +1122,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         @else
                                             <span class="inline-block shrink-0" style="width:22px;height:22px;" aria-hidden="true"></span>
                                         @endif
-                                        <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $task->number }}</span>
+                                        <x-task-number :task="$task" />
                                         <span class="text-gray-400" aria-hidden="true">&middot;</span>
                                         <span class="truncate font-medium text-gray-900">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
                                         @if (($waitingOn = $task->waitingOnLabel()) !== '')
@@ -1167,7 +1168,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         <div class="relative flex items-center gap-1.5 min-w-0 leading-5" style="padding-left: 6rem;">
                                             <span aria-hidden="true" style="position:absolute;left:0.7rem;top:-10px;width:1.5px;background:#818cf8;{{ $loop->last ? 'height:calc(50% + 10px);' : 'bottom:-10px;' }}"></span>
                                             <span aria-hidden="true" style="position:absolute;left:0.7rem;top:50%;width:5.1rem;height:1.5px;background:#818cf8;margin-top:-0.75px;"></span>
-                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
+                                            <x-task-number :task="$subtask" />
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
                                             <span class="truncate text-gray-700">{{ $subtask->title }}</span>
                                             @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
@@ -1234,7 +1235,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                             @endif
 
-                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $task->number }}</span>
+                                            <x-task-number :task="$task" />
 
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
@@ -1313,7 +1314,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                         <div class="flex items-center gap-1.5 min-w-0 leading-5">
 
-                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
+                                            <x-task-number :task="$subtask" />
 
                                             <span class="text-gray-400" aria-hidden="true">&middot;</span>
 
@@ -1343,6 +1344,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                     </div>
 
                 @endforeach
+
+            </div>
 
             </div>
 

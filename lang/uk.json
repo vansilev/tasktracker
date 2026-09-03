@@ -297,5 +297,14 @@
     "Row :row": "Рядок :row",
     "Task number already exists in the database": "Номер задачі вже є в базі",
     "Row has no valid task number": "У рядку немає коректного номера задачі",
-    ":date (overdue :count days)": ":date (прострочено :count дн)"
+    ":date (overdue :count days)": ":date (прострочено :count дн)",
+    "Type to search...": "Почніть вводити...",
+    "No options found.": "Нічого не знайдено.",
+    "No matching tasks": "Немає задач за фільтром",
+    "No tasks yet": "Задач поки немає",
+    "Clear filters to see more tasks.": "Скиньте фільтри, щоб побачити більше задач.",
+    "Create a task to get started.": "Створіть задачу, щоб почати.",
+    "Copy link": "Скопіювати посилання",
+    "Copy link to #:number": "Скопіювати посилання на #:number",
+    "Link to #:number copied": "Посилання на #:number скопійовано"
 }

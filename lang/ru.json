@@ -297,5 +297,14 @@
     "Row :row": "Строка :row",
     "Task number already exists in the database": "Номер задачи уже есть в базе",
     "Row has no valid task number": "В строке нет корректного номера задачи",
-    ":date (overdue :count days)": ":date (просрочено :count дн)"
+    ":date (overdue :count days)": ":date (просрочено :count дн)",
+    "Type to search...": "Начните вводить...",
+    "No options found.": "Ничего не найдено.",
+    "No matching tasks": "Нет задач по фильтру",
+    "No tasks yet": "Задач пока нет",
+    "Clear filters to see more tasks.": "Сбросьте фильтры, чтобы увидеть больше задач.",
+    "Create a task to get started.": "Создайте задачу, чтобы начать.",
+    "Copy link": "Скопировать ссылку",
+    "Copy link to #:number": "Скопировать ссылку на #:number",
+    "Link to #:number copied": "Ссылка на #:number скопирована"
 }

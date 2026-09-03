@@ -2,13 +2,17 @@ import Chart from 'chart.js/auto';
 import attachmentLightbox from './attachment-lightbox';
 import richTextEditor from './rich-text-editor';
 import subtaskSort from './subtask-sort';
+import registerUiKit, { bindUiShortcuts } from './ui-kit';
 
 // Livewire 3 ships Alpine, so register before it starts rather than importing it.
 document.addEventListener('alpine:init', () => {
+    registerUiKit(window.Alpine);
     window.Alpine.data('richTextEditor', richTextEditor);
     window.Alpine.data('subtaskSort', subtaskSort);
     window.Alpine.data('attachmentLightbox', attachmentLightbox);
 });
+
+bindUiShortcuts();
 
 const chartInstances = new Map();
 

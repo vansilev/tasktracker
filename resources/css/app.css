@@ -6,6 +6,10 @@
     display: none !important;
 }
 
+[data-ui="combobox-panel"]:not(.is-open) {
+    display: none;
+}
+
 /* TipTap editing surface. Content typography comes from the `prose` classes on
    the wrapper; these rules only cover things ProseMirror needs while editing. */
 @layer components {
