@@ -118,4 +118,75 @@ class TaskUiKitTest extends TestCase
             ->assertSee('Palette visible task')
             ->assertSee('#'.$task->number);
     }
+
+    public function test_peek_query_opens_sheet(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Peek User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), ['title' => 'Peek visible task']);
+
+        $this->actingAs($user)
+            ->get('/tasks?tab=all&peek='.$task->number)
+            ->assertOk()
+            ->assertSee('Peek visible task')
+            ->assertSee('data-ui="sheet"', false)
+            ->assertSee('task-close-peek', false)
+            ->assertSee('$wire.openPeek('.$task->number.')', false);
+    }
+
+    public function test_open_peek_sets_state_and_close_clears_it(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Peek State User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), ['title' => 'Peek state task']);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('openPeek', $task->number)
+            ->assertSet('peek', $task->number)
+            ->assertSee('Open full page')
+            ->call('closePeek')
+            ->assertSet('peek', null)
+            ->assertDontSee('Open full page');
+    }
+
+    public function test_inaccessible_peek_is_cleared(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $owner = $this->createUserInDepartment($dept, 'Peek Owner', role: $role);
+        $viewer = $this->createUserInDepartment($dept, 'Peek Viewer', role: $role);
+        $task = $this->createTask($owner, $owner, $this->createCategory(), ['title' => 'Hidden peek task']);
+
+        $this->actingAs($viewer);
+
+        Volt::test('pages.tasks.index')
+            ->set('tab', 'all')
+            ->call('openPeek', $task->number)
+            ->assertSet('peek', null)
+            ->assertDontSee('Hidden peek task');
+    }
+
+    public function test_peek_transition_updates_status(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions());
+        $user = $this->createUserInDepartment($dept, 'Peek Status User', role: $role);
+        $task = $this->createTask($user, $user, $this->createCategory(), [
+            'title' => 'Peek status task',
+            'status' => TaskStatus::New,
+        ]);
+
+        $this->actingAs($user);
+
+        Volt::test('pages.tasks.peek', ['number' => $task->number])
+            ->call('selectTransition', TaskStatus::InProgress->value)
+            ->assertHasNoErrors();
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+    }
 }

@@ -85,6 +85,8 @@
     "Watchers": "Watchers",
     "Initiator": "Initiator",
     "Open": "Open",
+    "Open full page": "Open full page",
+    "Task preview": "Task preview",
     "Change status": "Change status",
     "Confirm status change to :status?": "Confirm status change to :status?",
     "Add checklist item": "Add checklist item",

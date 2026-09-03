@@ -85,6 +85,8 @@
     "Watchers": "Наблюдатели",
     "Initiator": "Инициатор",
     "Open": "Открыть",
+    "Open full page": "Открыть полностью",
+    "Task preview": "Карточка задачи",
     "Change status": "Сменить статус",
     "Confirm status change to :status?": "Подтвердить смену статуса на «:status»?",
     "Add checklist item": "Добавить пункт",

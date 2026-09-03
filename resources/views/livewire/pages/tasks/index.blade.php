@@ -143,11 +143,18 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public bool $filtersOpen = false;
 
+    #[Url]
+    public ?int $peek = null;
+
 
 
     public function mount(): void
     {
         $this->filtersOpen = $this->activeFilterCount() > 0;
+
+        if ($this->peek) {
+            $this->openPeek($this->peek);
+        }
     }
 
 
@@ -635,6 +642,35 @@ new #[Layout('components.tasks-layout')] class extends Component
         abort_unless($task, 404);
 
         return $task;
+    }
+
+    #[On('task-open-peek')]
+    public function openPeek(int $number): void
+    {
+        if ($number < 1) {
+            $this->peek = null;
+
+            return;
+        }
+
+        $visible = app(TaskVisibilityService::class)
+            ->accessibleQuery(auth()->user())
+            ->where('number', $number)
+            ->exists();
+
+        $this->peek = $visible ? $number : null;
+    }
+
+    #[On('task-close-peek')]
+    public function closePeek(): void
+    {
+        $this->peek = null;
+    }
+
+    #[On('task-peek-updated')]
+    public function onPeekUpdated(): void
+    {
+        // Re-render the list so status/assignee match the peek panel.
     }
 
 
@@ -1217,8 +1253,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                             $rowMenu = \Illuminate\Support\Js::from($this->rowActions($task));
                         @endphp
                         <tbody class="divide-y divide-gray-50" x-data="{ open: false }">
-                            <tr class="odd:bg-white even:bg-gray-50/50 hover:bg-gray-50 cursor-pointer transition-colors group"
-                                onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')"
+                            <tr class="cursor-pointer transition-colors group {{ (int) $peek === (int) $task->number ? 'bg-indigo-50 hover:bg-indigo-50' : 'odd:bg-white even:bg-gray-50/50 hover:bg-gray-50' }}"
+                                x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
                                 x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"
                                 x-on:touchstart="window.uiContext.touchStart($event, {{ $rowMenu }})"
                                 x-on:touchmove="window.uiContext.touchCancel()"
@@ -1283,10 +1319,10 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     $childDeadline = $this->deadlineMeta($subtask);
                                     $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
                                 @endphp
-                                <tr class="cursor-pointer"
+                                <tr class="cursor-pointer {{ (int) $peek === (int) $subtask->number ? 'ring-1 ring-inset ring-indigo-300' : '' }}"
                                     style="display: none; background:#eef2ff;"
                                     :style="open ? 'display: table-row; background:#eef2ff;' : 'display: none;'"
-                                    onclick="Livewire.navigate('{{ route('tasks.show', $subtask) }}')"
+                                    x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $subtask->number }})"
                                     x-on:contextmenu.prevent="window.uiContext.show($event, {{ $childMenu }})"
                                     x-on:touchstart="window.uiContext.touchStart($event, {{ $childMenu }})"
                                     x-on:touchmove="window.uiContext.touchCancel()"
@@ -1331,11 +1367,10 @@ new #[Layout('components.tasks-layout')] class extends Component
                         $rowMenu = \Illuminate\Support\Js::from($this->rowActions($task));
                     @endphp
 
-                    <div class="hover:bg-gray-50 transition-colors" x-data="{ open: false }">
+                    <div class="transition-colors {{ (int) $peek === (int) $task->number ? 'bg-indigo-50' : 'hover:bg-gray-50' }}" x-data="{ open: false }">
 
                         <div class="cursor-pointer"
-
-                             onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')"
+                             x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
                              x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"
                              x-on:touchstart="window.uiContext.touchStart($event, {{ $rowMenu }})"
                              x-on:touchmove="window.uiContext.touchCancel()"
@@ -1437,10 +1472,10 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
                             @endphp
 
-                            <div class="relative cursor-pointer px-4 py-3"
+                            <div class="relative cursor-pointer px-4 py-3 {{ (int) $peek === (int) $subtask->number ? 'ring-1 ring-inset ring-indigo-300' : '' }}"
                                  style="display: none; padding-left: 5rem; background:#eef2ff;"
                                  :style="open ? 'display: block; padding-left: 5rem; background:#eef2ff;' : 'display: none;'"
-                                 onclick="Livewire.navigate('{{ route('tasks.show', $subtask) }}')"
+                                 x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $subtask->number }})"
                                  x-on:contextmenu.prevent="window.uiContext.show($event, {{ $childMenu }})"
                                  x-on:touchstart="window.uiContext.touchStart($event, {{ $childMenu }})"
                                  x-on:touchmove="window.uiContext.touchCancel()"
@@ -1499,6 +1534,12 @@ new #[Layout('components.tasks-layout')] class extends Component
         @endif
 
     </div>
+
+    @if ($peek)
+        <x-sheet :open="true">
+            <livewire:pages.tasks.peek :number="$peek" :key="'peek-'.$peek" />
+        </x-sheet>
+    @endif
 
 </div>
 

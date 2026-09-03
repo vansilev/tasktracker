@@ -135,10 +135,10 @@ export default function registerUiKit(Alpine) {
             this.commentTarget = null;
         },
         openTask() {
-            if (this.payload?.url && window.Livewire?.navigate) {
+            if (this.payload?.number) {
+                dispatchLivewire('task-open-peek', { number: this.payload.number });
+            } else if (this.payload?.url && window.Livewire?.navigate) {
                 window.Livewire.navigate(this.payload.url);
-            } else if (this.payload?.url) {
-                window.location.href = this.payload.url;
             }
             this.close();
         },
