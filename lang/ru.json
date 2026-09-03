@@ -338,5 +338,6 @@
     "Set as default": "Сделать по умолчанию",
     "Remove default": "Убрать из умолчания",
     "Delete view": "Удалить вид",
-    "Delete this view?": "Удалить этот вид?"
+    "Delete this view?": "Удалить этот вид?",
+    "Resize preview panel": "Изменить ширину панели предпросмотра"
 }

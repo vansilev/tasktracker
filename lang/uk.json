@@ -338,5 +338,6 @@
     "Set as default": "Зробити за замовчуванням",
     "Remove default": "Прибрати зі замовчування",
     "Delete view": "Видалити вид",
-    "Delete this view?": "Видалити цей вид?"
+    "Delete this view?": "Видалити цей вид?",
+    "Resize preview panel": "Змінити ширину панелі перегляду"
 }

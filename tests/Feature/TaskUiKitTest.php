@@ -190,6 +190,7 @@ class TaskUiKitTest extends TestCase
             ->assertOk()
             ->assertSee('Peek visible task')
             ->assertSee('data-ui="sheet"', false)
+            ->assertSee('data-ui="sheet-resize-handle"', false)
             ->assertSee('task-close-peek', false)
             ->assertSee('$wire.openPeek('.$task->number.')', false)
             ->assertSee('data-ui="message"', false)
