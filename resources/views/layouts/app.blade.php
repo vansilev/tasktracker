@@ -33,5 +33,8 @@
             </main>
         </div>
         <x-toast-host />
+        <x-hover-card-host />
+        <x-context-menu-host />
+        <livewire:layout.command-palette />
     </body>
 </html>

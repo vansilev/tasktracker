@@ -6,7 +6,8 @@
     display: none !important;
 }
 
-[data-ui="combobox-panel"]:not(.is-open) {
+[data-ui="combobox-panel"]:not(.is-open),
+[data-ui-float="panel"]:not(.is-open) {
     display: none;
 }
 

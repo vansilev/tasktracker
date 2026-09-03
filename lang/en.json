@@ -306,5 +306,11 @@
     "Create a task to get started.": "Create a task to get started.",
     "Copy link": "Copy link",
     "Copy link to #:number": "Copy link to #:number",
-    "Link to #:number copied": "Link to #:number copied"
+    "Link to #:number copied": "Link to #:number copied",
+    "Assign": "Assign",
+    "Confirm": "Confirm",
+    "Command palette": "Command palette",
+    "Search tasks or type a number...": "Search tasks or type a number…",
+    "Status changed to :status": "Status changed to :status",
+    "Assigned to :name": "Assigned to :name"
 }

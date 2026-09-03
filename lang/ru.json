@@ -306,5 +306,11 @@
     "Create a task to get started.": "Создайте задачу, чтобы начать.",
     "Copy link": "Скопировать ссылку",
     "Copy link to #:number": "Скопировать ссылку на #:number",
-    "Link to #:number copied": "Ссылка на #:number скопирована"
+    "Link to #:number copied": "Ссылка на #:number скопирована",
+    "Assign": "Назначить",
+    "Confirm": "Подтвердить",
+    "Command palette": "Палитра команд",
+    "Search tasks or type a number...": "Поиск задач или номер…",
+    "Status changed to :status": "Статус изменён на :status",
+    "Assigned to :name": "Назначено: :name"
 }

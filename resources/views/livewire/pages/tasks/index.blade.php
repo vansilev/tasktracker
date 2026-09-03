@@ -2,6 +2,7 @@
 
 
 
+use App\Enums\ContentSource;
 use App\Enums\TaskStatus;
 
 use App\Models\Category;
@@ -12,11 +13,21 @@ use App\Models\Task;
 
 use App\Models\User;
 
+use App\Services\TaskService;
+
 use App\Services\TaskVisibilityService;
+
+use App\Services\TaskWorkflowService;
 
 use Carbon\Carbon;
 
+use Illuminate\Auth\Access\AuthorizationException;
+
+use Illuminate\Validation\ValidationException;
+
 use Livewire\Attributes\Layout;
+
+use Livewire\Attributes\On;
 
 use Livewire\Attributes\Url;
 
@@ -434,7 +445,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $idsOnPage = $onPage->pluck('id');
 
         $onPage->load([
-            'subtasks' => fn ($q) => $q->with(['assignee:id,name', 'blockers:id,number,status']),
+            'subtasks' => fn ($q) => $q->with(['assignee:id,name', 'department:id,name', 'blockers:id,number,status']),
         ]);
 
         $roots = $onPage->reject(
@@ -522,6 +533,108 @@ new #[Layout('components.tasks-layout')] class extends Component
         }
 
         $this->resetPage();
+    }
+
+    #[On('task-quick-transition')]
+    public function quickTransition(int $taskId, string $status, ?string $comment = null): void
+    {
+        $task = $this->accessibleTask($taskId);
+        $target = TaskStatus::from($status);
+
+        try {
+            app(TaskWorkflowService::class)->transition(
+                $task,
+                auth()->user(),
+                $target,
+                $comment,
+                ContentSource::PlainText,
+            );
+            $this->js('window.uiToast('.json_encode(__('Status changed to :status', ['status' => $target->label()])).')');
+        } catch (\InvalidArgumentException|AuthorizationException $e) {
+            $this->js('window.uiToast('.json_encode($e->getMessage()).')');
+        }
+    }
+
+    #[On('task-quick-assign')]
+    public function quickAssign(int $taskId, int $userId, string $comment = ''): void
+    {
+        $task = $this->accessibleTask($taskId);
+        abort_unless(auth()->user()->can('assign', $task), 403);
+
+        $changing = (int) $task->assignee_id !== $userId;
+        if ($changing && trim($comment) === '') {
+            $this->js('window.uiToast('.json_encode(__('Reassignment comment')).')');
+
+            return;
+        }
+
+        try {
+            app(TaskService::class)->update($task, auth()->user(), [
+                'assignee_id' => $userId,
+            ]);
+
+            if ($changing) {
+                app(TaskService::class)->addComment($task, auth()->user(), $comment, ContentSource::PlainText);
+            }
+
+            $name = User::query()->whereKey($userId)->value('name') ?? '';
+            $this->js('window.uiToast('.json_encode(__('Assigned to :name', ['name' => $name])).')');
+        } catch (ValidationException $e) {
+            $this->js('window.uiToast('.json_encode(collect($e->errors())->flatten()->first()).')');
+        } catch (AuthorizationException $e) {
+            $this->js('window.uiToast('.json_encode($e->getMessage()).')');
+        }
+    }
+
+    public function rowActions(Task $task): array
+    {
+        $user = auth()->user();
+        $transitions = collect(app(TaskWorkflowService::class)->allowedTransitions($user, $task))
+            ->map(fn (TaskStatus $status) => [
+                'value' => $status->value,
+                'label' => $task->status === TaskStatus::Completed && $status === TaskStatus::InProgress
+                    ? __('task.reopen')
+                    : $status->label(),
+                'needsComment' => TaskStatus::requiresComment($status, $task->status),
+                'destructive' => in_array($status, [TaskStatus::Rejected, TaskStatus::Cancelled], true),
+            ])
+            ->values()
+            ->all();
+
+        $canAssign = $user->can('assign', $task);
+        $assignees = [];
+        if ($canAssign) {
+            $assignees = User::query()
+                ->where('is_active', true)
+                ->where('department_id', $task->department_id)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (User $person) => ['id' => $person->id, 'name' => $person->name])
+                ->all();
+        }
+
+        return [
+            'id' => $task->id,
+            'number' => $task->number,
+            'url' => route('tasks.show', $task),
+            'copyMessage' => __('Link to #:number copied', ['number' => $task->number]),
+            'transitions' => $transitions,
+            'canAssign' => $canAssign,
+            'assigneeId' => $task->assignee_id,
+            'assignees' => $assignees,
+        ];
+    }
+
+    private function accessibleTask(int $taskId): Task
+    {
+        $task = app(TaskVisibilityService::class)
+            ->accessibleQuery(auth()->user())
+            ->whereKey($taskId)
+            ->first();
+
+        abort_unless($task, 404);
+
+        return $task;
     }
 
 
@@ -1099,10 +1212,17 @@ new #[Layout('components.tasks-layout')] class extends Component
                     </thead>
 
                     @foreach ($tasks as $task)
-                        @php $deadline = $this->deadlineMeta($task); @endphp
+                        @php
+                            $deadline = $this->deadlineMeta($task);
+                            $rowMenu = \Illuminate\Support\Js::from($this->rowActions($task));
+                        @endphp
                         <tbody class="divide-y divide-gray-50" x-data="{ open: false }">
                             <tr class="odd:bg-white even:bg-gray-50/50 hover:bg-gray-50 cursor-pointer transition-colors group"
-                                onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')">
+                                onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')"
+                                x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"
+                                x-on:touchstart="window.uiContext.touchStart($event, {{ $rowMenu }})"
+                                x-on:touchmove="window.uiContext.touchCancel()"
+                                x-on:touchend="window.uiContext.touchCancel()">
                                 <td class="px-4 py-2.5 max-w-md">
                                     <div class="flex items-center gap-1.5 min-w-0 leading-5">
                                         @if (! $task->isSubtask() && $task->subtasks->isNotEmpty())
@@ -1159,11 +1279,18 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 </td>
                             </tr>
                             @foreach ($task->subtasks as $subtask)
-                                @php $childDeadline = $this->deadlineMeta($subtask); @endphp
+                                @php
+                                    $childDeadline = $this->deadlineMeta($subtask);
+                                    $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
+                                @endphp
                                 <tr class="cursor-pointer"
                                     style="display: none; background:#eef2ff;"
                                     :style="open ? 'display: table-row; background:#eef2ff;' : 'display: none;'"
-                                    onclick="Livewire.navigate('{{ route('tasks.show', $subtask) }}')">
+                                    onclick="Livewire.navigate('{{ route('tasks.show', $subtask) }}')"
+                                    x-on:contextmenu.prevent="window.uiContext.show($event, {{ $childMenu }})"
+                                    x-on:touchstart="window.uiContext.touchStart($event, {{ $childMenu }})"
+                                    x-on:touchmove="window.uiContext.touchCancel()"
+                                    x-on:touchend="window.uiContext.touchCancel()">
                                     <td class="px-4 py-2 max-w-md">
                                         <div class="relative flex items-center gap-1.5 min-w-0 leading-5" style="padding-left: 6rem;">
                                             <span aria-hidden="true" style="position:absolute;left:0.7rem;top:-10px;width:1.5px;background:#818cf8;{{ $loop->last ? 'height:calc(50% + 10px);' : 'bottom:-10px;' }}"></span>
@@ -1199,13 +1326,20 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 @foreach ($tasks as $task)
 
-                    @php $deadline = $this->deadlineMeta($task); @endphp
+                    @php
+                        $deadline = $this->deadlineMeta($task);
+                        $rowMenu = \Illuminate\Support\Js::from($this->rowActions($task));
+                    @endphp
 
                     <div class="hover:bg-gray-50 transition-colors" x-data="{ open: false }">
 
                         <div class="cursor-pointer"
 
-                             onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')">
+                             onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')"
+                             x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"
+                             x-on:touchstart="window.uiContext.touchStart($event, {{ $rowMenu }})"
+                             x-on:touchmove="window.uiContext.touchCancel()"
+                             x-on:touchend="window.uiContext.touchCancel()">
 
                         <x-card padding="p-4" class="border-0 shadow-none rounded-none">
 
@@ -1298,12 +1432,19 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         @foreach ($task->subtasks as $subtask)
 
-                            @php $childDeadline = $this->deadlineMeta($subtask); @endphp
+                            @php
+                                $childDeadline = $this->deadlineMeta($subtask);
+                                $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
+                            @endphp
 
                             <div class="relative cursor-pointer px-4 py-3"
                                  style="display: none; padding-left: 5rem; background:#eef2ff;"
                                  :style="open ? 'display: block; padding-left: 5rem; background:#eef2ff;' : 'display: none;'"
-                                 onclick="Livewire.navigate('{{ route('tasks.show', $subtask) }}')">
+                                 onclick="Livewire.navigate('{{ route('tasks.show', $subtask) }}')"
+                                 x-on:contextmenu.prevent="window.uiContext.show($event, {{ $childMenu }})"
+                                 x-on:touchstart="window.uiContext.touchStart($event, {{ $childMenu }})"
+                                 x-on:touchmove="window.uiContext.touchCancel()"
+                                 x-on:touchend="window.uiContext.touchCancel()">
 
                                 <span aria-hidden="true" style="position:absolute;left:1.75rem;top:-8px;width:1.5px;background:#818cf8;{{ $loop->last ? 'height:calc(50% + 8px);' : 'bottom:-8px;' }}"></span>
                                 <span aria-hidden="true" style="position:absolute;left:1.75rem;top:1.25rem;width:2.75rem;height:1.5px;background:#818cf8;"></span>
