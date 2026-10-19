@@ -61,10 +61,63 @@ new class extends Component
             ->latest('id')
             ->get(['id', 'name', 'created_at', 'last_used_at']);
     }
+
+    public function cursorSnippet(): string
+    {
+        $secret = $this->plainToken ?: __('api_token.token_placeholder');
+
+        return <<<JSON
+{
+  "mcpServers": {
+    "task-avant": {
+      "url": "https://task.avant.od.ua/mcp",
+      "headers": {
+        "Authorization": "Bearer {$secret}"
+      }
+    }
+  }
+}
+JSON;
+    }
 }; ?>
 
 <section>
-    <header>
+    <div>
+        <h2 class="text-sm font-semibold text-gray-900">
+            {{ __('api_token.guide_title') }}
+        </h2>
+
+        <ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-gray-700">
+            <li>{{ __('api_token.guide_step_1') }}</li>
+            <li>{{ __('api_token.guide_step_2') }}</li>
+            <li>{{ __('api_token.guide_step_3') }}</li>
+            <li>{{ __('api_token.guide_step_4', ['placeholder' => __('api_token.token_placeholder')]) }}</li>
+            <li>{{ __('api_token.guide_step_5') }}</li>
+        </ol>
+
+        <p class="mt-2 text-xs text-gray-500">
+            {{ __('api_token.guide_existing') }}
+        </p>
+
+        @if ($plainToken)
+            <p class="mt-2 text-sm text-gray-700">{{ __('api_token.guide_ready') }}</p>
+        @endif
+
+        <pre class="mt-3 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-5 text-gray-800">{{ $this->cursorSnippet() }}</pre>
+
+        <div class="mt-2" x-data="{ copied: false }">
+            <x-action-button
+                variant="secondary"
+                type="button"
+                x-on:click="navigator.clipboard.writeText(@js($this->cursorSnippet())); copied = true"
+            >
+                <span x-show="!copied">{{ __('api_token.copy_block') }}</span>
+                <span x-show="copied" x-cloak>{{ __('api_token.copied') }}</span>
+            </x-action-button>
+        </div>
+    </div>
+
+    <header class="mt-6">
         <h2 class="text-sm font-semibold text-gray-900">
             {{ __('api_token.title') }}
         </h2>

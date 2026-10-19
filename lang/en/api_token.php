@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'guide_title' => 'How to connect Cursor',
+    'guide_step_1' => 'Enter a name below and click “Create token”.',
+    'guide_step_2' => 'Copy the token. It is shown once. If you leave the page, create a new one.',
+    'guide_step_3' => 'On your computer, open the file mcp.json. In Cursor: Settings → Tools & MCP. On a Mac the file is in the .cursor folder in your home folder.',
+    'guide_step_4' => 'Paste the gray block into that file. Replace the words :placeholder with your token. Keep the quotes.',
+    'guide_step_5' => 'Save the file. Quit Cursor completely, then open it again.',
+    'guide_existing' => 'If the file already has other connections, do not delete them. Add only the task-avant block.',
+    'guide_ready' => 'Your token is already in the gray block. Copy the whole block and paste it into mcp.json.',
+    'token_placeholder' => 'PASTE_YOUR_TOKEN',
+    'copy_block' => 'Copy block',
     'title' => 'Cursor token',
     'description' => 'The token connects Cursor to the tracker as you. The agent has the same access as your account. The secret is shown once — save it immediately.',
     'name' => 'Name',

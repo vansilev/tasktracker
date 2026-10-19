@@ -20,6 +20,10 @@ class ApiTokenTest extends TestCase
             ->get('/profile')
             ->assertOk()
             ->assertSeeVolt('profile.api-tokens')
+            ->assertSee(__('api_token.guide_title'))
+            ->assertSee(__('api_token.token_placeholder'))
+            ->assertSee('https://task.avant.od.ua/mcp')
+            ->assertSee('"task-avant"')
             ->assertSee(__('api_token.title'))
             ->assertSee(__('api_token.empty'));
     }
