@@ -21,10 +21,10 @@ class ApiTokenTest extends TestCase
             ->assertOk()
             ->assertSeeVolt('profile.api-tokens')
             ->assertSee(__('api_token.guide_title'))
-            ->assertSee(__('api_token.token_placeholder'))
-            ->assertSee('https://task.avant.od.ua/mcp')
-            ->assertSee('"task-avant"')
-            ->assertSee(__('api_token.title'))
+            ->assertSee(__('api_token.guide_mcp'))
+            ->assertSee(__('api_token.step_1_title'))
+            ->assertDontSee('https://task.avant.od.ua/mcp')
+            ->assertDontSee(__('api_token.step_2_title'))
             ->assertSee(__('api_token.empty'));
     }
 
@@ -58,8 +58,20 @@ class ApiTokenTest extends TestCase
         $this->assertIsString($plain);
         $this->assertNotSame('', $plain);
         $this->assertStringContainsString($plain, $html);
+        $this->assertStringContainsString(__('api_token.step_2_title'), $html);
+        $this->assertStringContainsString(__('api_token.new_file_title'), $html);
+        $this->assertStringContainsString(__('api_token.existing_file_title'), $html);
+        $this->assertStringContainsString('https://task.avant.od.ua/mcp', $html);
         $this->assertStringContainsString('>cursor-laptop<', $html);
         $this->assertStringContainsString(__('api_token.never_used'), $html);
+
+        $config = json_decode($component->instance()->fullCursorConfig(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(
+            'Bearer '.$plain,
+            $config['mcpServers']['task-avant']['headers']['Authorization'],
+        );
+        $this->assertStringStartsWith('"task-avant": {', $component->instance()->cursorServerEntry());
+        $this->assertStringContainsString('Bearer '.$plain, $component->instance()->cursorServerEntry());
 
         $stored = DB::table('personal_access_tokens')->where('id', $tokenId)->first();
         $this->assertNotNull($stored);
