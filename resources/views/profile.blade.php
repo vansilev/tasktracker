@@ -4,7 +4,7 @@
     </x-slot>
 
     <div class="py-6">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-4">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                 <div class="space-y-4">
                     <x-card>
@@ -24,6 +24,10 @@
                     <livewire:profile.notification-preferences />
                 </x-card>
             </div>
+
+            <x-card>
+                <livewire:profile.api-tokens />
+            </x-card>
         </div>
     </div>
 </x-app-layout>

@@ -53,4 +53,11 @@ return [
     */
     'attachment_max_kb' => (int) env('ATTACHMENT_MAX_KB', 10240),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Personal access tokens a user may keep at once
+    |--------------------------------------------------------------------------
+    */
+    'api_token_limit' => 10,
+
 ];
