@@ -59,8 +59,12 @@ class ApiTokenTest extends TestCase
         $this->assertNotSame('', $plain);
         $this->assertStringContainsString($plain, $html);
         $this->assertStringContainsString(__('api_token.step_2_title'), $html);
+        $this->assertStringContainsString(__('api_token.desktop_choice_title'), $html);
+        $this->assertStringContainsString(__('api_token.cloud_choice_title'), $html);
         $this->assertStringContainsString(__('api_token.new_file_title'), $html);
         $this->assertStringContainsString(__('api_token.existing_file_title'), $html);
+        $this->assertStringContainsString(__('api_token.cloud_step_3_title'), $html);
+        $this->assertStringContainsString(__('api_token.cloud_no_authorize'), $html);
         $this->assertStringContainsString('https://task.avant.od.ua/mcp', $html);
         $this->assertStringContainsString('>cursor-laptop<', $html);
         $this->assertStringContainsString(__('api_token.never_used'), $html);
@@ -72,6 +76,7 @@ class ApiTokenTest extends TestCase
         );
         $this->assertStringStartsWith('"task-avant": {', $component->instance()->cursorServerEntry());
         $this->assertStringContainsString('Bearer '.$plain, $component->instance()->cursorServerEntry());
+        $this->assertSame('Bearer '.$plain, $component->instance()->bearerValue());
 
         $stored = DB::table('personal_access_tokens')->where('id', $tokenId)->first();
         $this->assertNotNull($stored);
