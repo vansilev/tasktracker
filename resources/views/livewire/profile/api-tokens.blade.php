@@ -94,6 +94,13 @@ JSON;
 JSON;
     }
 
+    public function subtitlesDataUri(string $video): ?string
+    {
+        $file = public_path("videos/cursor-{$video}-uk.vtt");
+
+        return is_file($file) ? 'data:text/vtt;charset=utf-8;base64,'.base64_encode((string) file_get_contents($file)) : null;
+    }
+
     public function bearerValue(): string
     {
         return 'Bearer '.($this->plainToken ?? '');
@@ -114,6 +121,55 @@ JSON;
             {{ __('api_token.guide_mcp') }}
         </p>
     </header>
+
+    <div wire:ignore x-data="{ video: null }" class="mt-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900">{{ __('api_token.video_title') }}</h3>
+                <p class="mt-1 text-xs text-gray-600">{{ __('api_token.video_hint') }}</p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                @foreach (['desktop' => __('api_token.desktop_choice_title'), 'web' => __('api_token.cloud_choice_title')] as $key => $label)
+                    <x-action-button
+                        variant="secondary"
+                        type="button"
+                        x-on:click="video = video === '{{ $key }}' ? null : '{{ $key }}'"
+                        x-bind:class="video === '{{ $key }}' ? 'ring-2 ring-indigo-300' : ''"
+                    >
+                        ▶ {{ $label }}
+                    </x-action-button>
+                @endforeach
+            </div>
+        </div>
+
+        @foreach (['desktop', 'web'] as $key)
+            <template x-if="video === '{{ $key }}'">
+                <div class="mt-3">
+                    <video
+                        class="w-full rounded-lg bg-black"
+                        controls
+                        autoplay
+                        playsinline
+                        preload="metadata"
+                        poster="{{ asset("videos/cursor-{$key}-uk.jpg") }}"
+                    >
+                        <source src="{{ asset("videos/cursor-{$key}-uk.mp4") }}" type="video/mp4">
+                        @if ($subtitles = $this->subtitlesDataUri($key))
+                            <track kind="subtitles" srclang="uk" label="Українська" src="{{ $subtitles }}">
+                        @endif
+                    </video>
+                    <button type="button" x-on:click="video = null" class="mt-2 text-sm text-indigo-600 hover:text-indigo-800">
+                        {{ __('api_token.video_close') }}
+                    </button>
+                </div>
+            </template>
+        @endforeach
+
+        @if (app()->getLocale() !== 'uk')
+            <p class="mt-2 text-xs text-gray-500">{{ __('api_token.video_language_note') }}</p>
+        @endif
+    </div>
 
     <h3 class="mt-5 text-sm font-semibold text-gray-900">
         {{ __('api_token.step_1_title') }}
