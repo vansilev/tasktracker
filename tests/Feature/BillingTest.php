@@ -495,6 +495,43 @@ class BillingTest extends TestCase
             'vendor' => 'Hostinger',
             'product' => 'KVM 2',
             'currency' => 'UAH',
+            'kind' => BillingKind::Subscription->value,
+            'payment_method' => BillingPaymentMethod::Bank->value,
+        ]);
+    }
+
+    public function test_payment_method_value_does_not_crash_frequency_step(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin);
+
+        Volt::test('pages.billing.create')
+            ->call('openModal')
+            ->set('vendor', 'Київстар')
+            ->set('product', 'связь')
+            ->call('nextStep')
+            ->set('invoice', true)
+            ->call('nextStep')
+            ->set('kind', BillingKind::Once->value)
+            ->set('nextDueOn', now()->addMonth()->toDateString())
+            ->call('nextStep')
+            ->assertSee('billing-create-step-4')
+            ->assertSee('billing-create-method')
+            ->set('kind', BillingPaymentMethod::Bank->value)
+            ->assertSet('kind', BillingKind::Subscription->value)
+            ->set('paymentMethod', BillingPaymentMethod::Bank->value)
+            ->assertHasNoErrors()
+            ->assertDontSee(__('billing.card_digits'))
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('billing_items', [
+            'vendor' => 'Київстар',
+            'product' => 'связь',
+            'payment_method' => BillingPaymentMethod::Bank->value,
+            'kind' => BillingKind::Subscription->value,
+            'card_last4' => null,
         ]);
     }
 

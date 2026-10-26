@@ -113,13 +113,18 @@ new class extends Component
     public function updatedKind(): void
     {
         $kind = BillingKind::tryFrom($this->kind);
+        if ($kind === null) {
+            $this->kind = BillingKind::Subscription->value;
+
+            return;
+        }
         if ($kind === BillingKind::AdBudget) {
             $this->periodMonths = 1;
         }
-        if ($kind && ! $kind->requiresDueDate()) {
+        if (! $kind->requiresDueDate()) {
             $this->nextDueOn = '';
         }
-        if ($kind && ! $kind->requiresPeriodMonths()) {
+        if (! $kind->requiresPeriodMonths()) {
             $this->periodMonths = 1;
         }
     }
@@ -194,7 +199,7 @@ new class extends Component
             'product' => $this->product,
             'description' => $this->description,
             'category' => $this->category,
-            'kind' => BillingKind::from($this->kind),
+            'kind' => $this->currentKind(),
             'period_months' => $this->periodMonths,
             'amount' => $this->invoice ? null : $this->amount,
             'currency' => $this->currency,
@@ -230,8 +235,8 @@ new class extends Component
             ],
             3 => [
                 'kind' => ['required', Rule::enum(BillingKind::class)],
-                'periodMonths' => [BillingKind::from($this->kind)->requiresPeriodMonths() ? 'required' : 'nullable', Rule::in([1, 12])],
-                'nextDueOn' => [BillingKind::from($this->kind)->requiresDueDate() ? 'required' : 'nullable', 'date'],
+                'periodMonths' => [$this->currentKind()->requiresPeriodMonths() ? 'required' : 'nullable', Rule::in([1, 12])],
+                'nextDueOn' => [$this->currentKind()->requiresDueDate() ? 'required' : 'nullable', 'date'],
                 'dueDayOfMonth' => ['nullable', 'integer', 'min:1', 'max:31'],
                 'dueDayRule' => ['nullable', Rule::enum(BillingDueDayRule::class)],
             ],
@@ -246,7 +251,8 @@ new class extends Component
 
     public function with(): array
     {
-        $period = BillingKind::from($this->kind)->requiresPeriodMonths() ? $this->periodMonths : null;
+        $kind = $this->currentKind();
+        $period = $kind->requiresPeriodMonths() ? $this->periodMonths : null;
 
         return [
             'people' => app(BillingBot::class)->peopleQuery()->get(['id', 'name']),
@@ -254,9 +260,14 @@ new class extends Component
             'kinds' => BillingKind::cases(),
             'categories' => BillingCategory::cases(),
             'methods' => BillingPaymentMethod::cases(),
-            'kindRequiresPeriod' => BillingKind::from($this->kind)->requiresPeriodMonths(),
-            'kindRequiresDue' => BillingKind::from($this->kind)->requiresDueDate(),
+            'kindRequiresPeriod' => $kind->requiresPeriodMonths(),
+            'kindRequiresDue' => $kind->requiresDueDate(),
         ];
+    }
+
+    private function currentKind(): BillingKind
+    {
+        return BillingKind::tryFrom($this->kind) ?? BillingKind::Subscription;
     }
 }; ?>
 
@@ -294,7 +305,7 @@ new class extends Component
                         </div>
 
                         @if ($step === 1)
-                            <div class="space-y-4">
+                            <div wire:key="billing-create-step-1" class="space-y-4">
                                 <div>
                                     <x-input-label :value="__('billing.vendor')" />
                                     <x-text-input wire:model="vendor" class="mt-1 w-full" />
@@ -319,7 +330,7 @@ new class extends Component
                                 </div>
                             </div>
                         @elseif ($step === 2)
-                            <div class="space-y-4">
+                            <div wire:key="billing-create-step-2" class="space-y-4">
                                 <label class="flex items-center gap-2 text-sm text-gray-700">
                                     <input type="checkbox" wire:model.live="invoice" class="rounded border-gray-300 text-indigo-600" />
                                     {{ __('billing.invoice_toggle') }}
@@ -344,10 +355,10 @@ new class extends Component
                                 </div>
                             </div>
                         @elseif ($step === 3)
-                            <div class="space-y-4">
+                            <div wire:key="billing-create-step-3" class="space-y-4">
                                 <div>
                                     <x-input-label :value="__('billing.kind_label')" />
-                                    <select wire:model.live="kind" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                    <select wire:key="billing-create-kind" wire:model.live="kind" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                         @foreach ($kinds as $option)
                                             <option value="{{ $option->value }}">{{ $option->label() }}</option>
                                         @endforeach
@@ -385,10 +396,10 @@ new class extends Component
                                 @endif
                             </div>
                         @else
-                            <div class="space-y-4">
+                            <div wire:key="billing-create-step-4" class="space-y-4">
                                 <div>
                                     <x-input-label :value="__('billing.method_label')" />
-                                    <select wire:model.live="paymentMethod" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                    <select wire:key="billing-create-method" wire:model.live="paymentMethod" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                         @foreach ($methods as $method)
                                             <option value="{{ $method->value }}">{{ $method->label() }}</option>
                                         @endforeach
