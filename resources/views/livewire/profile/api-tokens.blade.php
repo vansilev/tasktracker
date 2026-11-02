@@ -276,11 +276,11 @@ JSON;
 
                             <pre class="mt-3 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-5 text-gray-800">{{ $this->fullCursorConfig() }}</pre>
 
-                            <div class="mt-2" x-data="{ copied: false }">
+                            <div class="mt-2" x-data="{ copied: false, text: @js($this->fullCursorConfig()) }">
                                 <x-action-button
                                     variant="secondary"
                                     type="button"
-                                    x-on:click="navigator.clipboard.writeText(@js($this->fullCursorConfig())); copied = true"
+                                    x-on:click="navigator.clipboard.writeText(text); copied = true"
                                 >
                                     <span x-show="!copied">{{ __('api_token.copy_full_file') }}</span>
                                     <span x-show="copied" x-cloak>{{ __('api_token.copied') }}</span>
@@ -305,11 +305,11 @@ JSON;
 
                             <pre class="mt-3 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-5 text-gray-800">{{ $this->cursorServerEntry() }}</pre>
 
-                            <div class="mt-2" x-data="{ copied: false }">
+                            <div class="mt-2" x-data="{ copied: false, text: @js($this->cursorServerEntry()) }">
                                 <x-action-button
                                     variant="secondary"
                                     type="button"
-                                    x-on:click="navigator.clipboard.writeText(@js($this->cursorServerEntry())); copied = true"
+                                    x-on:click="navigator.clipboard.writeText(text); copied = true"
                                 >
                                     <span x-show="!copied">{{ __('api_token.copy_server') }}</span>
                                     <span x-show="copied" x-cloak>{{ __('api_token.copied') }}</span>
@@ -360,11 +360,11 @@ JSON;
                         <div>
                             <p class="text-xs font-medium text-gray-500">{{ __('api_token.cloud_header_value_label') }}</p>
                             <code class="mt-1 block break-all rounded bg-white px-2 py-1.5">{{ $this->bearerValue() }}</code>
-                            <div class="mt-2" x-data="{ copied: false }">
+                            <div class="mt-2" x-data="{ copied: false, text: @js($this->bearerValue()) }">
                                 <x-action-button
                                     variant="secondary"
                                     type="button"
-                                    x-on:click="navigator.clipboard.writeText(@js($this->bearerValue())); copied = true"
+                                    x-on:click="navigator.clipboard.writeText(text); copied = true"
                                 >
                                     <span x-show="!copied">{{ __('api_token.copy_header_value') }}</span>
                                     <span x-show="copied" x-cloak>{{ __('api_token.copied') }}</span>

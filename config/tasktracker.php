@@ -60,4 +60,12 @@ return [
     */
     'api_token_limit' => 10,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Read-only Kommo MCP (kommo-read.tcsavant.com)
+    |--------------------------------------------------------------------------
+    */
+    'kommo_read_mcp_url' => env('KOMMO_READ_MCP_URL', 'https://kommo-read.tcsavant.com/mcp'),
+    'kommo_read_key_limit' => 5,
+
 ];

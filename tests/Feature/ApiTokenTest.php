@@ -70,6 +70,7 @@ class ApiTokenTest extends TestCase
         $this->assertStringContainsString(__('api_token.cloud_no_authorize'), $html);
         $this->assertStringContainsString('https://task.avant.od.ua/mcp', $html);
         $this->assertStringContainsString('>cursor-laptop<', $html);
+        $this->assertStringNotContainsString('@js(', $html);
         $this->assertStringContainsString(__('api_token.never_used'), $html);
 
         $config = json_decode($component->instance()->fullCursorConfig(), true, flags: JSON_THROW_ON_ERROR);

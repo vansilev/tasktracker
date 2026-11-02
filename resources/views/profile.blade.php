@@ -28,6 +28,12 @@
             <x-card>
                 <livewire:profile.api-tokens />
             </x-card>
+
+            @if (auth()->user()->hasPermission(\App\Enums\Permission::KommoRead))
+                <x-card>
+                    <livewire:profile.kommo-read-keys />
+                </x-card>
+            @endif
         </div>
     </div>
 </x-app-layout>

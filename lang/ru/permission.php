@@ -14,4 +14,5 @@ return [
     'manage_department' => 'Управлять настройками подразделения',
     'view_billing' => 'Смотреть оплаты',
     'manage_billing' => 'Вести оплаты',
+    'kommo_read' => 'Подключать Kommo к Cursor (только чтение)',
 ];

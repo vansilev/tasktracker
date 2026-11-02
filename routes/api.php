@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthTokenController;
+use App\Http\Controllers\Api\V1\KommoReadKeyController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\TaskController;
 use Illuminate\Support\Facades\Route;
@@ -8,6 +9,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     Route::post('auth/token', [AuthTokenController::class, 'store'])
         ->middleware('throttle:5,1');
+
+    Route::get('kommo-read/whoami', [KommoReadKeyController::class, 'whoami'])
+        ->middleware('throttle:120,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('me', [MeController::class, 'show']);
