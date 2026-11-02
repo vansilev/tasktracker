@@ -109,11 +109,7 @@ JSON;
 
 <section>
     <header>
-        <h2 class="text-sm font-semibold text-gray-900">
-            {{ __('api_token.guide_title') }}
-        </h2>
-
-        <p class="mt-1 text-sm text-gray-700">
+        <p class="text-sm text-gray-700">
             {{ __('api_token.guide_intro') }}
         </p>
 

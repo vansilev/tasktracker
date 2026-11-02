@@ -117,11 +117,7 @@ new class extends Component
 
 <section>
     <header>
-        <h2 class="text-sm font-semibold text-gray-900">
-            {{ __('kommo_read.title') }}
-        </h2>
-
-        <p class="mt-1 text-sm text-gray-700">
+        <p class="text-sm text-gray-700">
             {{ __('kommo_read.intro') }}
         </p>
 

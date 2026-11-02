@@ -33,8 +33,10 @@ class KommoReadKeyTest extends TestCase
         $this->actingAs($user)
             ->get('/profile')
             ->assertOk()
+            ->assertSeeVolt('profile.api-tokens')
             ->assertDontSeeVolt('profile.kommo-read-keys')
-            ->assertDontSee(__('kommo_read.title'));
+            ->assertDontSee('role="tablist"', false)
+            ->assertDontSee(__('kommo_read.intro'));
     }
 
     public function test_profile_shows_the_card_with_the_permission_and_to_admins(): void
@@ -42,8 +44,10 @@ class KommoReadKeyTest extends TestCase
         $this->actingAs($this->userWithKommoRead())
             ->get('/profile')
             ->assertOk()
+            ->assertSeeVolt('profile.api-tokens')
             ->assertSeeVolt('profile.kommo-read-keys')
-            ->assertSee(__('kommo_read.title'))
+            ->assertSeeInOrder([__('api_token.guide_title'), 'role="tablist"', 'Task Tracker', 'Kommo', 'cursor-panel-tracker', 'cursor-panel-kommo'], false)
+            ->assertSee(__('kommo_read.intro'))
             ->assertSee(__('kommo_read.empty'));
 
         $admin = User::factory()->create(['system_type' => SystemType::Admin]);
