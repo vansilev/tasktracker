@@ -87,4 +87,23 @@ return [
     'pick_assignee' => 'Choose an assignee.',
     'assignee_no_department' => ':name has no department — the task cannot be set.',
     'not_configured' => 'The :name key is not set in .env.',
+
+    'access' => 'Access',
+    'access_mode' => [
+        'participants' => 'Meeting participants',
+        'selected' => 'Selected people only',
+        'admins' => 'Admins only',
+    ],
+    'access_hint' => [
+        'participants' => 'Participants and the organizer, plus the people added below.',
+        'selected' => 'Only the people added below — participants get no access by themselves.',
+        'admins' => 'Nobody but administrators.',
+    ],
+    'viewers' => 'Added by hand',
+    'viewers_none' => 'nobody',
+    'viewer_add' => '+ add a person…',
+    'viewer_remove' => 'Remove access',
+    'access_now' => 'Can see it now:',
+    'access_only_admins' => 'administrators only',
+    'access_saved' => 'Meeting access changed.',
 ];

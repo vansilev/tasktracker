@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -12,6 +13,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Meeting extends Model
 {
+    /** Participants, the organizer and the people let in by hand. */
+    public const ACCESS_PARTICIPANTS = 'participants';
+
+    /** Only the people let in by hand. */
+    public const ACCESS_SELECTED = 'selected';
+
+    public const ACCESS_ADMINS = 'admins';
+
+    public const ACCESS_MODES = [self::ACCESS_PARTICIPANTS, self::ACCESS_SELECTED, self::ACCESS_ADMINS];
+
     protected $fillable = [
         'fireflies_id',
         'title',
@@ -29,6 +40,7 @@ class Meeting extends Model
         'analysis_started_at',
         'analysis_model',
         'analysis_error',
+        'access_mode',
     ];
 
     protected function casts(): array
@@ -42,6 +54,11 @@ class Meeting extends Model
             'sentences' => 'array',
             'speaker_map' => 'array',
         ];
+    }
+
+    public function viewers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'meeting_viewers');
     }
 
     public function drafts(): HasMany

@@ -94,6 +94,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </div>
                         </div>
                         <div class="flex shrink-0 flex-wrap items-center gap-2">
+                            @if ($canImport && $m->access_mode !== \App\Models\Meeting::ACCESS_PARTICIPANTS)
+                                <x-pill color="purple">🔒 {{ __('meetings.access_mode.'.$m->access_mode) }}</x-pill>
+                            @endif
                             @if ($m->analyzed_at)
                                 @if ($m->open_drafts > 0)
                                     <x-pill color="amber">{{ __('meetings.drafts_count', ['count' => $m->open_drafts]) }}</x-pill>

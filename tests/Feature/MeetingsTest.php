@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\SystemType;
 use App\Jobs\AnalyzeMeeting;
+use App\Models\AuditLog;
 use App\Models\Meeting;
 use App\Models\MeetingTaskDraft;
 use App\Models\Task;
@@ -227,6 +228,74 @@ class MeetingsTest extends TestCase
 
         $this->actingAs($participant)->get('/meetings/'.$meeting->id.'?tab=transcript')->assertOk()->assertSee('Сделаю до пятницы.', false);
         $this->actingAs($stranger)->get('/meetings/'.$meeting->id)->assertForbidden();
+    }
+
+    public function test_admin_restricts_access_per_meeting(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions(), [$dept->id]);
+        $admin = $this->createUserInDepartment($dept, 'Admin', SystemType::Admin);
+        $participant = $this->createUserInDepartment($dept, 'Sergey Salamaha', role: $role);
+        $guest = $this->createUserInDepartment($dept, 'Guest', role: $role);
+        $meeting = $this->meeting(['title' => 'Секретная встреча']);
+        $url = '/meetings/'.$meeting->id;
+
+        // Default: participants see it, others do not.
+        $this->actingAs($participant)->get($url)->assertOk();
+        $this->actingAs($guest)->get($url)->assertForbidden();
+
+        $page = Volt::actingAs($admin)->test('pages.meetings.show', ['meeting' => $meeting]);
+
+        // Letting a person in by hand.
+        $this->actingAs($admin);
+        $page->call('addViewer', (string) $guest->id);
+        $this->actingAs($guest)->get($url)->assertOk();
+        $this->actingAs($guest)->get('/meetings')->assertSee('Секретная встреча');
+
+        // Only the selected: the participant loses access, the guest keeps it.
+        $this->actingAs($admin);
+        $page->call('setAccessMode', 'selected');
+        $this->actingAs($participant)->get($url)->assertForbidden();
+        $this->actingAs($participant)->get('/meetings')->assertDontSee('Секретная встреча');
+        $this->actingAs($guest)->get($url)->assertOk();
+
+        // Admins only: nobody else, the admin still does.
+        $this->actingAs($admin);
+        $page->call('setAccessMode', 'admins');
+        $this->actingAs($guest)->get($url)->assertForbidden();
+        $this->actingAs($admin)->get($url)->assertOk()->assertSee('data-ui="meeting-access"', false);
+
+        // Back to participants, guest removed.
+        $this->actingAs($admin);
+        $page->call('setAccessMode', 'participants')->call('removeViewer', $guest->id);
+        $this->actingAs($participant)->get($url)->assertOk();
+        $this->actingAs($guest)->get($url)->assertForbidden();
+
+        $this->assertSame(3, AuditLog::query()->where('action', 'meeting.access_changed')->count());
+        $this->assertSame(1, AuditLog::query()->where('action', 'meeting.viewer_added')->count());
+        $this->assertSame(1, AuditLog::query()->where('action', 'meeting.viewer_removed')->count());
+
+        // Unknown mode is ignored.
+        $this->actingAs($admin);
+        $page->call('setAccessMode', 'everyone');
+        $this->assertSame('participants', $meeting->fresh()->access_mode);
+    }
+
+    public function test_only_admin_changes_access_and_others_do_not_see_the_access_card(): void
+    {
+        $dept = $this->createDepartment();
+        $role = $this->createRoleWithPermissions($this->defaultPermissions(), [$dept->id]);
+        $participant = $this->createUserInDepartment($dept, 'Sergey Salamaha', role: $role);
+        $guest = $this->createUserInDepartment($dept, 'Guest', role: $role);
+        $meeting = $this->meeting();
+
+        $this->actingAs($participant)->get('/meetings/'.$meeting->id)->assertOk()->assertDontSee('data-ui="meeting-access"', false);
+
+        Volt::actingAs($participant)->test('pages.meetings.show', ['meeting' => $meeting])->call('setAccessMode', 'admins')->assertForbidden();
+        Volt::actingAs($participant)->test('pages.meetings.show', ['meeting' => $meeting])->call('addViewer', (string) $guest->id)->assertForbidden();
+
+        $this->assertSame('participants', $meeting->fresh()->access_mode);
+        $this->assertSame(0, $meeting->viewers()->count());
     }
 
     public function test_only_admin_maps_people_and_mapping_reassigns_open_drafts(): void

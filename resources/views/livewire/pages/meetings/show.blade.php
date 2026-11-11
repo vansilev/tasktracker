@@ -65,6 +65,8 @@ new #[Layout('components.tasks-layout')] class extends Component
             'users' => $people->users()->groupBy(fn (User $u) => $u->department?->name ?? '—')->sortKeys(),
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'isAdmin' => auth()->user()->isAdmin(),
+            'viewers' => auth()->user()->isAdmin() ? $this->meeting->viewers()->orderBy('name')->get() : collect(),
+            'accessWho' => auth()->user()->isAdmin() ? $this->whoHasAccess($people) : [],
             'colours' => $colours,
             'blocks' => $blocks,
             'speakerUsers' => collect($participants)->filter(fn ($p) => $p['speaker'])->mapWithKeys(fn ($p) => [$p['speaker'] => $p['user']?->name ?? ($p['external'] ? __('meetings.external') : null)]),
@@ -194,6 +196,49 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         $extractor->reassign($this->meeting);
         session()->flash('meeting_status', __('meetings.mapping_saved'));
+    }
+
+    public function setAccessMode(string $mode, \App\Services\AuditLogService $audit): void
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+        if (! in_array($mode, Meeting::ACCESS_MODES, true) || $mode === $this->meeting->access_mode) {
+            return;
+        }
+
+        $old = $this->meeting->access_mode;
+        $this->meeting->update(['access_mode' => $mode]);
+        $audit->log('meeting.access_changed', auth()->user(), $this->meeting, ['access_mode' => $old], ['access_mode' => $mode]);
+        session()->flash('meeting_status', __('meetings.access_saved'));
+    }
+
+    public function addViewer(string $userId, \App\Services\AuditLogService $audit): void
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+        $user = User::query()->where('is_active', true)->find((int) $userId);
+        if (! $user) {
+            return;
+        }
+
+        $this->meeting->viewers()->syncWithoutDetaching([$user->id]);
+        $audit->log('meeting.viewer_added', auth()->user(), $this->meeting, null, ['user_id' => $user->id, 'name' => $user->name]);
+    }
+
+    public function removeViewer(int $userId, \App\Services\AuditLogService $audit): void
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+        if ($this->meeting->viewers()->detach($userId) > 0) {
+            $audit->log('meeting.viewer_removed', auth()->user(), $this->meeting, ['user_id' => $userId], null);
+        }
+    }
+
+    /** @return list<string> names of non-admins who can open the meeting now */
+    private function whoHasAccess(MeetingPeople $people): array
+    {
+        return $people->users()
+            ->filter(fn (User $u) => ! $u->isAdmin() && $people->canView($u, $this->meeting))
+            ->pluck('name')
+            ->values()
+            ->all();
     }
 
     public function showAt(float $seconds): void
@@ -459,6 +504,56 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         {{-- Side column --}}
         <div class="space-y-4">
+            @if ($isAdmin)
+                <x-card data-ui="meeting-access">
+                    <h3 class="mb-2 text-sm font-semibold text-gray-900">{{ __('meetings.access') }}</h3>
+                    <div class="space-y-1.5">
+                        @foreach (\App\Models\Meeting::ACCESS_MODES as $mode)
+                            <label class="flex cursor-pointer items-start gap-2 text-sm">
+                                <input type="radio" name="access_mode" value="{{ $mode }}" @checked($meeting->access_mode === $mode)
+                                    wire:click="setAccessMode('{{ $mode }}')" class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                <span>
+                                    <span class="font-medium text-gray-900">{{ __('meetings.access_mode.'.$mode) }}</span>
+                                    <span class="block text-xs text-gray-500">{{ __('meetings.access_hint.'.$mode) }}</span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    @if ($meeting->access_mode !== \App\Models\Meeting::ACCESS_ADMINS)
+                        <div class="mt-3 border-t border-gray-100 pt-3">
+                            <div class="mb-1.5 text-xs font-medium text-gray-700">{{ __('meetings.viewers') }}</div>
+                            <div class="flex flex-wrap gap-1.5">
+                                @forelse ($viewers as $viewer)
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800 ring-1 ring-indigo-200" wire:key="viewer-{{ $viewer->id }}">
+                                        {{ $viewer->name }}
+                                        <button type="button" wire:click="removeViewer({{ $viewer->id }})" class="text-indigo-400 hover:text-red-600" title="{{ __('meetings.viewer_remove') }}">×</button>
+                                    </span>
+                                @empty
+                                    <span class="text-xs text-gray-400">{{ __('meetings.viewers_none') }}</span>
+                                @endforelse
+                            </div>
+                            <select wire:change="addViewer($event.target.value); $event.target.value = ''" class="mt-2 w-full rounded-md border-gray-200 py-1 pl-2 pr-7 text-xs">
+                                <option value="">{{ __('meetings.viewer_add') }}</option>
+                                @foreach ($users as $dept => $list)
+                                    <optgroup label="{{ $dept }}">
+                                        @foreach ($list as $u)
+                                            @unless ($u->isAdmin() || $viewers->contains('id', $u->id))
+                                                <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                            @endunless
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+
+                    <div class="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-600" data-ui="meeting-access-who">
+                        <span class="font-medium text-gray-700">{{ __('meetings.access_now') }}</span>
+                        {{ $accessWho ? implode(', ', $accessWho) : __('meetings.access_only_admins') }}
+                    </div>
+                </x-card>
+            @endif
             @if ($meeting->summary)
                 <x-card>
                     <h3 class="mb-2 text-sm font-semibold text-gray-900">{{ __('meetings.summary') }}</h3>

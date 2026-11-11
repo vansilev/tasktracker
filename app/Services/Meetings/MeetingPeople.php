@@ -140,11 +140,28 @@ class MeetingPeople
             ->all();
     }
 
-    /** Meetings are private: an admin, the organizer and the people who took part. */
+    /**
+     * Meetings are private. An admin always sees them; for everyone else the admin
+     * picks per meeting: participants (+ people let in by hand), only the people
+     * let in by hand, or admins only.
+     */
     public function canView(User $user, Meeting $meeting): bool
     {
         if ($user->isAdmin()) {
             return true;
+        }
+
+        $mode = $meeting->access_mode ?: Meeting::ACCESS_PARTICIPANTS;
+        if ($mode === Meeting::ACCESS_ADMINS) {
+            return false;
+        }
+
+        if ($meeting->viewers()->whereKey($user->id)->exists()) {
+            return true;
+        }
+
+        if ($mode === Meeting::ACCESS_SELECTED) {
+            return false;
         }
 
         return $this->organizer($meeting)?->id === $user->id
