@@ -4,6 +4,8 @@ use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\TelegramWebhookController;
+use App\Http\Middleware\EnsureCanViewMeetings;
+use App\Models\BillingItem;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -25,14 +27,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('tasks/create', 'pages.tasks.create')->name('tasks.create');
     Volt::route('tasks/{task}', 'pages.tasks.show')->name('tasks.show');
 
-    // Task 456: meetings from Fireflies; each page checks that the person may see the meeting.
-    Volt::route('meetings', 'pages.meetings.index')->name('meetings.index');
-    Volt::route('meetings/{meeting}', 'pages.meetings.show')->name('meetings.show');
+    // Task 456: meetings from Fireflies. The tab needs «view_meetings» (admins always have it);
+    // each page also checks that the person may see that meeting.
+    Route::middleware(EnsureCanViewMeetings::class)->group(function () {
+        Volt::route('meetings', 'pages.meetings.index')->name('meetings.index');
+        Volt::route('meetings/{meeting}', 'pages.meetings.show')->name('meetings.show');
+    });
 
     Route::middleware('billing')->group(function () {
         Volt::route('billing', 'pages.billing.index')->name('billing.index');
         Route::redirect('billing/create', '/billing')->name('billing.create');
-        Route::get('billing/{item}', function (\App\Models\BillingItem $item) {
+        Route::get('billing/{item}', function (BillingItem $item) {
             return redirect()->route('billing.index', ['item' => $item->id]);
         })->name('billing.show');
     });

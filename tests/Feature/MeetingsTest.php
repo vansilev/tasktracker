@@ -216,7 +216,7 @@ class MeetingsTest extends TestCase
     public function test_meetings_are_visible_only_to_participants_and_admins(): void
     {
         $dept = $this->createDepartment();
-        $role = $this->createRoleWithPermissions($this->defaultPermissions(), [$dept->id]);
+        $role = $this->createRoleWithPermissions([...$this->defaultPermissions(), 'view_meetings'], [$dept->id]);
         $admin = $this->createUserInDepartment($dept, 'Admin', SystemType::Admin);
         $participant = $this->createUserInDepartment($dept, 'Sergey Salamaha', role: $role);
         $stranger = $this->createUserInDepartment($dept, 'Stranger', role: $role);
@@ -230,10 +230,38 @@ class MeetingsTest extends TestCase
         $this->actingAs($stranger)->get('/meetings/'.$meeting->id)->assertForbidden();
     }
 
+    public function test_meetings_tab_needs_the_view_meetings_permission(): void
+    {
+        $dept = $this->createDepartment();
+        $without = $this->createRoleWithPermissions($this->defaultPermissions(), [$dept->id]);
+        $with = $this->createRoleWithPermissions([...$this->defaultPermissions(), 'view_meetings'], [$dept->id]);
+        $admin = $this->createUserInDepartment($dept, 'Admin', SystemType::Admin);
+        // Took part in the meeting, but the role does not open the tab.
+        $participant = $this->createUserInDepartment($dept, 'Sergey Salamaha', role: $without);
+        $allowed = $this->createUserInDepartment($dept, 'Allowed', role: $with);
+        $noRole = $this->createUserInDepartment($dept, 'No Role');
+        $meeting = $this->meeting();
+
+        $this->actingAs($participant)->get('/meetings')->assertForbidden();
+        $this->actingAs($participant)->get('/meetings/'.$meeting->id)->assertForbidden();
+        $this->actingAs($participant)->get('/tasks')->assertOk()->assertDontSee(route('meetings.index'), false);
+        $this->actingAs($noRole)->get('/meetings')->assertForbidden();
+
+        $this->actingAs($admin)->get('/tasks')->assertOk()->assertSee(route('meetings.index'), false);
+        $this->actingAs($allowed)->get('/tasks')->assertOk()->assertSee(route('meetings.index'), false);
+        $this->actingAs($allowed)->get('/meetings')->assertOk();
+        // The tab is open, but this meeting is not theirs.
+        $this->actingAs($allowed)->get('/meetings/'.$meeting->id)->assertForbidden();
+
+        // Granting the permission to the role opens the participant's own meeting.
+        $without->syncPermissions([...$this->defaultPermissions(), 'view_meetings']);
+        $this->actingAs($participant->fresh())->get('/meetings/'.$meeting->id)->assertOk();
+    }
+
     public function test_admin_restricts_access_per_meeting(): void
     {
         $dept = $this->createDepartment();
-        $role = $this->createRoleWithPermissions($this->defaultPermissions(), [$dept->id]);
+        $role = $this->createRoleWithPermissions([...$this->defaultPermissions(), 'view_meetings'], [$dept->id]);
         $admin = $this->createUserInDepartment($dept, 'Admin', SystemType::Admin);
         $participant = $this->createUserInDepartment($dept, 'Sergey Salamaha', role: $role);
         $guest = $this->createUserInDepartment($dept, 'Guest', role: $role);
@@ -284,7 +312,7 @@ class MeetingsTest extends TestCase
     public function test_only_admin_changes_access_and_others_do_not_see_the_access_card(): void
     {
         $dept = $this->createDepartment();
-        $role = $this->createRoleWithPermissions($this->defaultPermissions(), [$dept->id]);
+        $role = $this->createRoleWithPermissions([...$this->defaultPermissions(), 'view_meetings'], [$dept->id]);
         $participant = $this->createUserInDepartment($dept, 'Sergey Salamaha', role: $role);
         $guest = $this->createUserInDepartment($dept, 'Guest', role: $role);
         $meeting = $this->meeting();
@@ -301,7 +329,7 @@ class MeetingsTest extends TestCase
     public function test_only_admin_maps_people_and_mapping_reassigns_open_drafts(): void
     {
         $dept = $this->createDepartment();
-        $role = $this->createRoleWithPermissions($this->defaultPermissions(), [$dept->id]);
+        $role = $this->createRoleWithPermissions([...$this->defaultPermissions(), 'view_meetings'], [$dept->id]);
         $admin = $this->createUserInDepartment($dept, 'Admin', SystemType::Admin);
         $participant = $this->createUserInDepartment($dept, 'Sergey Salamaha', role: $role);
         $boris = $this->createUserInDepartment($dept, 'Somebody Else');
