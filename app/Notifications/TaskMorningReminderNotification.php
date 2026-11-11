@@ -4,7 +4,9 @@ namespace App\Notifications;
 
 use App\Models\User;
 use App\Services\TaskReminderService;
+use App\Services\TaskVisibilityService;
 use App\Support\TelegramReminderFormat as F;
+use App\Support\TelegramTaskCard;
 use App\Support\WorkCalendar;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -49,8 +51,27 @@ class TaskMorningReminderNotification extends Notification implements ShouldQueu
         /** @var User $notifiable */
         return TelegramMessage::create()
             ->parseMode('HTML')
-            ->options(['disable_web_page_preview' => true])
+            ->options(array_filter([
+                'disable_web_page_preview' => true,
+                'reply_markup' => $this->keyboard($notifiable),
+            ]))
             ->content($this->text($notifiable->preferredLocale()));
+    }
+
+    /**
+     * One task: its action buttons. Several: their numbers, a press sends that task's card.
+     * Buttons only invite; each press is checked again on the server.
+     */
+    private function keyboard(User $user): ?string
+    {
+        if (count($this->rows) > 1) {
+            $rows = TelegramTaskCard::listKeyboard($this->rows);
+        } else {
+            $task = app(TaskVisibilityService::class)->accessibleQuery($user)->whereKey($this->rows[0]['task_id'])->first();
+            $rows = $task === null ? [] : app(TelegramTaskCard::class)->keyboard($task, $user);
+        }
+
+        return $rows === [] ? null : json_encode(['inline_keyboard' => $rows], JSON_UNESCAPED_UNICODE);
     }
 
     /**
@@ -177,6 +198,7 @@ class TaskMorningReminderNotification extends Notification implements ShouldQueu
             );
         }
 
+        $blocks[] = e(__('notification.bot.pick_task', [], $locale));
         $blocks[] = F::link(route('tasks.index'), $t('all_tasks'));
 
         return F::join($blocks);

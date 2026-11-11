@@ -10,7 +10,9 @@ use Livewire\Volt\Volt;
 Route::redirect('/', '/login');
 
 Route::post('telegram/webhook', TelegramWebhookController::class)
-    ->middleware('throttle:60,1')
+    // Every request comes from Telegram's own addresses, so this limit is shared by everyone:
+    // button presses after the morning reminders must fit into it.
+    ->middleware('throttle:300,1')
     ->name('telegram.webhook');
 
 Volt::route('dashboard', 'pages.dashboard')
