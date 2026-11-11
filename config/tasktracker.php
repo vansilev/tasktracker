@@ -76,6 +76,7 @@ return [
     | "Work days" counters skip weekends only; public holidays are not tracked.
     */
     'reminder_enabled' => false,
+    'reminder_comment_notices' => true,
     'reminder_threshold_days' => [3, 1, 0],
     'reminder_morning_time' => '09:30',
     'reminder_digest_time' => '10:00',

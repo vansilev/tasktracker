@@ -22,6 +22,8 @@ new #[Layout('components.admin-layout')] class extends Component
 
     public bool $reminderEnabled = false;
 
+    public bool $reminderCommentNotices = true;
+
     public string $reminderThresholdDays = '3, 1, 0';
 
     public string $reminderMorningTime = '09:30';
@@ -66,6 +68,7 @@ new #[Layout('components.admin-layout')] class extends Component
     public function mount(SettingsService $settings, ReminderSettings $reminders): void
     {
         $this->reminderEnabled = $reminders->enabled();
+        $this->reminderCommentNotices = $reminders->commentNoticesEnabled();
         $this->reminderThresholdDays = implode(', ', $reminders->thresholdDays());
         $this->reminderMorningTime = $reminders->morningTime();
         $this->reminderDigestTime = $reminders->digestTime();
@@ -154,6 +157,7 @@ new #[Layout('components.admin-layout')] class extends Component
     {
         $this->validate([
             'reminderEnabled' => 'boolean',
+            'reminderCommentNotices' => 'boolean',
             'reminderThresholdDays' => ['required', 'string', 'regex:/^\s*\d{1,2}(\s*,\s*\d{1,2})*\s*$/'],
             'reminderMorningTime' => 'required|date_format:H:i',
             'reminderDigestTime' => 'required|date_format:H:i',
@@ -189,6 +193,7 @@ new #[Layout('components.admin-layout')] class extends Component
 
         $newValues = [
             'reminder_enabled' => $this->reminderEnabled,
+            'reminder_comment_notices' => $this->reminderCommentNotices,
             'reminder_threshold_days' => $this->intList(explode(',', $this->reminderThresholdDays), descending: true),
             'reminder_morning_time' => $this->reminderMorningTime,
             'reminder_digest_time' => $this->reminderDigestTime,
@@ -303,6 +308,14 @@ new #[Layout('components.admin-layout')] class extends Component
                 <span>
                     <span class="block text-sm font-medium text-gray-900">{{ __('Send morning deadline reminders') }}</span>
                     <span class="block text-xs text-gray-500">{{ __('Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.') }}</span>
+                </span>
+            </label>
+
+            <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3" data-ui="reminder-comment-notices">
+                <input type="checkbox" wire:model="reminderCommentNotices" class="mt-0.5 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                <span>
+                    <span class="block text-sm font-medium text-gray-900">{{ __('Send new comments personally') }}</span>
+                    <span class="block text-xs text-gray-500">{{ __('The assignee, the initiator and the watchers get each new comment in Telegram during working hours. Mentions are always sent while reminders are on.') }}</span>
                 </span>
             </label>
 

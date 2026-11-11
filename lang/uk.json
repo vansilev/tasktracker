@@ -405,5 +405,7 @@
     "From this day the task is back in deadline reminders.": "З цього дня завдання знову бере участь у нагадуваннях про строки.",
     "not set": "не вказана",
     "Send morning deadline reminders": "Надсилати ранкові нагадування про строки",
-    "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.": "Щоранку в робочі дні людина отримує одне повідомлення в Telegram зі своїми строками; прострочені завдання надходять керівнику відділу. Поки вимкнено, налаштування нижче не діють."
+    "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.": "Щоранку в робочі дні людина отримує одне повідомлення в Telegram зі своїми строками; прострочені завдання надходять керівнику відділу. Поки вимкнено, налаштування нижче не діють.",
+    "Send new comments personally": "Надсилати нові коментарі особисто",
+    "The assignee, the initiator and the watchers get each new comment in Telegram during working hours. Mentions are always sent while reminders are on.": "Виконавець, постановник і спостерігачі отримують кожен новий коментар у Telegram у робочий час. Згадки надходять завжди, поки нагадування ввімкнено."
 }

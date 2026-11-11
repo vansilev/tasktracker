@@ -126,6 +126,15 @@ class TaskDigestFormatter
             ];
         }
 
+        if (($digest['stuck'] ?? []) !== []) {
+            $format = app(CommentNoticeFormat::class);
+
+            $groups[] = [
+                $heading('🧍', 'group_stuck', count($digest['stuck'])),
+                array_map(fn (array $row) => $format->stuckParagraph($row['notice'], $row['work_days'], $locale), $digest['stuck']),
+            ];
+        }
+
         if ($digest['stale'] !== []) {
             $groups[] = [
                 '💤 <b>'.e(mb_strtoupper($t('group_stale', ['days' => $digest['stale_threshold']]))).' · '.count($digest['stale']).'</b>',

@@ -617,7 +617,10 @@ class MorningReminderTest extends TestCase
         $this->assertNotContains('telegram', $service->resolveChannels($this->assignee, 'task.deadline_approaching'));
         $this->assertNotContains('telegram', $service->resolveChannels($this->assignee, 'task.overdue'));
         $this->assertContains('database', $service->resolveChannels($this->assignee, 'task.overdue'));
-        $this->assertContains('telegram', $service->resolveChannels($this->assignee, 'task.commented'));
+        // Comments and mentions get their personal Telegram message from the comment notices instead.
+        $this->assertNotContains('telegram', $service->resolveChannels($this->assignee, 'task.commented'));
+        $this->assertNotContains('telegram', $service->resolveChannels($this->assignee, 'task.mentioned'));
+        $this->assertContains('telegram', $service->resolveChannels($this->assignee, 'task.assigned'));
 
         app(SettingsService::class)->set('reminder_enabled', false);
         $this->assertContains('telegram', app(TaskNotificationService::class)->resolveChannels($this->assignee, 'task.overdue'));

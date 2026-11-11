@@ -89,6 +89,11 @@ new class extends Component
             return $channel === 'telegram';
         }
 
+        // Comments and mentions reach a person in Telegram personally whatever the DM switch says.
+        if ($channel === 'telegram' && in_array($eventKey, ['task_mentioned', 'task_commented'], true)) {
+            return true;
+        }
+
         return $channel !== 'telegram' || $this->telegramDmEnabled();
     }
 

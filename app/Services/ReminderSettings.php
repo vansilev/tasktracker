@@ -11,6 +11,7 @@ class ReminderSettings
     /** @var list<string> */
     public const KEYS = [
         'reminder_enabled',
+        'reminder_comment_notices',
         'reminder_threshold_days',
         'reminder_morning_time',
         'reminder_digest_time',
@@ -35,6 +36,15 @@ class ReminderSettings
     public function enabled(): bool
     {
         return filter_var($this->settings->get('reminder_enabled', false), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Whether new comments (without a mention) are also sent personally to the assignee, the
+     * initiator and the watchers. Mentions are always sent while reminders are on.
+     */
+    public function commentNoticesEnabled(): bool
+    {
+        return filter_var($this->settings->get('reminder_comment_notices', true), FILTER_VALIDATE_BOOLEAN);
     }
 
     /**

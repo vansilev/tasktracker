@@ -66,6 +66,45 @@ class WorkCalendar
         return $count;
     }
 
+    /**
+     * When a message written now may go out: at once inside working hours, otherwise at the
+     * morning slot of the next working day (today's, if the day has not started yet).
+     */
+    public function nextSendMoment(?CarbonInterface $moment = null): Carbon
+    {
+        $moment = ($moment ? Carbon::instance($moment) : $this->now())->timezone($this->timezone());
+
+        if ($this->isWithinWorkHours($moment)) {
+            return $moment;
+        }
+
+        $day = $moment->copy()->startOfDay();
+
+        if (! $this->isWorkDay($day) || $moment->format('H:i') >= $this->settings->workEnd()) {
+            do {
+                $day->addDay();
+            } while (! $this->isWorkDay($day));
+        }
+
+        return $day->setTimeFromTimeString($this->settings->morningTime());
+    }
+
+    /**
+     * The same clock time $days working days later ("24 working hours" = one working day).
+     */
+    public function addWorkDays(CarbonInterface $moment, int $days): Carbon
+    {
+        $result = Carbon::instance($moment)->timezone($this->timezone());
+
+        for ($left = max(0, $days); $left > 0; $left--) {
+            do {
+                $result->addDay();
+            } while (! $this->isWorkDay($result));
+        }
+
+        return $result;
+    }
+
     private function day(CarbonInterface|string $date): Carbon
     {
         $day = is_string($date)

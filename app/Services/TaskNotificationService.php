@@ -66,6 +66,9 @@ class TaskNotificationService
 
         $this->sendTaskStatusChanged($task, $actor, $oldStatus, $newStatus, $recipients);
         $this->group->notifyStatusChanged($task, $actor, $oldStatus, $newStatus, $reasonExcerpt);
+
+        // Changing the status is a reaction: questions put to this person in the task are answered.
+        app(CommentNoticeService::class)->acknowledgeByActivity($task, $actor, 'status');
     }
 
     /**
@@ -110,6 +113,13 @@ class TaskNotificationService
         if (! $isEdit) {
             $this->group->notifyCommented($task, $actor, $excerpt, $mentioned, $repliedTo);
         }
+
+        // Personal Telegram: who is owed this comment, and which questions the author has just answered.
+        $notices = app(CommentNoticeService::class);
+        if (! $isEdit) {
+            $notices->acknowledgeByActivity($task, $actor, 'comment', $comment);
+        }
+        $notices->record($task, $comment, $actor, $mentioned, $isEdit);
     }
 
     public function notifyCommentReaction(Task $task, User $actor, TaskComment $comment, string $emoji): void
@@ -245,8 +255,11 @@ class TaskNotificationService
      */
     private function replacedByMorningReminder(string $event): bool
     {
-        return in_array($event, ['task.deadline_approaching', 'task.overdue'], true)
-            && app(ReminderSettings::class)->enabled();
+        return in_array($event, [
+            'task.deadline_approaching', 'task.overdue',
+            // Comments and mentions have their own personal Telegram path (CommentNoticeService).
+            'task.mentioned', 'task.commented', 'task.comment_replied',
+        ], true) && app(ReminderSettings::class)->enabled();
     }
 
     /**

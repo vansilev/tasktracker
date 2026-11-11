@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Enums\ContentSource;
 use App\Enums\TaskStatus;
+use App\Models\CommentNotice;
 use App\Models\DeadlineChangeRequest;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\CommentNoticeFormat;
 use App\Support\Deadline;
 use App\Support\TelegramReminderFormat as F;
 use App\Support\TelegramTaskCard;
@@ -134,6 +136,10 @@ class TelegramActionService
             return $this->decide($user, $id, $action === 'a', $chatId, $messageId);
         }
 
+        if (in_array($action, ['p', 'y'], true)) {
+            return $this->pressNotice($user, $id, $action === 'y', $chatId, $messageId);
+        }
+
         if (! in_array($action, ['o', 'k', 'm', 's', 'c', 'd'], true)) {
             return [$this->t($user, 'unknown'), true];
         }
@@ -161,6 +167,40 @@ class TelegramActionService
             'c' => $this->pressComment($user, $task, $chatId, $messageId),
             'd' => $this->pressDeadline($user, $task, $chatId, $messageId),
         };
+    }
+
+    /**
+     * Buttons under a comment or a mention: "Ответить" opens the comment question for that
+     * task, "Принял" closes the mention. Both only for the person the message was sent to.
+     *
+     * @return array{0: string, 1: bool}
+     */
+    private function pressNotice(User $user, int $noticeId, bool $acknowledge, string $chatId, int $messageId): array
+    {
+        $notice = CommentNotice::query()->with(['task', 'comment.author', 'user'])->whereKey($noticeId)->where('user_id', $user->id)->first();
+        $task = $notice === null ? null : $this->task($user, $notice->task_id);
+
+        if ($notice === null || $task === null || $notice->comment === null) {
+            return [__('notification.comments.notice_gone', [], $user->preferredLocale()), true];
+        }
+
+        if (! $acknowledge) {
+            return $this->pressComment($user, $task, $chatId, $messageId);
+        }
+
+        $done = app(CommentNoticeService::class)->acknowledgeByButton($notice, $user);
+        $notice->refresh();
+
+        if ($notice->kind === CommentNotice::KIND_MENTION && $notice->acknowledged_at !== null) {
+            // The buttons go, the message keeps the question and shows when it was acknowledged.
+            $this->bot->editMessage($chatId, $messageId, app(CommentNoticeFormat::class)->mention($notice, $user->preferredLocale(), $notice->acknowledged_at));
+        }
+
+        if ($done) {
+            $this->auditAction($user, $task, 'mention_acknowledged');
+        }
+
+        return [__('notification.comments.'.($done ? 'ack_done' : 'ack_already'), [], $user->preferredLocale()), false];
     }
 
     /** @return array{0: string, 1: bool} */

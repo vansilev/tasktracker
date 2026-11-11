@@ -405,5 +405,7 @@
     "From this day the task is back in deadline reminders.": "From this day the task is back in deadline reminders.",
     "not set": "not set",
     "Send morning deadline reminders": "Send morning deadline reminders",
-    "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.": "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used."
+    "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.": "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.",
+    "Send new comments personally": "Send new comments personally",
+    "The assignee, the initiator and the watchers get each new comment in Telegram during working hours. Mentions are always sent while reminders are on.": "The assignee, the initiator and the watchers get each new comment in Telegram during working hours. Mentions are always sent while reminders are on."
 }

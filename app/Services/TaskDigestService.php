@@ -108,6 +108,15 @@ class TaskDigestService
                 ->sortBy('name')
                 ->values()
                 ->all(),
+            'stuck' => app(CommentNoticeService::class)
+                ->stuckMentions($this->settings->mentionDigestWorkDays(), $now)
+                ->filter(fn ($notice) => $department === null || $notice->user?->department_id === $department->id)
+                ->map(fn ($notice) => [
+                    'notice' => $notice,
+                    'work_days' => $this->calendar->workDaysBetween($notice->created_at, $now),
+                ])
+                ->values()
+                ->all(),
             'stale_threshold' => $this->settings->staleWorkDays(),
             'previous' => $this->previousSnapshot($today, $department),
         ];
