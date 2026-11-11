@@ -25,6 +25,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('tasks/create', 'pages.tasks.create')->name('tasks.create');
     Volt::route('tasks/{task}', 'pages.tasks.show')->name('tasks.show');
 
+    // Task 456: meetings from Fireflies; each page checks that the person may see the meeting.
+    Volt::route('meetings', 'pages.meetings.index')->name('meetings.index');
+    Volt::route('meetings/{meeting}', 'pages.meetings.show')->name('meetings.show');
+
     Route::middleware('billing')->group(function () {
         Volt::route('billing', 'pages.billing.index')->name('billing.index');
         Route::redirect('billing/create', '/billing')->name('billing.create');
