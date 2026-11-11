@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\TaskReminder;
 use App\Models\User;
+use App\Services\ReminderSettings;
 use App\Support\TelegramReminderFormat as F;
 use App\Support\WorkCalendar;
 use Illuminate\Bus\Queueable;
@@ -43,7 +44,12 @@ class TaskEscalationNotification extends Notification implements ShouldQueue
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return $notifiable instanceof User && filled($notifiable->telegram_chat_id) ? ['telegram'] : [];
+        // The pilot list is checked again here, whatever queued this notification.
+        return $notifiable instanceof User
+            && filled($notifiable->telegram_chat_id)
+            && app(ReminderSettings::class)->allowsPersonalMessages($notifiable->id)
+                ? ['telegram']
+                : [];
     }
 
     public function toTelegram(object $notifiable): TelegramMessage

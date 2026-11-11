@@ -26,6 +26,7 @@ class ReminderSettings
         'reminder_digest_recipient_ids',
         'reminder_excluded_user_ids',
         'reminder_no_escalation_head_ids',
+        'reminder_pilot_user_ids',
     ];
 
     public function __construct(private SettingsService $settings) {}
@@ -137,6 +138,25 @@ class ReminderSettings
     public function noEscalationHeadIds(): array
     {
         return $this->intList('reminder_no_escalation_head_ids');
+    }
+
+    /**
+     * Pilot run: while this list is not empty, only these people get personal Telegram messages
+     * from the tracker. Everything else works as usual, the others are simply not written to.
+     *
+     * @return list<int>
+     */
+    public function pilotUserIds(): array
+    {
+        return $this->intList('reminder_pilot_user_ids');
+    }
+
+    /** Whether the tracker may write to this person in Telegram at all right now. */
+    public function allowsPersonalMessages(int $userId): bool
+    {
+        $pilot = $this->pilotUserIds();
+
+        return $pilot === [] || in_array($userId, $pilot, true);
     }
 
     /** @return list<int> */

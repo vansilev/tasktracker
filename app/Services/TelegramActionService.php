@@ -492,7 +492,7 @@ class TelegramActionService
         ], $approver->preferredLocale()), ContentSource::PlainText);
         $this->auditAction($user, $task, 'deadline_request', ['to' => $date]);
 
-        if (! filled($approver->telegram_chat_id)) {
+        if (! filled($approver->telegram_chat_id) || ! app(ReminderSettings::class)->allowsPersonalMessages($approver->id)) {
             $this->bot->sendMessage($chatId, e($this->t($user, 'deadline_request_no_telegram', ['name' => $approver->name])));
 
             return;
@@ -610,7 +610,10 @@ class TelegramActionService
 
         $requester = $request->requester;
 
-        if ($requester !== null && $requester->is_active && filled($requester->telegram_chat_id) && $requester->id !== $user->id) {
+        if (
+            $requester !== null && $requester->is_active && filled($requester->telegram_chat_id) && $requester->id !== $user->id
+            && app(ReminderSettings::class)->allowsPersonalMessages($requester->id)
+        ) {
             $this->bot->sendMessage((string) $requester->telegram_chat_id, $message($requester));
         }
 

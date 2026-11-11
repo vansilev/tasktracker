@@ -91,5 +91,6 @@ return [
     'reminder_digest_recipient_ids' => [],
     'reminder_excluded_user_ids' => [],
     'reminder_no_escalation_head_ids' => [],
+    'reminder_pilot_user_ids' => [],
 
 ];

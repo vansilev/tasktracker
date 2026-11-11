@@ -1,12 +1,16 @@
 @php
     /** @var \App\Models\User|null $user */
     $user = auth()->user();
+    $reminders = app(\App\Services\ReminderSettings::class);
+    // Shown only while it is true: with reminders off, or for someone outside the pilot, nothing would arrive anyway.
     $show = $user !== null
+        && $reminders->enabled()
+        && $reminders->allowsPersonalMessages($user->id)
         && $user->is_active
         && ! filled($user->telegram_chat_id)
         && filled(config('services.telegram.bot_username'))
         && ! app(\App\Services\BillingBot::class)->is($user)
-        && ! in_array($user->id, app(\App\Services\ReminderSettings::class)->excludedUserIds(), true)
+        && ! in_array($user->id, $reminders->excludedUserIds(), true)
         && ! request()->routeIs('profile');
 @endphp
 

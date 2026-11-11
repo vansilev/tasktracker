@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -21,6 +22,10 @@ class TelegramBotClient
      */
     public function sendMessage(string $chatId, string $html, ?array $keyboard = null): ?int
     {
+        if (! $this->mayWriteTo($chatId)) {
+            return null;
+        }
+
         $result = $this->call('sendMessage', $this->withKeyboard([
             'chat_id' => $chatId,
             'text' => $html,
@@ -38,6 +43,10 @@ class TelegramBotClient
      */
     public function sendPrompt(string $chatId, string $html): ?int
     {
+        if (! $this->mayWriteTo($chatId)) {
+            return null;
+        }
+
         $result = $this->call('sendMessage', [
             'chat_id' => $chatId,
             'text' => $html,
@@ -73,6 +82,27 @@ class TelegramBotClient
             'text' => mb_strimwidth($text, 0, 190, '…'),
             'show_alert' => $alert ?: null,
         ], fn ($value) => $value !== null && $value !== '')) !== null;
+    }
+
+    /**
+     * The last gate of the pilot run: while a pilot list is set, a new message goes only to a
+     * chat of somebody on it — whatever part of the tracker asked for it.
+     */
+    private function mayWriteTo(string $chatId): bool
+    {
+        $pilot = app(ReminderSettings::class)->pilotUserIds();
+
+        if ($pilot === []) {
+            return true;
+        }
+
+        $allowed = User::query()->whereIn('id', $pilot)->where('telegram_chat_id', $chatId)->exists();
+
+        if (! $allowed) {
+            Log::info('Telegram message held back by the pilot list: chat …'.substr($chatId, -4));
+        }
+
+        return $allowed;
     }
 
     /**

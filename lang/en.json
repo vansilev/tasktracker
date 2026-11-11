@@ -425,5 +425,7 @@
     "Morning reminders are switched off in the system settings: nobody gets them yet.": "Morning reminders are switched off in the system settings: nobody gets them yet.",
     "Nobody here.": "Nobody here.",
     "Nobody was notified for :names: no such person. Pick the name from the list after typing @.": "Nobody was notified for :names: no such person. Pick the name from the list after typing @.",
-    "Employee": "Employee"
+    "Employee": "Employee",
+    "Pilot: write only to these people": "Pilot: write only to these people",
+    "While anyone is ticked here, only they get personal Telegram messages. Leave empty to write to everyone.": "While anyone is ticked here, only they get personal Telegram messages. Leave empty to write to everyone."
 }

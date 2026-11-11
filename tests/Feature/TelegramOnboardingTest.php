@@ -33,6 +33,10 @@ class TelegramOnboardingTest extends TestCase
         $service = $this->createUserInDepartment($dept, 'Service', role: $role);
         app(SettingsService::class)->set('reminder_excluded_user_ids', [$service->id]);
 
+        // While reminders are off nothing would arrive anyway: no banner.
+        $this->actingAs($unlinked)->get('/tasks')->assertOk()->assertDontSee('data-ui="telegram-banner"', false);
+        app(SettingsService::class)->set('reminder_enabled', true);
+
         $this->actingAs($unlinked)->get('/tasks')
             ->assertOk()
             ->assertSee('data-ui="telegram-banner"', false)
@@ -43,6 +47,13 @@ class TelegramOnboardingTest extends TestCase
         $this->actingAs($unlinked)->get('/profile')->assertOk()->assertDontSee('data-ui="telegram-banner"', false);
         $this->actingAs($linked)->get('/tasks')->assertOk()->assertDontSee('data-ui="telegram-banner"', false);
         $this->actingAs($service)->get('/tasks')->assertOk()->assertDontSee('data-ui="telegram-banner"', false);
+
+        // During a pilot only the pilot people are asked to connect.
+        app(SettingsService::class)->set('reminder_pilot_user_ids', [$linked->id]);
+        $this->actingAs($unlinked)->get('/tasks')->assertOk()->assertDontSee('data-ui="telegram-banner"', false);
+        app(SettingsService::class)->set('reminder_pilot_user_ids', [$unlinked->id]);
+        $this->actingAs($unlinked)->get('/tasks')->assertOk()->assertSee('data-ui="telegram-banner"', false);
+        app(SettingsService::class)->set('reminder_pilot_user_ids', []);
 
         // No bot configured: nothing to connect to.
         config(['services.telegram.bot_username' => null]);

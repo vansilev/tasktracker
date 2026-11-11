@@ -160,6 +160,7 @@ class TaskReminderService
     public function telegramAllowed(User $user): bool
     {
         return filled($user->telegram_chat_id)
+            && $this->settings->allowsPersonalMessages($user->id)
             && $this->notifications->isChannelEnabled($user, self::EVENT, 'telegram');
     }
 

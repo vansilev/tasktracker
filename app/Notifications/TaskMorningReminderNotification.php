@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Services\ReminderSettings;
 use App\Services\TaskReminderService;
 use App\Services\TaskVisibilityService;
 use App\Support\TelegramReminderFormat as F;
@@ -43,7 +44,12 @@ class TaskMorningReminderNotification extends Notification implements ShouldQueu
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return $notifiable instanceof User && filled($notifiable->telegram_chat_id) ? ['telegram'] : [];
+        // The pilot list is checked again here, whatever queued this notification.
+        return $notifiable instanceof User
+            && filled($notifiable->telegram_chat_id)
+            && app(ReminderSettings::class)->allowsPersonalMessages($notifiable->id)
+                ? ['telegram']
+                : [];
     }
 
     public function toTelegram(object $notifiable): TelegramMessage

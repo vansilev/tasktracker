@@ -56,6 +56,9 @@ new #[Layout('components.admin-layout')] class extends Component
     /** @var list<int|string> */
     public array $reminderNoEscalationHeadIds = [];
 
+    /** @var list<int|string> */
+    public array $reminderPilotUserIds = [];
+
     /** @var list<string> */
     private const SETTING_KEYS = [
         'google_sso_enabled',
@@ -83,6 +86,7 @@ new #[Layout('components.admin-layout')] class extends Component
         $this->reminderDigestRecipientIds = $reminders->digestRecipientIds();
         $this->reminderExcludedUserIds = $reminders->excludedUserIds();
         $this->reminderNoEscalationHeadIds = $reminders->noEscalationHeadIds();
+        $this->reminderPilotUserIds = $reminders->pilotUserIds();
 
         $this->googleSsoEnabled = (bool) $settings->get('google_sso_enabled');
         $this->passwordLoginEnabled = (bool) $settings->get('password_login_enabled', true);
@@ -176,6 +180,8 @@ new #[Layout('components.admin-layout')] class extends Component
             'reminderExcludedUserIds.*' => 'integer|exists:users,id',
             'reminderNoEscalationHeadIds' => 'array',
             'reminderNoEscalationHeadIds.*' => 'integer|exists:users,id',
+            'reminderPilotUserIds' => 'array',
+            'reminderPilotUserIds.*' => 'integer|exists:users,id',
         ]);
 
         foreach (['reminderMorningTime', 'reminderDigestTime'] as $field) {
@@ -208,6 +214,7 @@ new #[Layout('components.admin-layout')] class extends Component
             'reminder_digest_recipient_ids' => $this->intList($this->reminderDigestRecipientIds),
             'reminder_excluded_user_ids' => $this->intList($this->reminderExcludedUserIds),
             'reminder_no_escalation_head_ids' => $this->intList($this->reminderNoEscalationHeadIds),
+            'reminder_pilot_user_ids' => $this->intList($this->reminderPilotUserIds),
         ];
 
         foreach ($newValues as $key => $value) {
@@ -391,11 +398,12 @@ new #[Layout('components.admin-layout')] class extends Component
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 @foreach ([
                     'reminderDigestRecipientIds' => [__('Daily digest recipients'), __('They receive the company-wide digest and escalations that have no department head to go to.')],
                     'reminderExcludedUserIds' => [__('Excluded from reminders'), __('Service accounts: no reminders, not shown as overdue people.')],
                     'reminderNoEscalationHeadIds' => [__('Heads who do not get escalations'), __('Their escalations go to the digest recipients instead.')],
+                    'reminderPilotUserIds' => [__('Pilot: write only to these people'), __('While anyone is ticked here, only they get personal Telegram messages. Leave empty to write to everyone.')],
                 ] as $listField => [$listTitle, $listHint])
                     <div>
                         <span class="block text-xs font-medium text-gray-700">{{ $listTitle }}</span>

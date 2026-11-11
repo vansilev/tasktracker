@@ -425,5 +425,7 @@
     "Morning reminders are switched off in the system settings: nobody gets them yet.": "Утренние напоминания выключены в системных настройках: пока их никто не получает.",
     "Nobody here.": "Никого нет.",
     "Nobody was notified for :names: no such person. Pick the name from the list after typing @.": "По :names никто не уведомлён: такого человека нет. Выберите имя из списка после ввода @.",
-    "Employee": "Сотрудник"
+    "Employee": "Сотрудник",
+    "Pilot: write only to these people": "Пилот: писать только этим людям",
+    "While anyone is ticked here, only they get personal Telegram messages. Leave empty to write to everyone.": "Пока здесь кто-то отмечен, личные сообщения в Telegram получают только они. Оставьте пустым, чтобы писать всем."
 }

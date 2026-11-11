@@ -153,6 +153,7 @@ class CommentNoticeService
     public function telegramAllowed(User $user, string $event): bool
     {
         return filled($user->telegram_chat_id)
+            && $this->settings->allowsPersonalMessages($user->id)
             && $this->notifications->isChannelEnabled($user, $event, 'telegram');
     }
 

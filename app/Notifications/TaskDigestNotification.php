@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Services\ReminderSettings;
 use App\Support\WorkCalendar;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -43,7 +44,12 @@ class TaskDigestNotification extends Notification implements ShouldQueue
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return $notifiable instanceof User && filled($notifiable->telegram_chat_id) ? ['telegram'] : [];
+        // A digest the person asked for (/svodka) is answered even outside the pilot list.
+        return $notifiable instanceof User
+            && filled($notifiable->telegram_chat_id)
+            && (! $this->scheduled || app(ReminderSettings::class)->allowsPersonalMessages($notifiable->id))
+                ? ['telegram']
+                : [];
     }
 
     public function toTelegram(object $notifiable): TelegramMessage
