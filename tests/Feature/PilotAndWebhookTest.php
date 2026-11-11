@@ -222,6 +222,40 @@ class PilotAndWebhookTest extends TestCase
         $this->assertSame(['message', 'callback_query'], json_decode($set['allowed_updates'], true));
         $this->assertSame(40, (int) $set['max_connections']);
         $this->assertArrayNotHasKey('drop_pending_updates', $set);
+
+        // The command menu: in a pilot only the pilot person gets one, with /svodka as a digest recipient.
+        $menus = collect($calls)->where(0, 'setMyCommands')->pluck(1)->values();
+        $this->assertCount(1, $menus);
+        $this->assertSame(['type' => 'chat', 'chat_id' => (int) $this->pilot->telegram_chat_id], json_decode($menus[0]['scope'], true));
+        $this->assertSame(['svodka', 'cancel'], array_column(json_decode($menus[0]['commands'], true), 'command'));
+
+        // Without a pilot: a common menu for private chats, and /svodka only for those it answers.
+        app(SettingsService::class)->set('reminder_pilot_user_ids', []);
+        $calls = [];
+        $this->artisan('telegram:set-webhook', ['--apply' => true])->assertSuccessful();
+        $menus = collect($calls)->where(0, 'setMyCommands')->pluck(1)->values();
+        $this->assertSame(['all_private_chats', 'chat', 'chat'], $menus->map(fn (array $m) => json_decode($m['scope'], true)['type'])->all());
+        $this->assertSame(['cancel'], array_column(json_decode($menus[0]['commands'], true), 'command'));
+    }
+
+    public function test_buttons_carry_colours_a_copy_button_and_a_tracker_link_only_for_a_public_address(): void
+    {
+        $card = app(\App\Support\TelegramTaskCard::class);
+        $rows = $card->keyboard($this->task->fresh(), $this->other);
+
+        $this->assertSame('primary', $rows[0][0]['style']);
+        $last = end($rows);
+        // The test address is plain http, so there is no link button — Telegram would refuse it.
+        $this->assertSame([['#'.$this->task->number]], [array_map(fn (array $b) => $b['copy_text']['text'], $last)]);
+
+        \Illuminate\Support\Facades\URL::forceRootUrl('https://task.example.test');
+        \Illuminate\Support\Facades\URL::forceScheme('https');
+        $last = \App\Support\TelegramTaskCard::linkRow($this->task, 'ru');
+        $this->assertSame('https://task.example.test/tasks/'.$this->task->id, $last[0]['url']);
+        $this->assertArrayHasKey('copy_text', $last[1]);
+
+        $menu = collect($card->statusMenu($this->task->fresh(), $this->pilot))->flatten(1);
+        $this->assertSame('danger', $menu->firstWhere('callback_data', 's:'.$this->task->id.':cancelled')['style'] ?? null);
     }
 
     public function test_webhook_command_refuses_a_foreign_address_and_a_missing_secret(): void

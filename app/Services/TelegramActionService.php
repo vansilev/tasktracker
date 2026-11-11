@@ -507,7 +507,7 @@ class TelegramActionService
                 F::taskLink($task->id, $task->number, (string) ($task->title ?: $task->plainDescription()), $approverLocale),
             ],
             [
-                '🎯 '.str_replace(['%1', '%2'], ['<b>'.e(F::weekdayDate($old, $approverLocale)), e(F::weekdayDate($date, $approverLocale)).'</b>'], e($b('deadline_request_line', [
+                '🎯 '.str_replace(['%1', '%2'], ['<s>'.e(F::weekdayDate($old, $approverLocale)).'</s>', '<b>'.e(F::weekdayDate($date, $approverLocale)).'</b>'], e($b('deadline_request_line', [
                     'name' => $user->name, 'old' => '%1', 'new' => '%2',
                 ]))),
                 '💬 '.e($b('reason')),
@@ -515,10 +515,13 @@ class TelegramActionService
             ],
             e($b('deadline_request_note')),
             F::link(route('tasks.show', $task), __('notification.open_task', [], $approverLocale)),
-        ]), [[
-            ['text' => $b('approve'), 'callback_data' => 'a:'.$request->id],
-            ['text' => $b('reject'), 'callback_data' => 'r:'.$request->id],
-        ]]);
+        ]), [
+            [
+                ['text' => $b('approve'), 'callback_data' => 'a:'.$request->id, 'style' => 'success'],
+                ['text' => $b('reject'), 'callback_data' => 'r:'.$request->id, 'style' => 'danger'],
+            ],
+            TelegramTaskCard::linkRow($task, $approverLocale),
+        ]);
 
         $this->bot->sendMessage($chatId, e($this->t($user, 'deadline_request_sent', [
             'name' => $approver->name, 'date' => F::weekdayDate($date, $locale),

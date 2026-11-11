@@ -94,7 +94,7 @@ class TelegramActionsTest extends TestCase
         $this->assertSame('HTML', $edit['parse_mode']);
         // The buttons now fit the new status.
         $this->assertSame(
-            [['🔍 На проверку'], ['💬 Комментарий', '🗓 Перенести срок'], ['⋯ Другой статус']],
+            [['🔍 На проверку'], ['💬 Комментарий', '🗓 Перенести срок'], ['⋯ Другой статус'], ['📋 Скопировать номер']],
             $this->buttonTexts($edit),
         );
         $this->assertSame('Статус изменён: Новая → В работе', $this->botCalls('answerCallbackQuery')[0]['text']);
@@ -107,7 +107,7 @@ class TelegramActionsTest extends TestCase
         // The assignee cannot accept their own work: the button does not exist and a forged press is refused.
         $this->press($this->assignee, 'o:'.$task->id)->assertOk();
         $card = $this->botCalls('sendMessage')[0];
-        $this->assertSame([['💬 Комментарий', '🗓 Перенести срок']], $this->buttonTexts($card));
+        $this->assertSame([['💬 Комментарий', '🗓 Перенести срок'], ['📋 Скопировать номер']], $this->buttonTexts($card));
 
         $this->press($this->assignee, 's:'.$task->id.':completed')->assertOk();
         $this->assertSame(TaskStatus::OnReview, $task->fresh()->status);
@@ -117,7 +117,7 @@ class TelegramActionsTest extends TestCase
 
         // The initiator can.
         $this->press($this->initiator, 'o:'.$task->id)->assertOk();
-        $this->assertSame([['✅ Принять'], ['💬 Комментарий', '🗓 Перенести срок'], ['⋯ Другой статус']], $this->buttonTexts(collect($this->botCalls('sendMessage'))->last()));
+        $this->assertSame([['✅ Принять'], ['💬 Комментарий', '🗓 Перенести срок'], ['⋯ Другой статус'], ['📋 Скопировать номер']], $this->buttonTexts(collect($this->botCalls('sendMessage'))->last()));
 
         $this->press($this->initiator, 'm:'.$task->id)->assertOk();
         $menu = collect($this->botCalls('editMessageText'))->last();
@@ -341,9 +341,9 @@ class TelegramActionsTest extends TestCase
 
         $toInitiator = collect($this->botCalls('sendMessage'))->firstWhere('chat_id', $this->initiator->telegram_chat_id);
         $this->assertStringStartsWith('🗓 <b>Просят перенести срок</b>', $toInitiator['text']);
-        $this->assertStringContainsString('🎯 Assignee просит: <b>пт, 13.11 → ср, 18.11</b>', $toInitiator['text']);
+        $this->assertStringContainsString('🎯 Assignee просит: <s>пт, 13.11</s> → <b>ср, 18.11</b>', $toInitiator['text']);
         $this->assertStringContainsString('<blockquote>Выгрузка придёт только в понедельник</blockquote>', $toInitiator['text']);
-        $this->assertSame([['✅ Согласовать', '❌ Отказать']], $this->buttonTexts($toInitiator));
+        $this->assertSame([['✅ Согласовать', '❌ Отказать'], ['📋 Скопировать номер']], $this->buttonTexts($toInitiator));
         $this->assertStringContainsString('Initiator решит, переносить ли срок на ср, 18.11', collect($this->botCalls('sendMessage'))->last()['text']);
 
         // A second request while the first is open is refused.
@@ -454,7 +454,7 @@ class TelegramActionsTest extends TestCase
 
         $single = (new TaskMorningReminderNotification('2026-11-11', [$row($task)]))->toTelegram($this->assignee)->toArray();
         $this->assertSame(
-            [['▶️ Взять в работу'], ['💬 Комментарий', '🗓 Перенести срок'], ['⋯ Другой статус']],
+            [['▶️ Взять в работу'], ['💬 Комментарий', '🗓 Перенести срок'], ['⋯ Другой статус'], ['📋 Скопировать номер']],
             $this->buttonTexts($single),
         );
         $this->assertSame('s:'.$task->id.':in_progress', json_decode($single['reply_markup'], true)['inline_keyboard'][0][0]['callback_data']);

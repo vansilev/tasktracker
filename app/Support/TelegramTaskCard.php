@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\Gate;
  * callback_data (64 bytes at most): o:{task} open the card · k:{task} back to the card ·
  * m:{task} status menu · s:{task}:{status} change status · c:{task} comment ·
  * d:{task} ask to move the deadline · a:{request} / r:{request} approve / decline it.
+ *
+ * Colours (Telegram's button "style"): blue for the step the person is expected to take, green
+ * for agreeing, red for what cancels or refuses. An app that does not know them shows plain buttons.
  */
 class TelegramTaskCard
 {
@@ -60,7 +63,7 @@ class TelegramTaskCard
     }
 
     /**
-     * @return list<list<array{text: string, callback_data: string}>>
+     * @return list<list<array<string, mixed>>>
      */
     public function keyboard(Task $task, User $user): array
     {
@@ -71,7 +74,7 @@ class TelegramTaskCard
         $main = collect(self::MAIN_STEPS)->first(fn (TaskStatus $status) => in_array($status, $allowed, true));
 
         if ($main !== null) {
-            $rows[] = [$this->statusButton($task, $main, $locale)];
+            $rows[] = [$this->statusButton($task, $main, $locale, 'primary')];
         }
 
         $second = array_values(array_filter([
@@ -91,6 +94,8 @@ class TelegramTaskCard
             $rows[] = [['text' => __('notification.bot.other_status', [], $locale), 'callback_data' => 'm:'.$task->id]];
         }
 
+        $rows[] = self::linkRow($task, $locale);
+
         return $rows;
     }
 
@@ -102,9 +107,15 @@ class TelegramTaskCard
     public function statusMenu(Task $task, User $user): array
     {
         $locale = $user->preferredLocale();
+        $allowed = $this->workflow->allowedTransitions($user, $task);
+        $main = collect(self::MAIN_STEPS)->first(fn (TaskStatus $status) => in_array($status, $allowed, true));
         $buttons = array_map(
-            fn (TaskStatus $status) => $this->statusButton($task, $status, $locale),
-            $this->workflow->allowedTransitions($user, $task),
+            fn (TaskStatus $status) => $this->statusButton($task, $status, $locale, match (true) {
+                in_array($status, [TaskStatus::Cancelled, TaskStatus::Rejected], true) => 'danger',
+                $status === $main => 'primary',
+                default => null,
+            }),
+            $allowed,
         );
 
         $rows = array_chunk($buttons, 2);
@@ -129,6 +140,24 @@ class TelegramTaskCard
         return array_chunk($buttons, 4);
     }
 
+    /**
+     * The row that leads out of Telegram: the task in the tracker and its number to the clipboard.
+     * Telegram refuses a link button that is not a public https address, so a local copy gets none.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function linkRow(Task $task, string $locale): array
+    {
+        $url = route('tasks.show', $task);
+
+        return array_values(array_filter([
+            str_starts_with($url, 'https://')
+                ? ['text' => __('notification.bot.open_in_tracker', [], $locale), 'url' => $url]
+                : null,
+            ['text' => __('notification.bot.copy_number', [], $locale), 'copy_text' => ['text' => '#'.$task->number]],
+        ]));
+    }
+
     /** Asking is for whoever does the work; the initiator simply changes the deadline. */
     public function canAskToMoveDeadline(Task $task, User $user): bool
     {
@@ -149,13 +178,14 @@ class TelegramTaskCard
         return __('notification.bot.'.$key, [], $locale);
     }
 
-    /** @return array{text: string, callback_data: string} */
-    private function statusButton(Task $task, TaskStatus $to, string $locale): array
+    /** @return array{text: string, callback_data: string, style?: string} */
+    private function statusButton(Task $task, TaskStatus $to, string $locale, ?string $style = null): array
     {
-        return [
+        return array_filter([
             'text' => $this->transitionLabel($task->status, $to, $locale),
             'callback_data' => 's:'.$task->id.':'.$to->value,
-        ];
+            'style' => $style,
+        ]);
     }
 
     private function deadlineDate(Task $task): string

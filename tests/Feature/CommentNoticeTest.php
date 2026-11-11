@@ -97,12 +97,12 @@ class CommentNoticeTest extends TestCase
         $this->assertStringStartsWith("📣 <b>Вас упомянули</b>\n<a href=", $toMax['text']);
         $this->assertStringContainsString("💬 Natalia, 12:31:\n<blockquote>@Max Какие столбцы нужны &amp; зачем?</blockquote>", $toMax['text']);
         $this->assertStringContainsString('👉 <b>Что нужно:</b> ответить или нажать «Принял»', $toMax['text']);
-        $this->assertSame([['💬 Ответить', '👍 Принял']], $this->buttonTexts($toMax));
+        $this->assertSame([['💬 Ответить', '👍 Принял'], ['📋 Скопировать номер']], $this->buttonTexts($toMax));
 
         $toIvan = $this->sentTo($this->assignee)[0];
         $this->assertStringStartsWith("💬 <b>Новый комментарий</b>\n<a href=", $toIvan['text']);
         $this->assertStringContainsString('🎯 Задача на вас · «В работе»', $toIvan['text']);
-        $this->assertSame([['💬 Ответить']], $this->buttonTexts($toIvan));
+        $this->assertSame([['💬 Ответить'], ['📋 Скопировать номер']], $this->buttonTexts($toIvan));
 
         $this->assertStringContainsString('👀 Вы наблюдатель — делать ничего не нужно', $this->sentTo($this->watcher)[0]['text']);
         // The author gets nothing; the mentioned person gets the mention only, not the comment as well.
@@ -163,7 +163,7 @@ class CommentNoticeTest extends TestCase
         $this->assertSame([['#'.$this->task->number, '#'.$other->number]], $this->buttonTexts($toIvan[0]));
 
         // The mention is always its own message, with buttons.
-        $this->assertSame([['💬 Ответить', '👍 Принял']], $this->buttonTexts($this->sentTo($this->max)[0]));
+        $this->assertSame([['💬 Ответить', '👍 Принял'], ['📋 Скопировать номер']], $this->buttonTexts($this->sentTo($this->max)[0]));
         // Olena watches one task and wrote one of the comments herself: three others, sent one by one.
         $this->assertCount(3, $this->sentTo($this->watcher));
     }
@@ -306,7 +306,7 @@ class CommentNoticeTest extends TestCase
         $reminder = $this->sentTo($this->max)[1];
         $this->assertStringStartsWith('🔔 <b>Ждут вашего ответа уже 1 рабочий день</b>', $reminder['text']);
         $this->assertStringContainsString("💬 Natalia, пт 13.11 в 12:31:\n<blockquote>@Max Когда будет отчёт?</blockquote>", $reminder['text']);
-        $this->assertSame([['💬 Ответить', '👍 Принял']], $this->buttonTexts($reminder));
+        $this->assertSame([['💬 Ответить', '👍 Принял'], ['📋 Скопировать номер']], $this->buttonTexts($reminder));
 
         // Reminded once only; the author hears about it after the second working day.
         $this->at('2026-11-16 17:00');

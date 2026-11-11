@@ -149,7 +149,10 @@ class CommentNoticeSender
 
                 $this->deliver(collect([$item]), $stats, fn (string $locale) => [
                     $this->format->comment($item['notice'], $item['role'], $locale),
-                    [[['text' => __('notification.comments.reply', [], $locale), 'callback_data' => 'p:'.$item['notice']->id]]],
+                    [
+                        [['text' => __('notification.comments.reply', [], $locale), 'callback_data' => 'p:'.$item['notice']->id, 'style' => 'primary']],
+                        ...$this->linkRows($item['notice'], $locale),
+                    ],
                 ]);
             }
         }
@@ -350,13 +353,22 @@ class CommentNoticeSender
         return null;
     }
 
-    /** @return list<list<array{text: string, callback_data: string}>> */
+    /** @return list<list<array<string, mixed>>> */
     private function mentionKeyboard(CommentNotice $notice, string $locale): array
     {
-        return [[
-            ['text' => __('notification.comments.reply', [], $locale), 'callback_data' => 'p:'.$notice->id],
-            ['text' => __('notification.comments.ack', [], $locale), 'callback_data' => 'y:'.$notice->id],
-        ]];
+        return [
+            [
+                ['text' => __('notification.comments.reply', [], $locale), 'callback_data' => 'p:'.$notice->id, 'style' => 'primary'],
+                ['text' => __('notification.comments.ack', [], $locale), 'callback_data' => 'y:'.$notice->id, 'style' => 'success'],
+            ],
+            ...$this->linkRows($notice, $locale),
+        ];
+    }
+
+    /** @return list<list<array<string, mixed>>> */
+    private function linkRows(CommentNotice $notice, string $locale): array
+    {
+        return $notice->task === null ? [] : [TelegramTaskCard::linkRow($notice->task, $locale)];
     }
 
     private function withinGrace(CommentNotice $notice, CarbonInterface $now): bool

@@ -2,13 +2,16 @@
 
 namespace App\Console\Commands;
 
+use App\Models\User;
+use App\Services\ReminderSettings;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
 /**
  * Registers the bot's webhook so that Telegram also sends button presses. Without --apply it
- * only shows what is registered now and what would change.
+ * only shows what is registered now and what would change. With --apply it also sets the bot's
+ * command menu (the "Menu" button next to the input field) in private chats.
  */
 class SetTelegramWebhook extends Command
 {
@@ -42,6 +45,9 @@ class SetTelegramWebhook extends Command
 
         $this->line('Now:     '.$this->describe($current));
         $this->line('Planned: url='.$url.' allowed_updates='.json_encode(self::ALLOWED_UPDATES));
+
+        $menus = $this->menus();
+        $this->line('Menu:    '.collect($menus)->map(fn (array $menu) => $menu['label'].' → /'.implode(' /', array_column($menu['commands'], 'command')))->implode('; '));
 
         $currentUrl = (string) ($current['url'] ?? '');
 
@@ -82,7 +88,61 @@ class SetTelegramWebhook extends Command
 
         $ok ? $this->info('Webhook registered.') : $this->error('The webhook does not look as planned — check the line above.');
 
+        // The menu is a convenience: a failure here is reported but does not undo the webhook.
+        foreach ($ok ? $menus : [] as $menu) {
+            $set = $this->call_('setMyCommands', $token, [
+                'commands' => json_encode($menu['commands'], JSON_UNESCAPED_UNICODE),
+                'scope' => json_encode($menu['scope']),
+            ]);
+            $this->line('Menu '.$menu['label'].': '.($set === null ? 'NOT set' : 'set'));
+        }
+
         return $ok ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Who gets which command menu. /svodka is offered only to those it answers (administrators
+     * and digest recipients). During a pilot only the pilot people get a menu at all, so nobody
+     * else sees a change in their chat with the bot.
+     *
+     * @return list<array{label: string, scope: array<string, mixed>, commands: list<array{command: string, description: string}>}>
+     */
+    private function menus(): array
+    {
+        $settings = app(ReminderSettings::class);
+        $pilot = $settings->pilotUserIds();
+        $recipients = $settings->digestRecipientIds();
+        $command = fn (string $name, string $locale) => [
+            'command' => $name,
+            'description' => __('notification.bot.command_'.$name, [], $locale),
+        ];
+
+        $menus = $pilot === [] ? [[
+            'label' => 'all private chats',
+            'scope' => ['type' => 'all_private_chats'],
+            'commands' => [$command('cancel', (string) config('app.locale'))],
+        ]] : [];
+
+        $people = User::query()->where('is_active', true)->whereNotNull('telegram_chat_id')->orderBy('id')->get()
+            ->filter(fn (User $user) => $pilot === [] || in_array($user->id, $pilot, true));
+
+        foreach ($people as $user) {
+            $digest = $user->isAdmin() || in_array($user->id, $recipients, true);
+
+            // Outside a pilot the common menu already covers those without /svodka.
+            if (! $digest && $pilot === []) {
+                continue;
+            }
+
+            $locale = $user->preferredLocale();
+            $menus[] = [
+                'label' => 'user '.$user->id,
+                'scope' => ['type' => 'chat', 'chat_id' => (int) $user->telegram_chat_id],
+                'commands' => array_values(array_filter([$digest ? $command('svodka', $locale) : null, $command('cancel', $locale)])),
+            ];
+        }
+
+        return $menus;
     }
 
     /** @param  array<string, mixed>  $info */
