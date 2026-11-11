@@ -113,7 +113,7 @@ trait FormatsTaskNotificationMessage
         return $this->localizedLine($notifiable, 'notification.task_deadline_approaching', [
             'number' => $task->number,
             'title' => $task->title,
-            'deadline' => $this->formatDateTime($task->deadline, $notifiable),
+            'deadline' => \App\Support\Deadline::format($task->deadline),
         ]);
     }
 
@@ -122,7 +122,7 @@ trait FormatsTaskNotificationMessage
         return $this->localizedLine($notifiable, 'notification.task_overdue', [
             'number' => $task->number,
             'title' => $task->title,
-            'deadline' => $this->formatDateTime($task->deadline, $notifiable),
+            'deadline' => \App\Support\Deadline::format($task->deadline),
         ]);
     }
 

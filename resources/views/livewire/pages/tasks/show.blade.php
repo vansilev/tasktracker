@@ -96,6 +96,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public string $transitionComment = '';
 
+    public string $postponedUntil = '';
+
     public ?string $transitionError = null;
 
     public bool $editingWatchers = false;
@@ -335,6 +337,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         if (TaskStatus::requiresComment($target, $this->task->status)) {
             $this->pendingTransition = $status;
             $this->transitionComment = '';
+            $this->postponedUntil = '';
 
             return;
         }
@@ -346,17 +349,22 @@ new #[Layout('components.tasks-layout')] class extends Component
     {
         $this->validate([
             'transitionComment' => ['required', 'string', new PlainTextLength(min: 1, max: 20000)],
+            'postponedUntil' => $this->pendingTransition === TaskStatus::Postponed->value
+                ? ['required', 'date_format:Y-m-d', 'after:today']
+                : ['nullable'],
         ], [], [
             'transitionComment' => __('Transition comment'),
+            'postponedUntil' => __('Return date'),
         ]);
 
-        $this->performTransition($this->pendingTransition, $this->transitionComment);
+        $this->performTransition($this->pendingTransition, $this->transitionComment, $this->postponedUntil);
     }
 
     public function cancelTransition(): void
     {
         $this->pendingTransition = null;
         $this->transitionComment = '';
+        $this->postponedUntil = '';
         $this->transitionError = null;
     }
 
@@ -366,7 +374,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->task->refresh();
     }
 
-    private function performTransition(?string $status, ?string $comment = null): void
+    private function performTransition(?string $status, ?string $comment = null, ?string $postponedUntil = null): void
     {
         if ($status === null) {
             return;
@@ -378,10 +386,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                 auth()->user(),
                 TaskStatus::from($status),
                 $comment,
+                postponedUntil: $postponedUntil,
             );
 
             $this->pendingTransition = null;
             $this->transitionComment = '';
+            $this->postponedUntil = '';
             $this->transitionError = null;
             $this->js(app(TaskWorkflowService::class)->undoToastScript(
                 __('Status changed to :status', ['status' => TaskStatus::from($status)->label()]),
@@ -983,36 +993,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     /** @return array{text: string, class: string} */
     public function deadlineMeta(): array
     {
-        if ($this->task->deadline === null) {
-            return ['text' => '—', 'class' => 'text-gray-700'];
-        }
-
-        $deadline = $this->task->deadline->timezone(config('app.timezone'));
-        $formatted = $deadline->format('d.m.Y');
-
-        if (! $this->task->status->isOpen()) {
-            return ['text' => $formatted, 'class' => 'text-gray-700'];
-        }
-
-        $now = now()->timezone(config('app.timezone'));
-
-        if ($deadline->isPast()) {
-            $days = (int) $deadline->diffInDays($now);
-
-            return [
-                'text' => __(':date (overdue :count days)', ['date' => $formatted, 'count' => $days]),
-                'class' => 'text-red-600 font-medium',
-            ];
-        }
-
-        if ((int) $now->diffInDays($deadline) <= 3) {
-            return [
-                'text' => $deadline->diffForHumans(),
-                'class' => 'text-amber-600 font-medium',
-            ];
-        }
-
-        return ['text' => $formatted, 'class' => 'text-gray-700'];
+        return \App\Support\Deadline::meta($this->task);
     }
 }; ?>
 
@@ -1152,6 +1133,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                     :aria-label="__('Transition comment')"
                 />
                 <x-input-error :messages="$errors->get('transitionComment')" class="mt-1" />
+                @if ($pendingTransition === \App\Enums\TaskStatus::Postponed->value)
+                    <div data-ui="postponed-until">
+                        <x-input-label for="postponedUntil" :value="__('Return date')" class="text-xs" />
+                        <x-text-input wire:model="postponedUntil" id="postponedUntil" type="date" min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}" class="mt-1 text-sm" required />
+                        <p class="mt-1 text-xs text-amber-900/70">{{ __('From this day the task is back in deadline reminders.') }}</p>
+                        <x-input-error :messages="$errors->get('postponedUntil')" class="mt-1" />
+                    </div>
+                @endif
                 <div class="flex flex-wrap gap-2">
                     <x-action-button variant="primary" type="submit">
                         {{ __('task.confirm_transition') }}: {{ $this->transitionLabel(\App\Enums\TaskStatus::from($pendingTransition)) }}
@@ -1495,6 +1484,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <dt class="text-xs text-gray-500">{{ __('Deadline') }}</dt>
                             <dd class="text-sm {{ $deadline['class'] }}">{{ $deadline['text'] }}</dd>
                         </div>
+                        @if ($task->status === \App\Enums\TaskStatus::Postponed)
+                            <div data-ui="postponed-until-value">
+                                <dt class="text-xs text-gray-500">{{ __('Return date') }}</dt>
+                                <dd class="text-sm text-gray-700">{{ $task->postponed_until?->format('d.m.Y') ?? __('not set') }}</dd>
+                            </div>
+                        @endif
                         <div>
                             <dt class="text-xs text-gray-500">{{ __('Created at') }}</dt>
                             <dd class="text-sm text-gray-700">{{ $task->created_at->timezone(config('app.timezone'))->format('d.m.Y H:i') }}</dd>

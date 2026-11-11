@@ -103,6 +103,7 @@ class TaskWorkflowService
         TaskStatus $to,
         ?string $comment = null,
         ContentSource $commentSource = ContentSource::Editor,
+        ?string $postponedUntil = null,
     ): array {
         if (! Gate::forUser($user)->allows('transitionTo', [$task, $to])) {
             throw new AuthorizationException;
@@ -121,10 +122,18 @@ class TaskWorkflowService
             throw new InvalidArgumentException(__('task.comment_required'));
         }
 
+        $returnDate = $to === TaskStatus::Postponed ? $this->postponedUntilDate($postponedUntil) : null;
+
         $reasonExcerpt = null;
 
-        DB::transaction(function () use ($task, $user, $to, $from, $comment, $commentSource, &$reasonExcerpt) {
+        DB::transaction(function () use ($task, $user, $to, $from, $comment, $commentSource, $returnDate, &$reasonExcerpt) {
             $updates = ['status' => $to];
+            $oldReturnDate = $task->postponed_until?->toDateString();
+
+            // The return date lives only while the task is postponed.
+            if ($oldReturnDate !== $returnDate) {
+                $updates['postponed_until'] = $returnDate;
+            }
 
             if ($to === TaskStatus::Completed) {
                 $updates['completed_at'] = now();
@@ -161,11 +170,17 @@ class TaskWorkflowService
 
             $this->logHistory($task, 'status', $from->value, $to->value, $user);
 
-            $this->audit->log('task.status_changed', $user, $task, [
+            if ($oldReturnDate !== $returnDate) {
+                $this->logHistory($task, 'postponed_until', $oldReturnDate, $returnDate, $user);
+            }
+
+            $this->audit->log('task.status_changed', $user, $task, array_filter([
                 'status' => $from->value,
-            ], [
+                'postponed_until' => $oldReturnDate,
+            ]), array_filter([
                 'status' => $to->value,
-            ]);
+                'postponed_until' => $returnDate,
+            ]));
         });
 
         $this->notifications->notifyStatusChanged($task->fresh(), $user, $from, $to, $reasonExcerpt);
@@ -231,7 +246,33 @@ class TaskWorkflowService
         return 'task-status-undo:'.$token;
     }
 
-    /** @return array{completed_at: ?string, closed_by: mixed, review_due_at: ?string, rework_count: int} */
+    /**
+     * A task goes to "postponed" only with the day it comes back: a real date, later than today (Kyiv).
+     */
+    private function postponedUntilDate(?string $value): string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            throw new InvalidArgumentException(__('task.postponed_until_required'));
+        }
+
+        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1
+            ? Carbon::createFromFormat('!Y-m-d', $value, config('app.timezone'))
+            : false;
+
+        if ($date === false || $date->format('Y-m-d') !== $value) {
+            throw new InvalidArgumentException(__('task.postponed_until_invalid'));
+        }
+
+        if ($value <= now()->timezone(config('app.timezone'))->format('Y-m-d')) {
+            throw new InvalidArgumentException(__('task.postponed_until_future'));
+        }
+
+        return $value;
+    }
+
+    /** @return array{completed_at: ?string, closed_by: mixed, review_due_at: ?string, rework_count: int, postponed_until: ?string} */
     private function statusSnapshot(Task $task): array
     {
         return [
@@ -239,6 +280,7 @@ class TaskWorkflowService
             'closed_by' => $task->closed_by,
             'review_due_at' => $task->review_due_at?->toIso8601String(),
             'rework_count' => (int) $task->rework_count,
+            'postponed_until' => $task->postponed_until?->toDateString(),
         ];
     }
 
@@ -274,6 +316,8 @@ class TaskWorkflowService
                     ? Carbon::parse($snapshot['review_due_at'])
                     : null,
                 'rework_count' => (int) ($snapshot['rework_count'] ?? $task->rework_count),
+                // Undo tokens issued before this field existed carry no key: the date is then cleared.
+                'postponed_until' => $from === TaskStatus::Postponed ? ($snapshot['postponed_until'] ?? null) : null,
             ]);
 
             $this->logHistory($task, 'status', $to->value, $from->value, $user);

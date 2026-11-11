@@ -51,7 +51,7 @@ class CreateTaskTool extends Tool
             'category_id' => $schema->integer(),
             'assignee_email' => $schema->string()->description('Executor email. Omit for auto-assign.'),
             'priority' => $schema->integer()->description('1–10, default 5. Urgent is >= 9.'),
-            'deadline' => $schema->string()->description('Date or datetime.'),
+            'deadline' => $schema->string()->description('Due date, YYYY-MM-DD. The task is due by the end of that day, 23:59 Europe/Kyiv; a time of day is ignored.'),
             'spec_url' => $schema->string(),
             'checklist' => $schema->array()->items($schema->string())->description('Checklist item texts.'),
             'watcher_emails' => $schema->array()->items($schema->string()),

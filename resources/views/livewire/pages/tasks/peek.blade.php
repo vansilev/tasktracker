@@ -17,6 +17,8 @@ new class extends Component
 
     public string $comment = '';
 
+    public string $postponedUntil = '';
+
     public function with(): array
     {
         $task = $this->task();
@@ -49,6 +51,7 @@ new class extends Component
         if (TaskStatus::requiresComment($target, $task->status)) {
             $this->pendingStatus = $status;
             $this->comment = '';
+            $this->postponedUntil = '';
 
             return;
         }
@@ -62,14 +65,18 @@ new class extends Component
         abort_unless($task && $this->pendingStatus, 404);
         $this->validate([
             'comment' => 'required|string|min:1|max:20000',
-        ]);
-        $this->runTransition($task, TaskStatus::from($this->pendingStatus), $this->comment);
+            'postponedUntil' => $this->pendingStatus === TaskStatus::Postponed->value
+                ? 'required|date_format:Y-m-d|after:today'
+                : 'nullable',
+        ], [], ['postponedUntil' => __('Return date')]);
+        $this->runTransition($task, TaskStatus::from($this->pendingStatus), $this->comment, $this->postponedUntil);
     }
 
     public function cancelTransition(): void
     {
         $this->pendingStatus = null;
         $this->comment = '';
+        $this->postponedUntil = '';
     }
 
     #[On('task-peek-updated')]
@@ -77,9 +84,10 @@ new class extends Component
     {
         $this->pendingStatus = null;
         $this->comment = '';
+        $this->postponedUntil = '';
     }
 
-    private function runTransition(Task $task, TaskStatus $to, ?string $comment = null): void
+    private function runTransition(Task $task, TaskStatus $to, ?string $comment = null, ?string $postponedUntil = null): void
     {
         try {
             $undo = app(TaskWorkflowService::class)->transition(
@@ -88,9 +96,11 @@ new class extends Component
                 $to,
                 $comment,
                 ContentSource::PlainText,
+                $postponedUntil,
             );
             $this->pendingStatus = null;
             $this->comment = '';
+            $this->postponedUntil = '';
             $this->js(app(TaskWorkflowService::class)->undoToastScript(
                 __('Status changed to :status', ['status' => $to->label()]),
                 auth()->user(),
@@ -174,6 +184,13 @@ new class extends Component
                 <form wire:submit="confirmTransition" class="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <p class="text-xs font-medium text-amber-900">{{ __('Add a comment for this status change') }}</p>
                     <textarea wire:model="comment" rows="3" class="w-full rounded-md border-gray-200 text-sm" required></textarea>
+                    @if ($pendingStatus === \App\Enums\TaskStatus::Postponed->value)
+                        <label class="block text-xs text-amber-900" data-ui="postponed-until">
+                            {{ __('Return date') }}
+                            <input type="date" wire:model="postponedUntil" min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}" class="mt-1 block rounded-md border-gray-200 text-sm" required>
+                        </label>
+                        <x-input-error :messages="$errors->get('postponedUntil')" />
+                    @endif
                     <div class="flex gap-2">
                         <x-action-button variant="primary" type="submit">{{ __('Confirm') }}</x-action-button>
                         <x-action-button variant="ghost" type="button" wire:click="cancelTransition">{{ __('Cancel') }}</x-action-button>

@@ -30,10 +30,10 @@ class InAppNotification
             'task.comment_replied' => __('notification.task_comment_replied', $params),
             'task.comment_reacted' => __('notification.task_comment_reacted', $params),
             'task.deadline_approaching' => __('notification.task_deadline_approaching', array_merge($params, [
-                'deadline' => self::formatDateTime($data['deadline'] ?? null),
+                'deadline' => Deadline::format(is_string($data['deadline'] ?? null) ? $data['deadline'] : null),
             ])),
             'task.overdue' => __('notification.task_overdue', array_merge($params, [
-                'deadline' => self::formatDateTime($data['deadline'] ?? null),
+                'deadline' => Deadline::format(is_string($data['deadline'] ?? null) ? $data['deadline'] : null),
             ])),
             'task.review_sla_expired' => __('notification.task_review_sla_expired', array_merge($params, [
                 'review_due_at' => self::formatDateTime($data['review_due_at'] ?? null),

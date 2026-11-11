@@ -10,6 +10,7 @@ use App\Models\Category;
 use App\Models\Department;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\Deadline;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -174,7 +175,8 @@ class ExcelTaskImportService
             ? $this->resolveDepartmentHeadAssignee($initiatorDepartment)
             : $this->resolveAssignee();
 
-        $deadline = $this->parseDate($sheet->getCell([7, $row])->getValue());
+        // Excel date cells come out as midnight UTC; Deadline keeps the date as written.
+        $deadline = Deadline::normalize($this->parseExcelDeadline($sheet->getCell([7, $row])->getValue()));
         $createdAt = $this->parseDate($sheet->getCell([2, $row])->getValue()) ?? now();
         $specUrl = $this->normalizeUrl($sheet->getCell([10, $row])->getValue());
         $resultUrl = $this->normalizeUrl($sheet->getCell([11, $row])->getValue());
@@ -454,6 +456,15 @@ class ExcelTaskImportService
         }
 
         return $this->fallbackUser;
+    }
+
+    private function parseExcelDeadline(mixed $value): ?Carbon
+    {
+        if (is_numeric($value)) {
+            return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
+        }
+
+        return $this->parseDate($value);
     }
 
     private function parseDate(mixed $value): ?Carbon

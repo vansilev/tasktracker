@@ -44,6 +44,7 @@ return [
         'category_id' => 'Category',
         'priority' => 'Priority',
         'deadline' => 'Deadline',
+        'postponed_until' => 'Return date',
         'spec_url' => 'Spec URL',
         'result_url' => 'Result URL',
         'is_active' => 'Active',

@@ -163,6 +163,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public string $bulkComment = '';
 
+    public string $bulkPostponedUntil = '';
+
     public string $savedFilterName = '';
 
     public ?int $activeSavedFilterId = null;
@@ -172,6 +174,8 @@ new #[Layout('components.tasks-layout')] class extends Component
     public ?string $pendingKanbanStatus = null;
 
     public string $kanbanComment = '';
+
+    public string $kanbanPostponedUntil = '';
 
     public string $pendingKanbanTaskLabel = '';
 
@@ -606,6 +610,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             $this->pendingKanbanTaskLabel = '#'.$task->number.' · '.($task->title ?: $task->plainDescription());
             $this->pendingKanbanToLabel = $target->label();
             $this->kanbanComment = '';
+            $this->kanbanPostponedUntil = '';
 
             return;
         }
@@ -629,7 +634,14 @@ new #[Layout('components.tasks-layout')] class extends Component
             return;
         }
 
-        $this->applyKanbanTransition($task, $target, $comment);
+        if ($target === TaskStatus::Postponed && ($error = $this->postponedUntilError($this->kanbanPostponedUntil)) !== null) {
+            // Keep the dialog open: the person fixes the date instead of dragging the card again.
+            $this->js('window.uiToast('.json_encode($error).')');
+
+            return;
+        }
+
+        $this->applyKanbanTransition($task, $target, $comment, $this->kanbanPostponedUntil);
         $this->clearKanbanPrompt();
     }
 
@@ -645,9 +657,28 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->pendingKanbanTaskLabel = '';
         $this->pendingKanbanToLabel = '';
         $this->kanbanComment = '';
+        $this->kanbanPostponedUntil = '';
     }
 
-    private function applyKanbanTransition(Task $task, TaskStatus $target, ?string $comment): void
+    /** The same rule the workflow enforces, checked up front so a dialog can stay open. */
+    private function postponedUntilError(string $value): ?string
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return __('task.postponed_until_required');
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
+            return __('task.postponed_until_invalid');
+        }
+
+        return $value <= now()->timezone(config('app.timezone'))->format('Y-m-d')
+            ? __('task.postponed_until_future')
+            : null;
+    }
+
+    private function applyKanbanTransition(Task $task, TaskStatus $target, ?string $comment, ?string $postponedUntil = null): void
     {
         try {
             $undo = app(TaskWorkflowService::class)->transition(
@@ -656,6 +687,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                 $target,
                 $comment,
                 ContentSource::PlainText,
+                $postponedUntil,
             );
             $this->js(app(TaskWorkflowService::class)->undoToastScript(
                 __('Status changed to :status', ['status' => $target->label()]),
@@ -768,7 +800,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     }
 
     #[On('task-quick-transition')]
-    public function quickTransition(int $taskId, string $status, ?string $comment = null): void
+    public function quickTransition(int $taskId, string $status, ?string $comment = null, ?string $postponedUntil = null): void
     {
         $task = $this->accessibleTask($taskId);
         $target = TaskStatus::from($status);
@@ -780,6 +812,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                 $target,
                 $comment,
                 ContentSource::PlainText,
+                $postponedUntil,
             );
             $this->js(app(TaskWorkflowService::class)->undoToastScript(
                 __('Status changed to :status', ['status' => $target->label()]),
@@ -832,6 +865,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     ? __('task.reopen')
                     : $status->label(),
                 'needsComment' => TaskStatus::requiresComment($status, $task->status),
+                'needsDate' => $status === TaskStatus::Postponed,
                 'destructive' => in_array($status, [TaskStatus::Rejected, TaskStatus::Cancelled], true),
             ])
             ->values()
@@ -961,6 +995,13 @@ new #[Layout('components.tasks-layout')] class extends Component
             return;
         }
 
+        if ($target === TaskStatus::Postponed && ($error = $this->postponedUntilError($this->bulkPostponedUntil)) !== null) {
+            // Without this every task would be skipped silently and the toast would read "0 of N".
+            $this->js('window.uiToast('.json_encode($error).')');
+
+            return;
+        }
+
         $done = 0;
         $user = auth()->user();
         $workflow = app(TaskWorkflowService::class);
@@ -974,6 +1015,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     $target,
                     $needsComment ? $comment : null,
                     ContentSource::PlainText,
+                    $target === TaskStatus::Postponed ? $this->bulkPostponedUntil : null,
                 );
                 $done++;
             } catch (\InvalidArgumentException|AuthorizationException) {
@@ -1154,6 +1196,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->pendingBulkStatus = null;
         $this->bulkAssigneeId = null;
         $this->bulkComment = '';
+        $this->bulkPostponedUntil = '';
     }
 
     public function updatedBulkAssigneeId(mixed $value): void
@@ -1459,36 +1502,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     /** @return array{text: string, class: string} */
     public function deadlineMeta(Task $task): array
     {
-        if ($task->deadline === null) {
-            return ['text' => '—', 'class' => 'text-gray-700'];
-        }
-
-        $deadline = $task->deadline->timezone(config('app.timezone'));
-        $formatted = $deadline->format('d.m.Y');
-
-        if (! $task->status->isOpen()) {
-            return ['text' => $formatted, 'class' => 'text-gray-700'];
-        }
-
-        $now = now()->timezone(config('app.timezone'));
-
-        if ($deadline->isPast()) {
-            $days = (int) $deadline->diffInDays($now);
-
-            return [
-                'text' => __(':date (overdue :count days)', ['date' => $formatted, 'count' => $days]),
-                'class' => 'text-red-600 font-medium',
-            ];
-        }
-
-        if ((int) $now->diffInDays($deadline) <= 3) {
-            return [
-                'text' => $deadline->diffForHumans(),
-                'class' => 'text-amber-600 font-medium',
-            ];
-        }
-
-        return ['text' => $formatted, 'class' => 'text-gray-700'];
+        return \App\Support\Deadline::meta($task);
     }
 
 
@@ -2055,6 +2069,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 placeholder="{{ __('Write a comment...') }}"
                             ></textarea>
                         </label>
+                        @if ($pendingKanbanStatus === \App\Enums\TaskStatus::Postponed->value)
+                            <label class="mt-3 block" data-ui="postponed-until">
+                                <span class="mb-1 block text-xs font-medium text-gray-700">{{ __('Return date') }}</span>
+                                <input type="date" wire:model="kanbanPostponedUntil" required
+                                    min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}"
+                                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            </label>
+                        @endif
                         <div class="mt-4 flex justify-end gap-2">
                             <x-action-button variant="ghost" type="button" wire:click="cancelKanbanMove">
                                 {{ __('Cancel') }}
@@ -2586,6 +2608,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 placeholder="{{ $pendingBulkStatus ? __('Add a comment for this status change') : __('Explain why the task is reassigned') }}"
                             ></textarea>
                         </label>
+                        @if ($pendingBulkStatus === \App\Enums\TaskStatus::Postponed->value)
+                            <label data-ui="postponed-until">
+                                <span class="mb-1 block text-xs font-medium text-gray-700">{{ __('Return date') }}</span>
+                                <input type="date" wire:model="bulkPostponedUntil"
+                                    min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}"
+                                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            </label>
+                        @endif
                         <x-action-button variant="primary" wire:click="confirmBulkAction">
                             {{ __('Confirm') }}
                         </x-action-button>

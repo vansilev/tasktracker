@@ -13,7 +13,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 
 #[Name('transition_task')]
-#[Description('Change task status. Check get_task.allowed_transitions first. Some statuses require comment. Only when the user asked to change status.')]
+#[Description('Change task status. Check get_task.allowed_transitions first. Some statuses require comment; postponed also requires postponed_until. Only when the user asked to change status.')]
 class TransitionTaskTool extends Tool
 {
     public function handle(Request $request, TaskApiService $api): ResponseFactory
@@ -23,6 +23,7 @@ class TransitionTaskTool extends Tool
             'number' => ['required', 'integer', 'min:1'],
             'status' => ['required', 'string'],
             'comment' => ['nullable', 'string'],
+            'postponed_until' => ['nullable', 'string'],
         ]);
 
         return Response::structured($api->transition(
@@ -30,6 +31,7 @@ class TransitionTaskTool extends Tool
             (int) $data['number'],
             $data['status'],
             $data['comment'] ?? null,
+            $data['postponed_until'] ?? null,
         ));
     }
 
@@ -49,6 +51,7 @@ class TransitionTaskTool extends Tool
                 'cancelled',
             ])->required(),
             'comment' => $schema->string()->description('Required for rejected, postponed, rework, cancelled, awaiting_initiator, and reopen from completed.'),
+            'postponed_until' => $schema->string()->description('Required for postponed: the day the task comes back, YYYY-MM-DD, later than today (Europe/Kyiv).'),
         ];
     }
 }

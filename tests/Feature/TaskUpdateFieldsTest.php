@@ -80,12 +80,12 @@ class TaskUpdateFieldsTest extends TestCase
         app(TaskService::class)->update($task, $editor, ['deadline' => '2026-07-15']);
 
         $fresh = $task->fresh();
-        $this->assertSame('2026-07-15 00:00:00', $fresh->deadline->toDateTimeString());
+        $this->assertSame('2026-07-15 23:59:00', $fresh->deadline->toDateTimeString());
         $this->assertSame($before + 1, TaskHistory::query()->where('task_id', $task->id)->where('field', 'deadline')->count());
 
         $entry = TaskHistory::query()->where('task_id', $task->id)->where('field', 'deadline')->latest('id')->first();
         $this->assertSame('2026-07-10 02:00:00', $entry->old_value);
-        $this->assertSame('2026-07-15 00:00:00', $entry->new_value);
+        $this->assertSame('2026-07-15 23:59:00', $entry->new_value);
     }
 
     public function test_clearing_spec_url_with_empty_string_sets_null_and_logs_history(): void

@@ -44,6 +44,7 @@ return [
         'category_id' => 'Категория',
         'priority' => 'Приоритет',
         'deadline' => 'Дедлайн',
+        'postponed_until' => 'Дата возврата',
         'spec_url' => 'Ссылка на ТЗ',
         'result_url' => 'Ссылка на результат',
         'is_active' => 'Активность',

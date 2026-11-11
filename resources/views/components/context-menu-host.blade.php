@@ -86,6 +86,12 @@
                     x-on:keydown.enter.meta.prevent="$store.contextMenu.submitComment()"
                     x-on:keydown.enter.ctrl.prevent="$store.contextMenu.submitComment()"
                 ></textarea>
+                <label class="mt-2 block text-xs text-gray-600" x-show="$store.contextMenu.commentTarget?.needsDate" data-ui="postponed-until">
+                    {{ __('Return date') }}
+                    <input type="date" class="mt-1 block w-full rounded-md border-gray-200 text-sm"
+                        min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}"
+                        x-model="$store.contextMenu.postponedUntil">
+                </label>
                 <div class="mt-2 flex justify-end gap-2">
                     <button type="button" class="rounded-md px-2 py-1 text-xs text-gray-600 hover:bg-gray-50" x-on:click="$store.contextMenu.view = 'root'">{{ __('Cancel') }}</button>
                     <button type="button" class="rounded-md bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500" x-on:click="$store.contextMenu.submitComment()">{{ __('Confirm') }}</button>

@@ -593,11 +593,24 @@ class TaskUiKitTest extends TestCase
             ->assertSee('Board comment task')
             ->assertSee('Postponed');
 
+        // Without a return date the card stays where it was and the dialog stays open.
         $component
             ->set('kanbanComment', 'Wait for the client')
+            ->call('confirmKanbanMove')
+            ->assertSee('data-ui="postponed-until"', false);
+
+        $this->assertSame(TaskStatus::InProgress, $task->fresh()->status);
+        $this->assertSame($task->id, $component->get('pendingKanbanId'));
+
+        $returnDate = now()->timezone(config('app.timezone'))->addDays(5)->format('Y-m-d');
+
+        $component
+            ->set('kanbanPostponedUntil', $returnDate)
             ->call('confirmKanbanMove');
 
         $this->assertSame(TaskStatus::Postponed, $task->fresh()->status);
+        $this->assertSame($returnDate, $task->fresh()->postponed_until->toDateString());
+        $this->assertNull($component->get('pendingKanbanId'));
     }
 
     public function test_last_board_layout_is_restored_from_cookie(): void

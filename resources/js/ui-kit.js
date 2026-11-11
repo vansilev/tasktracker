@@ -100,6 +100,7 @@ export default function registerUiKit(Alpine) {
         view: 'root',
         payload: null,
         comment: '',
+        postponedUntil: '',
         commentTarget: null,
         touchTimer: null,
         touchPayload: null,
@@ -111,6 +112,7 @@ export default function registerUiKit(Alpine) {
             this.payload = payload;
             this.view = 'root';
             this.comment = '';
+            this.postponedUntil = '';
             this.commentTarget = null;
             this.open = true;
             this.x = event.clientX;
@@ -146,6 +148,7 @@ export default function registerUiKit(Alpine) {
             this.open = false;
             this.view = 'root';
             this.comment = '';
+            this.postponedUntil = '';
             this.commentTarget = null;
         },
         openTask() {
@@ -165,8 +168,9 @@ export default function registerUiKit(Alpine) {
         },
         pickStatus(item) {
             if (item.needsComment) {
-                this.commentTarget = { kind: 'status', value: item.value, label: item.label };
+                this.commentTarget = { kind: 'status', value: item.value, label: item.label, needsDate: Boolean(item.needsDate) };
                 this.comment = '';
+                this.postponedUntil = '';
                 this.view = 'comment';
                 return;
             }
@@ -188,10 +192,14 @@ export default function registerUiKit(Alpine) {
                 return;
             }
             if (this.commentTarget.kind === 'status') {
+                if (this.commentTarget.needsDate && this.postponedUntil === '') {
+                    return;
+                }
                 dispatchLivewire('task-quick-transition', {
                     taskId: this.payload.id,
                     status: this.commentTarget.value,
                     comment: text,
+                    postponedUntil: this.commentTarget.needsDate ? this.postponedUntil : null,
                 });
             } else {
                 dispatchLivewire('task-quick-assign', {

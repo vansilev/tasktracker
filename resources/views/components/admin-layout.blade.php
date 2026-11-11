@@ -8,6 +8,7 @@
         'admin.settings' => __('System settings'),
         'admin.import' => __('Excel import'),
         'admin.audit' => __('Audit log'),
+        'admin.deliveries' => __('Send log'),
         'admin.deleted-tasks' => __('Deleted tasks'),
     ];
 @endphp
