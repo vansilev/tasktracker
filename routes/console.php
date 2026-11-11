@@ -11,4 +11,6 @@ Artisan::command('inspire', function () {
 Schedule::command('tasks:send-reminders')->everyThirtyMinutes();
 // Checks the clock itself: runs once, on a working morning, when reminders are switched on.
 Schedule::command('tasks:send-morning-reminders')->everyFiveMinutes()->withoutOverlapping(10);
+// Same pattern: waits for the digest time on a working day, then serves each recipient once.
+Schedule::command('tasks:send-digest')->everyFiveMinutes()->withoutOverlapping(10);
 Schedule::command('billing:send-reminders')->dailyAt('09:00');
