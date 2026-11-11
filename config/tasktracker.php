@@ -75,6 +75,7 @@ return [
     | Times are Europe/Kyiv, HH:MM. Work days are ISO weekdays (1 = Monday).
     | "Work days" counters skip weekends only; public holidays are not tracked.
     */
+    'reminder_enabled' => false,
     'reminder_threshold_days' => [3, 1, 0],
     'reminder_morning_time' => '09:30',
     'reminder_digest_time' => '10:00',

@@ -10,6 +10,7 @@ class ReminderSettings
 {
     /** @var list<string> */
     public const KEYS = [
+        'reminder_enabled',
         'reminder_threshold_days',
         'reminder_morning_time',
         'reminder_digest_time',
@@ -27,6 +28,14 @@ class ReminderSettings
     ];
 
     public function __construct(private SettingsService $settings) {}
+
+    /**
+     * Master switch for the morning reminders and escalations. Off until an admin turns it on.
+     */
+    public function enabled(): bool
+    {
+        return filter_var($this->settings->get('reminder_enabled', false), FILTER_VALIDATE_BOOLEAN);
+    }
 
     /**
      * Days before the deadline on which a reminder goes out, largest first. 0 = the deadline day.

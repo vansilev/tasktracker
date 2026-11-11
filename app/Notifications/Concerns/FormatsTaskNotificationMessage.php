@@ -5,6 +5,7 @@ namespace App\Notifications\Concerns;
 use App\Enums\TaskStatus;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\Deadline;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\App;
 
@@ -113,7 +114,7 @@ trait FormatsTaskNotificationMessage
         return $this->localizedLine($notifiable, 'notification.task_deadline_approaching', [
             'number' => $task->number,
             'title' => $task->title,
-            'deadline' => \App\Support\Deadline::format($task->deadline),
+            'deadline' => Deadline::format($task->deadline),
         ]);
     }
 
@@ -122,7 +123,7 @@ trait FormatsTaskNotificationMessage
         return $this->localizedLine($notifiable, 'notification.task_overdue', [
             'number' => $task->number,
             'title' => $task->title,
-            'deadline' => \App\Support\Deadline::format($task->deadline),
+            'deadline' => Deadline::format($task->deadline),
         ]);
     }
 

@@ -20,6 +20,8 @@ new #[Layout('components.admin-layout')] class extends Component
 
     public int $attachmentMaxKb = 10240;
 
+    public bool $reminderEnabled = false;
+
     public string $reminderThresholdDays = '3, 1, 0';
 
     public string $reminderMorningTime = '09:30';
@@ -63,6 +65,7 @@ new #[Layout('components.admin-layout')] class extends Component
 
     public function mount(SettingsService $settings, ReminderSettings $reminders): void
     {
+        $this->reminderEnabled = $reminders->enabled();
         $this->reminderThresholdDays = implode(', ', $reminders->thresholdDays());
         $this->reminderMorningTime = $reminders->morningTime();
         $this->reminderDigestTime = $reminders->digestTime();
@@ -150,6 +153,7 @@ new #[Layout('components.admin-layout')] class extends Component
     public function saveReminders(SettingsService $settings, AuditLogService $audit): void
     {
         $this->validate([
+            'reminderEnabled' => 'boolean',
             'reminderThresholdDays' => ['required', 'string', 'regex:/^\s*\d{1,2}(\s*,\s*\d{1,2})*\s*$/'],
             'reminderMorningTime' => 'required|date_format:H:i',
             'reminderDigestTime' => 'required|date_format:H:i',
@@ -184,6 +188,7 @@ new #[Layout('components.admin-layout')] class extends Component
         }
 
         $newValues = [
+            'reminder_enabled' => $this->reminderEnabled,
             'reminder_threshold_days' => $this->intList(explode(',', $this->reminderThresholdDays), descending: true),
             'reminder_morning_time' => $this->reminderMorningTime,
             'reminder_digest_time' => $this->reminderDigestTime,
@@ -290,8 +295,16 @@ new #[Layout('components.admin-layout')] class extends Component
         <x-card class="mt-4 space-y-5" data-ui="reminder-settings">
             <div>
                 <h3 class="text-sm font-semibold text-gray-900">{{ __('Telegram reminders') }}</h3>
-                <p class="mt-1 text-xs text-gray-500">{{ __('Times are Kyiv time. Working days skip weekends only.') }} {{ __('These settings take effect once Telegram reminders are switched on.') }}</p>
+                <p class="mt-1 text-xs text-gray-500">{{ __('Times are Kyiv time. Working days skip weekends only.') }}</p>
             </div>
+
+            <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3" data-ui="reminder-enabled">
+                <input type="checkbox" wire:model="reminderEnabled" class="mt-0.5 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                <span>
+                    <span class="block text-sm font-medium text-gray-900">{{ __('Send morning deadline reminders') }}</span>
+                    <span class="block text-xs text-gray-500">{{ __('Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.') }}</span>
+                </span>
+            </label>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>

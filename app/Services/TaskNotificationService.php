@@ -229,6 +229,7 @@ class TaskNotificationService
 
         if (
             config('services.telegram.dm_enabled')
+            && ! $this->replacedByMorningReminder($event)
             && $this->isChannelEnabled($user, $event, 'telegram')
             && filled($user->telegram_chat_id)
         ) {
@@ -236,6 +237,16 @@ class TaskNotificationService
         }
 
         return $channels;
+    }
+
+    /**
+     * Once the morning reminders are on, they are the Telegram voice for deadlines: the old
+     * one-off "deadline approaching" and "overdue" keep in-app and email only.
+     */
+    private function replacedByMorningReminder(string $event): bool
+    {
+        return in_array($event, ['task.deadline_approaching', 'task.overdue'], true)
+            && app(ReminderSettings::class)->enabled();
     }
 
     /**

@@ -9,4 +9,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('tasks:send-reminders')->everyThirtyMinutes();
+// Checks the clock itself: runs once, on a working morning, when reminders are switched on.
+Schedule::command('tasks:send-morning-reminders')->everyFiveMinutes()->withoutOverlapping(10);
 Schedule::command('billing:send-reminders')->dailyAt('09:00');

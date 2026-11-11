@@ -395,7 +395,6 @@
     "Result": "Результат",
     "Nothing has been sent yet.": "Пока ничего не отправлялось.",
     "Return date": "Дата возврата",
-    "These settings take effect once Telegram reminders are switched on.": "Настройки начнут действовать после включения напоминаний в Telegram.",
     "Reminder settings saved.": "Настройки напоминаний сохранены.",
     "Save reminder settings": "Сохранить настройки напоминаний",
     "All users": "Все пользователи",
@@ -404,5 +403,7 @@
     ":date (tomorrow)": ":date (завтра)",
     ":date (in :count days)": ":date (через :count дн)",
     "From this day the task is back in deadline reminders.": "С этого дня задача снова участвует в напоминаниях о сроках.",
-    "not set": "не указана"
+    "not set": "не указана",
+    "Send morning deadline reminders": "Отправлять утренние напоминания о сроках",
+    "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.": "Каждое рабочее утро человек получает одно сообщение в Telegram со своими сроками; просроченные задачи уходят руководителю отдела. Пока выключено, настройки ниже не действуют."
 }

@@ -395,7 +395,6 @@
     "Result": "Result",
     "Nothing has been sent yet.": "Nothing has been sent yet.",
     "Return date": "Return date",
-    "These settings take effect once Telegram reminders are switched on.": "These settings take effect once Telegram reminders are switched on.",
     "Reminder settings saved.": "Reminder settings saved.",
     "Save reminder settings": "Save reminder settings",
     "All users": "All users",
@@ -404,5 +403,7 @@
     ":date (tomorrow)": ":date (tomorrow)",
     ":date (in :count days)": ":date (in :count days)",
     "From this day the task is back in deadline reminders.": "From this day the task is back in deadline reminders.",
-    "not set": "not set"
+    "not set": "not set",
+    "Send morning deadline reminders": "Send morning deadline reminders",
+    "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.": "Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used."
 }

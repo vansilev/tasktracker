@@ -17,6 +17,7 @@ new class extends Component
         'task_deadline_approaching' => 'task.deadline_approaching',
         'task_overdue' => 'task.overdue',
         'task_review_sla_expired' => 'task.review_sla_expired',
+        'task_reminder' => 'task.reminder',
         'billing_due_7' => 'billing.due_7',
         'billing_due_3' => 'billing.due_3',
         'billing_overdue' => 'billing.overdue',
@@ -53,7 +54,7 @@ new class extends Component
 
         foreach (self::EVENTS as $eventKey => $eventDot) {
             foreach (self::CHANNELS as $channel) {
-                if ($channel === 'telegram' && ! $dmEnabled) {
+                if (! $this->channelEditable($eventKey, $channel)) {
                     continue;
                 }
 
@@ -76,6 +77,19 @@ new class extends Component
     public function telegramDmEnabled(): bool
     {
         return (bool) config('services.telegram.dm_enabled');
+    }
+
+    /**
+     * Morning reminders exist only as a personal Telegram message, and they stay personal even
+     * while the other notifications go to the group; everything else follows the DM switch.
+     */
+    public function channelEditable(string $eventKey, string $channel): bool
+    {
+        if ($eventKey === 'task_reminder') {
+            return $channel === 'telegram';
+        }
+
+        return $channel !== 'telegram' || $this->telegramDmEnabled();
     }
 
     /**
@@ -130,7 +144,7 @@ new class extends Component
                                     <input
                                         type="checkbox"
                                         wire:model="preferences.{{ $eventKey }}.{{ $channel }}"
-                                        @disabled($channel === 'telegram' && ! $this->telegramDmEnabled())
+                                        @disabled(! $this->channelEditable($eventKey, $channel))
                                         class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 disabled:opacity-40"
                                     />
                                 </td>
