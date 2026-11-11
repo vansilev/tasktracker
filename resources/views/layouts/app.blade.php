@@ -19,6 +19,7 @@
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">
             <livewire:layout.navigation />
+            <x-telegram-banner />
 
             @if (isset($header))
                 <header class="bg-white border-b border-gray-200 shadow-sm">

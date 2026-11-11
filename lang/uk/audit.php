@@ -23,6 +23,9 @@ return [
         'category.created' => 'Створено категорію',
         'category.updated' => 'Змінено категорію',
         'settings.updated' => 'Змінено налаштування',
+        'notifications.enabled_by_admin' => 'Сповіщення в Telegram увімкнено адміністратором',
+        'telegram.action' => 'Дія через Telegram-бота',
+        'telegram.linked' => 'Прив’язано Telegram',
         'tasks.imported' => 'Імпорт задач з Excel',
     ],
     'entity' => [

@@ -23,6 +23,9 @@ return [
         'category.created' => 'Category created',
         'category.updated' => 'Category updated',
         'settings.updated' => 'Settings updated',
+        'notifications.enabled_by_admin' => 'Telegram notifications switched on by an administrator',
+        'telegram.action' => 'Action through the Telegram bot',
+        'telegram.linked' => 'Telegram linked',
         'tasks.imported' => 'Tasks imported from Excel',
     ],
     'entity' => [

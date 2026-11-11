@@ -446,6 +446,14 @@ new #[Layout('components.tasks-layout')] class extends Component
             quotedCommentIds: $this->quotedIdsForNewComment(),
         );
 
+        // The comment is saved either way; the author just learns that nobody was called.
+        $unresolved = app(\App\Services\MentionService::class)->unresolvedMentions($this->commentBody);
+        if ($unresolved !== []) {
+            $this->js('window.uiToast('.json_encode(__('Nobody was notified for :names: no such person. Pick the name from the list after typing @.', [
+                'names' => implode(', ', array_map(fn (string $token) => '@'.$token, array_slice($unresolved, 0, 3))),
+            ])).')');
+        }
+
         foreach ($this->commentFiles as $file) {
             $attachments->store($this->task, auth()->user(), $file, $comment->id);
         }
