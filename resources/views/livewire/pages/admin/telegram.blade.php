@@ -109,7 +109,7 @@ new #[Layout('components.admin-layout')] class extends Component
             ['switched_off', __('Switched something off'), $switchedOff, $switchedOff > 0 ? 'text-amber-600' : 'text-gray-900'],
         ] as [$filter, $label, $value, $colour])
             <button type="button" wire:click="$set('show', '{{ $filter }}')"
-                class="rounded-xl border bg-white p-4 text-left shadow-sm transition-colors hover:bg-gray-50 {{ $show === $filter && $loop->index !== 1 ? 'border-indigo-300' : 'border-gray-100' }}">
+                class="rounded-xl border bg-white p-4 text-left shadow-sm transition-colors hover:bg-gray-50 {{ $show === $filter && $loop->index !== 1 ? 'border-primary-300' : 'border-gray-100' }}">
                 <span class="block text-xs text-gray-500">{{ $label }}</span>
                 <span class="block text-2xl font-semibold tabular-nums {{ $colour }}">{{ $value }}</span>
             </button>
@@ -132,7 +132,7 @@ new #[Layout('components.admin-layout')] class extends Component
                             <td class="px-4 py-2.5 font-medium text-gray-900">
                                 {{ $row['user']->name }}
                                 @if ($row['service'])
-                                    <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-500">{{ __('excluded from reminders') }}</span>
+                                    <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-normal text-gray-600">{{ __('excluded from reminders') }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-2.5 text-gray-700">{{ $row['user']->department?->name ?? '—' }}</td>
@@ -157,7 +157,7 @@ new #[Layout('components.admin-layout')] class extends Component
                                 @if ($row['off'] !== [])
                                     <button type="button" wire:click="enableAll({{ $row['user']->id }})"
                                         wire:confirm="{{ __('Switch Telegram notifications back on for :name?', ['name' => $row['user']->name]) }}"
-                                        class="text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                                        class="text-xs font-medium text-primary-600 hover:text-primary-800">
                                         {{ __('Switch back on') }}
                                     </button>
                                 @endif

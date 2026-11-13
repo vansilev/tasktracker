@@ -457,5 +457,12 @@
     "Go to dashboard": "На головну",
     "Error :code": "Помилка :code",
     "Default": "За замовчуванням",
-    "Urgent priority": "Терміново"
+    "Urgent priority": "Терміново",
+    "No data for this period.": "Немає даних за цей період.",
+    "Attach files": "Прикріпити файли",
+    "Choose Excel file": "Вибрати файл Excel",
+    "Period start": "Початок періоду",
+    "Period end": "Кінець періоду",
+    "Checklist item": "Пункт чек-листа",
+    "Select": "Вибрати"
 }

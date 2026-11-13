@@ -29,17 +29,18 @@ enum TaskStatus: string
         };
     }
 
+    /**
+     * Four tones (docs/design-audit.md): neutral, info, warning, success;
+     * closed-without-result statuses are muted rather than red.
+     */
     public function badgeClasses(): string
     {
         return match ($this) {
-            self::New => 'bg-gray-100 text-gray-700 ring-1 ring-gray-200',
-            self::InProgress => 'bg-blue-100 text-blue-800 ring-1 ring-blue-200',
-            self::OnReview => 'bg-amber-100 text-amber-800 ring-1 ring-amber-200',
-            self::Rework => 'bg-orange-100 text-orange-800 ring-1 ring-orange-200',
-            self::Completed => 'bg-green-100 text-green-800 ring-1 ring-green-200',
-            self::Postponed => 'bg-slate-100 text-slate-700 ring-1 ring-slate-200',
-            self::AwaitingInitiator => 'bg-purple-100 text-purple-800 ring-1 ring-purple-200',
-            self::Rejected, self::Cancelled => 'bg-red-100 text-red-800 ring-1 ring-red-200',
+            self::New, self::Postponed, self::AwaitingInitiator => 'bg-gray-100 text-gray-700',
+            self::InProgress, self::Rework => 'bg-info-50 text-info-700',
+            self::OnReview => 'bg-warning-50 text-warning-800',
+            self::Completed => 'bg-success-50 text-success-700',
+            self::Rejected, self::Cancelled => 'bg-white text-gray-600 ring-1 ring-inset ring-gray-200',
         };
     }
 

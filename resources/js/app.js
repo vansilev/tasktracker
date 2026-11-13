@@ -1,4 +1,13 @@
 import Chart from 'chart.js/auto';
+
+// Chart typography and neutral colours follow the design tokens.
+Chart.defaults.font.family = '"Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif';
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#4B5563'; // gray-600
+Chart.defaults.borderColor = '#F3F4F6'; // gray-100
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.boxHeight = 10;
+
 import attachmentLightbox from './attachment-lightbox';
 import richTextEditor from './rich-text-editor';
 import kanbanBoard, { bindKanbanBoard, bindTaskUiState } from './kanban-board';
@@ -49,6 +58,16 @@ function createOrUpdateChart(id, config) {
     const element = document.getElementById(id);
     if (!element) {
         return;
+    }
+
+    // All-zero data: show the empty message instead of an empty axis.
+    const isEmpty = (config.data?.datasets ?? [])
+        .flatMap((dataset) => dataset.data ?? [])
+        .every((value) => !Number(value));
+    element.hidden = isEmpty;
+    const emptyNote = document.querySelector(`[data-chart-empty="${id}"]`);
+    if (emptyNote) {
+        emptyNote.hidden = !isEmpty;
     }
 
     const existing = chartInstances.get(id);

@@ -1,5 +1,5 @@
 @props(['status'])
 
-<span {{ $attributes->merge(['class' => 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold '.$status->badgeClasses()]) }}>
+<span {{ $attributes->merge(['class' => 'inline-flex items-center whitespace-nowrap rounded-control px-2 py-0.5 text-caption font-medium '.$status->badgeClasses()]) }}>
     {{ $status->label() }}
 </span>

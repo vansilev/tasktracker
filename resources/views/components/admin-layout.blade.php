@@ -24,7 +24,7 @@
                 <a href="{{ route($route) }}"
                    wire:navigate
                    @if ($isActive) aria-current="page" @endif
-                   class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ $isActive ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                   class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ $isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
                     {{ $label }}
                 </a>
             @endforeach

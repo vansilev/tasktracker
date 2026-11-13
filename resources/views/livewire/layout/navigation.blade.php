@@ -71,7 +71,7 @@ new class extends Component
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none transition-colors">
-                            <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-semibold">
+                            <span class="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">
                                 {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}
                             </span>
                             <span x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name" class="hidden xl:inline max-w-[120px] truncate"></span>
@@ -95,7 +95,7 @@ new class extends Component
                                 @foreach (['ru' => 'RU', 'uk' => 'UA', 'en' => 'EN'] as $code => $label)
                                     <a href="{{ route('locale.switch', $code) }}"
                                        @if (app()->getLocale() === $code) aria-current="true" @endif
-                                       class="px-2.5 py-1 rounded-md text-xs transition-colors {{ app()->getLocale() === $code ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
+                                       class="px-2.5 py-1 rounded-md text-xs transition-colors {{ app()->getLocale() === $code ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
                                         {{ $label }}
                                     </a>
                                 @endforeach
@@ -112,7 +112,7 @@ new class extends Component
             </div>
 
             <div class="-me-2 flex items-center lg:hidden">
-                <button @click="open = ! open" :aria-expanded="open.toString()" aria-label="{{ __('Menu') }}" class="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors">
+                <button @click="open = ! open" :aria-expanded="open.toString()" aria-label="{{ __('Menu') }}" class="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 transition-colors">
                     <svg class="h-6 w-6" aria-hidden="true" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -170,7 +170,7 @@ new class extends Component
             <div class="flex gap-1 mb-3">
                 @foreach (['ru' => 'RU', 'uk' => 'UA', 'en' => 'EN'] as $code => $label)
                     <a href="{{ route('locale.switch', $code) }}"
-                       class="px-2.5 py-1 rounded-md text-xs {{ app()->getLocale() === $code ? 'bg-indigo-100 text-indigo-800 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
+                       class="px-2.5 py-1 rounded-md text-xs {{ app()->getLocale() === $code ? 'bg-primary-100 text-primary-800 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
                         {{ $label }}
                     </a>
                 @endforeach

@@ -89,7 +89,7 @@ new #[Layout('components.admin-layout')] class extends Component
                             <td class="px-4 py-2.5 text-gray-700">{{ $delivery->channel }}</td>
                             <td class="px-4 py-2.5 text-gray-700 max-w-xs truncate">
                                 @if ($delivery->task)
-                                    <a href="{{ route('tasks.show', $delivery->task) }}" class="text-indigo-600 hover:text-indigo-800" wire:navigate>#{{ $delivery->task->number }}</a>
+                                    <a href="{{ route('tasks.show', $delivery->task) }}" class="text-primary-600 hover:text-primary-800" wire:navigate>#{{ $delivery->task->number }}</a>
                                     {{ $delivery->task->title }}
                                 @else
                                     —

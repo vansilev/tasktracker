@@ -92,7 +92,7 @@ new class extends Component
                 <div class="flex items-center justify-between gap-2">
                     <span class="text-sm font-semibold text-gray-900">{{ __('notification.inbox') }}</span>
                     @if ($unreadCount > 0)
-                        <button type="button" wire:click="markAllAsRead" class="text-xs text-indigo-600 hover:text-indigo-800 whitespace-nowrap">
+                        <button type="button" wire:click="markAllAsRead" class="text-xs text-primary-600 hover:text-primary-800 whitespace-nowrap">
                             {{ __('notification.mark_all_read') }}
                         </button>
                     @endif
@@ -101,7 +101,7 @@ new class extends Component
                     <button
                         type="button"
                         wire:click="showInbox('unread')"
-                        class="rounded-md px-2.5 py-1 text-xs font-medium {{ $inbox === 'unread' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}"
+                        class="rounded-md px-2.5 py-1 text-xs font-medium {{ $inbox === 'unread' ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}"
                     >
                         {{ __('notification.unread') }}
                         @if ($unreadCount > 0)
@@ -111,7 +111,7 @@ new class extends Component
                     <button
                         type="button"
                         wire:click="showInbox('all')"
-                        class="rounded-md px-2.5 py-1 text-xs font-medium {{ $inbox === 'all' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}"
+                        class="rounded-md px-2.5 py-1 text-xs font-medium {{ $inbox === 'all' ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}"
                     >
                         {{ __('notification.all') }}
                     </button>
@@ -127,9 +127,9 @@ new class extends Component
                         type="button"
                         data-ui="notification-item"
                         wire:click="open('{{ $notification->id }}')"
-                        class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start border-b border-gray-50 hover:bg-gray-50 transition-colors {{ $notification->read_at ? 'opacity-70' : 'bg-indigo-50/50' }}"
+                        class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start border-b border-gray-50 hover:bg-gray-50 transition-colors {{ $notification->read_at ? 'opacity-70' : 'bg-primary-50/50' }}"
                     >
-                        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-transparent' : 'bg-indigo-500' }}" aria-hidden="true"></span>
+                        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-transparent' : 'bg-primary-500' }}" aria-hidden="true"></span>
                         <span class="min-w-0 flex-1">
                             <span class="block truncate text-sm font-medium text-gray-900">{{ InAppNotification::heading($data) }}</span>
                             <span class="mt-0.5 block text-xs leading-4 text-gray-600">{{ InAppNotification::line($data) }}</span>
@@ -144,7 +144,7 @@ new class extends Component
             </div>
 
             <div class="border-t border-gray-100 px-3 py-2" @click.stop>
-                <a href="{{ route('notifications.index') }}" wire:navigate class="block text-center text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                <a href="{{ route('notifications.index') }}" wire:navigate class="block text-center text-xs font-medium text-primary-600 hover:text-primary-800">
                     {{ __('notification.view_all') }}
                 </a>
             </div>

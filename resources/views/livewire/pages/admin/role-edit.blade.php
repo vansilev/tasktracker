@@ -89,8 +89,8 @@ new #[Layout('components.admin-layout')] class extends Component
         </div>
     @endif
 
-    <nav class="flex items-center gap-1.5 text-xs text-gray-500" aria-label="{{ __('Access roles') }}">
-        <a href="{{ route('admin.roles') }}" class="hover:text-gray-700" wire:navigate>{{ __('Access roles') }}</a>
+    <nav class="flex items-center gap-1.5 text-xs text-gray-600" aria-label="{{ __('Access roles') }}">
+        <a href="{{ route('admin.roles') }}" class="hover:text-gray-900" wire:navigate>{{ __('Access roles') }}</a>
         <span aria-hidden="true">/</span>
         <span class="text-gray-700">{{ $role->name }}</span>
     </nav>
@@ -99,13 +99,13 @@ new #[Layout('components.admin-layout')] class extends Component
         <form wire:submit="save" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <x-input-label :value="__('Name')" class="text-xs" />
-                    <x-text-input wire:model="name" class="w-full mt-1" />
+                    <x-input-label for="f-name" :value="__('Name')" class="text-xs" />
+                    <x-text-input id="f-name" wire:model="name" class="w-full mt-1" />
                     <x-input-error :messages="$errors->get('name')" class="mt-1" />
                 </div>
                 <div>
-                    <x-input-label :value="__('Description')" class="text-xs" />
-                    <x-text-input wire:model="description" class="w-full mt-1" />
+                    <x-input-label for="f-description" :value="__('Description')" class="text-xs" />
+                    <x-text-input id="f-description" wire:model="description" class="w-full mt-1" />
                 </div>
             </div>
 
@@ -135,9 +135,9 @@ new #[Layout('components.admin-layout')] class extends Component
             </div>
 
             <div class="flex gap-2 pt-2">
-                <x-primary-button>{{ __('Save') }}</x-primary-button>
+                <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
                 <a href="{{ route('admin.roles') }}" wire:navigate>
-                    <x-secondary-button type="button">{{ __('Back') }}</x-secondary-button>
+                    <x-button variant="secondary" type="button">{{ __('Back') }}</x-button>
                 </a>
             </div>
         </form>

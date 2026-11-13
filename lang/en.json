@@ -457,5 +457,12 @@
     "Go to dashboard": "Go to dashboard",
     "Error :code": "Error :code",
     "Default": "Default",
-    "Urgent priority": "Urgent"
+    "Urgent priority": "Urgent",
+    "No data for this period.": "No data for this period.",
+    "Attach files": "Attach files",
+    "Choose Excel file": "Choose Excel file",
+    "Period start": "Period start",
+    "Period end": "Period end",
+    "Checklist item": "Checklist item",
+    "Select": "Select"
 }

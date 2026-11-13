@@ -149,8 +149,9 @@ new class extends Component
                                     <input
                                         type="checkbox"
                                         wire:model="preferences.{{ $eventKey }}.{{ $channel }}"
+                                        aria-label="{{ __('notification.events.'.$eventKey) }}: {{ __('notification.channels.'.$channel) }}"
                                         @disabled(! $this->channelEditable($eventKey, $channel))
-                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 disabled:opacity-40"
+                                        class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 disabled:opacity-40"
                                     />
                                 </td>
                             @endforeach
@@ -167,7 +168,7 @@ new class extends Component
         </p>
 
         <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+            <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
 
             <x-action-message class="me-3" on="notification-preferences-saved">
                 {{ __('Saved.') }}

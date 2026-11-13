@@ -152,7 +152,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 <div class="space-y-4">
     <a href="{{ route('tasks.index') }}" wire:navigate
-       class="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+       class="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-800 transition-colors">
         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         {{ __('Back to tasks') }}
     </a>
@@ -169,8 +169,8 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 <div class="space-y-4">
                     <div>
-                        <x-input-label :value="__('Title')" class="text-xs text-gray-500 font-medium" />
-                        <x-text-input wire:model="title" class="mt-1 w-full rounded-lg text-sm" maxlength="120" />
+                        <x-input-label for="f-title" :value="__('Title')" class="text-xs text-gray-500 font-medium" />
+                        <x-text-input id="f-title" wire:model="title" class="mt-1 w-full rounded-lg text-sm" maxlength="120" />
                         <x-input-error :messages="$errors->get('title')" class="mt-1" />
                     </div>
 
@@ -191,9 +191,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                     </div>
 
                     <div>
-                        <x-input-label :value="__('Checklist')" class="text-xs text-gray-500 font-medium" />
-                        <textarea wire:model="checklistText" rows="4"
-                                  class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        <x-input-label for="f-checklistText" :value="__('Checklist')" class="text-xs text-gray-500 font-medium" />
+                        <textarea id="f-checklistText" wire:model="checklistText" rows="4"
+                                  class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                   placeholder="{{ __('One item per line') }}"></textarea>
                     </div>
                 </div>
@@ -203,8 +203,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <x-card>
                     <div class="space-y-4">
                         <div>
-                            <x-input-label :value="__('Department')" class="text-xs text-gray-500 font-medium" />
-                            <x-combobox
+                            <x-input-label for="f-departmentId" :value="__('Department')" class="text-xs text-gray-500 font-medium" />
+                            <x-combobox id="f-departmentId"
                                 class="mt-1"
                                 wire:model.live="departmentId"
                                 :disabled="count($departments) === 1"
@@ -215,8 +215,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </div>
 
                         <div>
-                            <x-input-label :value="__('Assignee')" class="text-xs text-gray-500 font-medium" />
-                            <x-combobox
+                            <x-input-label for="f-assigneeId" :value="__('Assignee')" class="text-xs text-gray-500 font-medium" />
+                            <x-combobox id="f-assigneeId"
                                 class="mt-1"
                                 wire:key="create-assignee-{{ $departmentId }}"
                                 wire:model="assigneeId"
@@ -227,8 +227,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </div>
 
                         <div>
-                            <x-input-label :value="__('Category')" class="text-xs text-gray-500 font-medium" />
-                            <x-combobox
+                            <x-input-label for="f-categoryId" :value="__('Category')" class="text-xs text-gray-500 font-medium" />
+                            <x-combobox id="f-categoryId"
                                 class="mt-1"
                                 wire:model="categoryId"
                                 :options="collect([['value' => null, 'label' => __('— Select —')]])->concat($categories->map(fn ($cat) => ['value' => $cat->id, 'label' => $cat->name]))->all()"
@@ -238,33 +238,33 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </div>
 
                         <div>
-                            <x-input-label :value="__('Priority')" class="text-xs text-gray-500 font-medium" />
+                            <x-input-label for="f-priority" :value="__('Priority')" class="text-xs text-gray-500 font-medium" />
                             <div class="mt-1 flex items-center gap-2">
-                                <input type="range" wire:model.live="priority" min="1" max="10" class="flex-1 accent-indigo-600" />
-                                <x-priority-bar :priority="$priority" size="sm" />
+                                <input id="f-priority" type="range" wire:model.live="priority" min="1" max="10" class="flex-1 accent-primary-600" />
+                                <x-priority-bar :priority="$priority" size="sm" mode="scale" />
                                 <span class="text-sm font-medium text-gray-700 w-5 text-center tabular-nums">{{ $priority }}</span>
                             </div>
                         </div>
 
                         <div>
-                            <x-input-label :value="__('Deadline')" class="text-xs text-gray-500 font-medium" />
-                            <x-text-input type="date" wire:model="deadline" class="mt-1 w-full rounded-lg text-sm" />
+                            <x-input-label for="f-deadline" :value="__('Deadline')" class="text-xs text-gray-500 font-medium" />
+                            <x-text-input id="f-deadline" type="date" wire:model="deadline" class="mt-1 w-full rounded-lg text-sm" />
                         </div>
 
                         <div>
-                            <x-input-label :value="__('Spec URL')" class="text-xs text-gray-500 font-medium" />
-                            <x-text-input wire:model="specUrl" type="url" class="mt-1 w-full rounded-lg text-sm" placeholder="https://" />
+                            <x-input-label for="f-specUrl" :value="__('Spec URL')" class="text-xs text-gray-500 font-medium" />
+                            <x-text-input id="f-specUrl" wire:model="specUrl" type="url" class="mt-1 w-full rounded-lg text-sm" placeholder="https://" />
                         </div>
 
                         <div
                             x-data="clipboardImagePaste($wire, 'pastedCreateFile')"
                             @paste="handlePaste($event)"
                             tabindex="0"
-                            class="outline-none focus:ring-2 focus:ring-indigo-200 rounded-lg"
+                            class="outline-none focus:ring-2 focus:ring-primary-200 rounded-lg"
                         >
-                            <x-input-label :value="__('Attachments')" class="text-xs text-gray-500 font-medium" />
+                            <p class="text-xs text-gray-500 font-medium">{{ __('Attachments') }}</p>
                             <p class="mt-1 text-xs text-gray-500">{{ __('Paste image hint') }}</p>
-                            <input type="file" wire:model="uploadFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="mt-1 text-sm w-full" />
+                            <x-file-input id="f-uploadFiles" wire:model="uploadFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" :names="false" class="mt-2" />
                             @if (count($uploadFiles) > 0)
                                 <ul class="mt-1 text-xs text-gray-600 space-y-0.5">
                                     @foreach ($uploadFiles as $file)
@@ -276,9 +276,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </div>
 
                         <div>
-                            <x-input-label :value="__('Watchers')" class="text-xs text-gray-500 font-medium" />
-                            <select wire:model="watcherIds" multiple
-                                    class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm h-28 focus:border-indigo-500 focus:ring-indigo-500">
+                            <x-input-label for="f-watcherIds" :value="__('Watchers')" class="text-xs text-gray-500 font-medium" />
+                            <select id="f-watcherIds" wire:model="watcherIds" multiple
+                                    class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm h-28 focus:border-primary-500 focus:ring-primary-500">
                                 @foreach ($allUsers as $u)
                                     <option value="{{ $u->id }}">{{ $u->name }}</option>
                                 @endforeach
@@ -288,9 +288,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                 </x-card>
 
                 <div class="flex gap-3">
-                    <x-primary-button>{{ __('Create task') }}</x-primary-button>
+                    <x-button variant="primary" type="submit">{{ __('Create task') }}</x-button>
                     <a href="{{ route('tasks.index') }}" wire:navigate>
-                        <x-secondary-button type="button">{{ __('Cancel') }}</x-secondary-button>
+                        <x-button variant="secondary" type="button">{{ __('Cancel') }}</x-button>
                     </a>
                 </div>
             </div>

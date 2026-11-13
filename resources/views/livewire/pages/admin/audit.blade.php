@@ -105,8 +105,8 @@ new #[Layout('components.admin-layout')] class extends Component
     <x-card padding="p-4">
         <div class="flex flex-wrap items-end gap-3">
             <div class="min-w-[140px] flex-1">
-                <x-input-label :value="__('Action')" class="text-xs" />
-                <select wire:model.live="filterAction" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                <x-input-label for="f-filterAction" :value="__('Action')" class="text-xs" />
+                <select id="f-filterAction" wire:model.live="filterAction" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
                     <option value="">{{ __('All actions') }}</option>
                     @foreach ($actions as $action)
                         <option value="{{ $action }}">{{ $presenter->actionLabel($action) }}</option>
@@ -114,8 +114,8 @@ new #[Layout('components.admin-layout')] class extends Component
                 </select>
             </div>
             <div class="min-w-[140px] flex-1">
-                <x-input-label :value="__('Actor')" class="text-xs" />
-                <select wire:model.live="filterActorId" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                <x-input-label for="f-filterActorId" :value="__('Actor')" class="text-xs" />
+                <select id="f-filterActorId" wire:model.live="filterActorId" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
                     <option value="">{{ __('All actors') }}</option>
                     @foreach ($actors as $actor)
                         <option value="{{ $actor->id }}">{{ $actor->name }}</option>
@@ -123,12 +123,12 @@ new #[Layout('components.admin-layout')] class extends Component
                 </select>
             </div>
             <div class="min-w-[130px]">
-                <x-input-label :value="__('Date from')" class="text-xs" />
-                <x-text-input wire:model.live="filterDateFrom" type="date" class="w-full mt-1" />
+                <x-input-label for="f-filterDateFrom" :value="__('Date from')" class="text-xs" />
+                <x-text-input id="f-filterDateFrom" wire:model.live="filterDateFrom" type="date" class="w-full mt-1" />
             </div>
             <div class="min-w-[130px]">
-                <x-input-label :value="__('Date to')" class="text-xs" />
-                <x-text-input wire:model.live="filterDateTo" type="date" class="w-full mt-1" />
+                <x-input-label for="f-filterDateTo" :value="__('Date to')" class="text-xs" />
+                <x-text-input id="f-filterDateTo" wire:model.live="filterDateTo" type="date" class="w-full mt-1" />
             </div>
         </div>
     </x-card>
@@ -161,7 +161,7 @@ new #[Layout('components.admin-layout')] class extends Component
                                     <button
                                         type="button"
                                         wire:click="toggleDetails({{ $log->id }})"
-                                        class="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                                        class="text-xs text-primary-600 hover:text-primary-800 font-medium"
                                     >
                                         {{ in_array($log->id, $expandedLogIds, true) ? __('Hide details') : __('Details') }}
                                     </button>

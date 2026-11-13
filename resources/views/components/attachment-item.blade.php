@@ -19,13 +19,13 @@
                 <img
                     src="{{ $href }}"
                     alt="{{ $attachment->filename }}"
-                    class="max-h-36 max-w-full rounded-lg border border-gray-200 object-contain bg-gray-50 group-hover:border-indigo-300 transition-colors"
+                    class="max-h-36 max-w-full rounded-lg border border-gray-200 object-contain bg-gray-50 group-hover:border-primary-300 transition-colors"
                     loading="lazy"
                 />
-                <span class="mt-1 block text-xs text-indigo-600 group-hover:text-indigo-800 truncate">{{ $attachment->filename }}</span>
+                <span class="mt-1 block text-xs text-primary-600 group-hover:text-primary-800 truncate">{{ $attachment->filename }}</span>
             </a>
         @else
-            <a href="{{ $href }}" @if ($previewKind) data-attachment-preview="{{ $previewKind }}" @endif class="text-indigo-600 hover:text-indigo-800 hover:underline truncate block">
+            <a href="{{ $href }}" @if ($previewKind) data-attachment-preview="{{ $previewKind }}" @endif class="text-primary-600 hover:text-primary-800 hover:underline truncate block">
                 {{ $attachment->filename }}
             </a>
         @endif

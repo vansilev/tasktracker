@@ -263,13 +263,13 @@ new #[Layout('components.admin-layout')] class extends Component
                     <div class="space-y-3">
                         <label class="flex items-center justify-between gap-3 py-1">
                             <span class="text-xs text-gray-700">{{ __('Google SSO') }}</span>
-                            <input type="checkbox" wire:model="googleSsoEnabled" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                            <input type="checkbox" wire:model="googleSsoEnabled" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
                         </label>
                         <x-input-error :messages="$errors->get('googleSsoEnabled')" />
 
                         <label class="flex items-center justify-between gap-3 py-1">
                             <span class="text-xs text-gray-700">{{ __('Password login') }}</span>
-                            <input type="checkbox" wire:model="passwordLoginEnabled" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                            <input type="checkbox" wire:model="passwordLoginEnabled" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
                         </label>
                         <x-input-error :messages="$errors->get('passwordLoginEnabled')" />
                     </div>
@@ -299,7 +299,7 @@ new #[Layout('components.admin-layout')] class extends Component
         </div>
 
         <div class="mt-4 flex justify-end">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+            <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
         </div>
     </form>
 
@@ -311,7 +311,7 @@ new #[Layout('components.admin-layout')] class extends Component
             </div>
 
             <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3" data-ui="reminder-enabled">
-                <input type="checkbox" wire:model="reminderEnabled" class="mt-0.5 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                <input type="checkbox" wire:model="reminderEnabled" class="mt-0.5 rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
                 <span>
                     <span class="block text-sm font-medium text-gray-900">{{ __('Send morning deadline reminders') }}</span>
                     <span class="block text-xs text-gray-500">{{ __('Each working morning everyone gets one Telegram message with their deadlines; overdue tasks are escalated to the department head. While this is off, nothing below is used.') }}</span>
@@ -319,7 +319,7 @@ new #[Layout('components.admin-layout')] class extends Component
             </label>
 
             <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3" data-ui="reminder-comment-notices">
-                <input type="checkbox" wire:model="reminderCommentNotices" class="mt-0.5 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                <input type="checkbox" wire:model="reminderCommentNotices" class="mt-0.5 rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
                 <span>
                     <span class="block text-sm font-medium text-gray-900">{{ __('Send new comments personally') }}</span>
                     <span class="block text-xs text-gray-500">{{ __('The assignee, the initiator and the watchers get each new comment in Telegram during working hours. Mentions are always sent while reminders are on.') }}</span>
@@ -362,7 +362,7 @@ new #[Layout('components.admin-layout')] class extends Component
                 <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1">
                     @foreach ([1 => __('Mon'), 2 => __('Tue'), 3 => __('Wed'), 4 => __('Thu'), 5 => __('Fri'), 6 => __('Sat'), 7 => __('Sun')] as $dayNumber => $dayLabel)
                         <label class="inline-flex items-center gap-1.5 text-xs text-gray-700">
-                            <input type="checkbox" wire:model="reminderWorkDays" value="{{ $dayNumber }}" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                            <input type="checkbox" wire:model="reminderWorkDays" value="{{ $dayNumber }}" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
                             {{ $dayLabel }}
                         </label>
                     @endforeach
@@ -411,7 +411,7 @@ new #[Layout('components.admin-layout')] class extends Component
                         <div class="mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
                             @foreach ($users as $listUser)
                                 <label class="flex items-center gap-2 text-xs text-gray-700" wire:key="{{ $listField }}-{{ $listUser->id }}">
-                                    <input type="checkbox" wire:model="{{ $listField }}" value="{{ $listUser->id }}" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                    <input type="checkbox" wire:model="{{ $listField }}" value="{{ $listUser->id }}" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
                                     {{ $listUser->name }}
                                 </label>
                             @endforeach
@@ -424,7 +424,7 @@ new #[Layout('components.admin-layout')] class extends Component
 
         <div class="mt-4 flex items-center justify-end gap-3">
             <x-auth-session-status :status="session('reminders-status')" />
-            <x-primary-button>{{ __('Save reminder settings') }}</x-primary-button>
+            <x-button variant="primary" type="submit">{{ __('Save reminder settings') }}</x-button>
         </div>
     </form>
 </div>

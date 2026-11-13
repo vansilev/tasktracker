@@ -1659,11 +1659,11 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         class="shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
 
-                            {{ $tab === $key ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
+                            {{ $tab === $key ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' }}">
 
                     {{ $label }}
                     @if ($key === 'action' && $actionCount > 0)
-                        <span data-ui="action-count" class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-semibold text-white">{{ $actionCount }}</span>
+                        <span data-ui="action-count" class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary-600 px-1.5 text-[11px] font-semibold text-white">{{ $actionCount }}</span>
                     @endif
 
                 </button>
@@ -1674,7 +1674,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
         @can('create', \App\Models\Task::class)
 
-            <x-action-button variant="primary" size="md" type="button"
+            <x-button variant="primary" size="md" type="button"
 
                              data-shortcut="create-task"
 
@@ -1684,9 +1684,9 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 {{ __('Create task') }}
 
-                <x-kbd class="hidden sm:inline-flex border-indigo-400/40 bg-indigo-500 text-white">C</x-kbd>
+                <x-kbd class="hidden sm:inline-flex border-primary-400/40 bg-primary-500 text-white">C</x-kbd>
 
-            </x-action-button>
+            </x-button>
 
         @endcan
 
@@ -1718,7 +1718,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <button type="button"
                             @click="svOpen = !svOpen"
                             class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors
-                                {{ $activeSavedFilterId ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                                {{ $activeSavedFilterId ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
                         {{ $activeSavedFilterId ? $savedFilters->firstWhere('id', $activeSavedFilterId)?->name ?? __('Views') : __('Views') }}
                         <svg class="w-3 h-3 shrink-0 transition-transform" :class="svOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -1728,14 +1728,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                          class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-lg">
                         <div class="max-h-64 overflow-y-auto divide-y divide-gray-100">
                             @forelse ($savedFilters as $sf)
-                                <div class="group flex items-center gap-2 px-3 py-2 hover:bg-gray-50 {{ $activeSavedFilterId === $sf->id ? 'bg-indigo-50' : '' }}">
+                                <div class="group flex items-center gap-2 px-3 py-2 hover:bg-gray-50 {{ $activeSavedFilterId === $sf->id ? 'bg-primary-50' : '' }}">
                                     <button type="button"
                                             wire:click="loadSavedFilter({{ $sf->id }})"
                                             @click="svOpen = false"
-                                            class="min-w-0 flex-1 truncate text-left text-sm font-medium {{ $activeSavedFilterId === $sf->id ? 'text-indigo-700' : 'text-gray-900' }}">
+                                            class="min-w-0 flex-1 truncate text-left text-sm font-medium {{ $activeSavedFilterId === $sf->id ? 'text-primary-700' : 'text-gray-900' }}">
                                         {{ $sf->name }}
                                         @if ($sf->is_default)
-                                            <x-icon.star class="inline w-3.5 h-3.5 ml-1 -mt-0.5 text-indigo-600" /><span class="sr-only">{{ __('Default') }}</span>
+                                            <x-icon.star class="inline w-3.5 h-3.5 ml-1 -mt-0.5 text-primary-600" /><span class="sr-only">{{ __('Default') }}</span>
                                         @endif
                                     </button>
                                     <div class="hidden shrink-0 items-center gap-0.5 group-hover:flex">
@@ -1745,7 +1745,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H16"/></svg>
                                         </button>
                                         <button type="button" wire:click="toggleDefaultFilter({{ $sf->id }})"
-                                                class="rounded p-1 {{ $sf->is_default ? 'text-indigo-500' : 'text-gray-500' }} hover:bg-gray-100 hover:text-indigo-600"
+                                                class="rounded p-1 {{ $sf->is_default ? 'text-primary-500' : 'text-gray-500' }} hover:bg-gray-100 hover:text-primary-600"
                                                 title="{{ $sf->is_default ? __('Remove default') : __('Set as default') }}">
                                             <svg class="w-3.5 h-3.5" fill="{{ $sf->is_default ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
                                         </button>
@@ -1765,11 +1765,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <form wire:submit="saveCurrentFilter" class="flex items-center gap-2">
                                 <input type="text"
                                        wire:model="savedFilterName"
-                                       class="min-w-0 flex-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                       class="min-w-0 flex-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                        placeholder="{{ __('Save current view as...') }}" />
-                                <x-action-button variant="primary" size="sm" type="submit">
+                                <x-button variant="primary" size="sm" type="submit">
                                     {{ __('Save') }}
-                                </x-action-button>
+                                </x-button>
                             </form>
                         </div>
                     </div>
@@ -1779,13 +1779,13 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors
 
-                            {{ $filtersOpen ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                            {{ $filtersOpen ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
 
                     {{ __('Filters') }}
 
                     @if ($activeFilterCount > 0)
 
-                        <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-semibold rounded-full bg-indigo-600 text-white">{{ $activeFilterCount }}</span>
+                        <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-semibold rounded-full bg-primary-600 text-white">{{ $activeFilterCount }}</span>
 
                     @endif
 
@@ -1793,7 +1793,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 <div class="flex items-center gap-1.5">
 
-                    <select wire:model.live="sortBy" class="border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <select wire:model.live="sortBy" aria-label="{{ __('Sort by') }}" class="border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500">
                         <option value="priority">{{ __('Priority') }}</option>
                         <option value="title">{{ __('Title') }}</option>
                         <option value="status">{{ __('Status') }}</option>
@@ -1826,7 +1826,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <button
                         type="button"
                         wire:click="setLayout('list')"
-                        class="rounded-md px-2.5 py-1.5 text-sm font-medium {{ $layout === 'list' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900' }}"
+                        class="rounded-md px-2.5 py-1.5 text-sm font-medium {{ $layout === 'list' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900' }}"
                     >
                         {{ __('List') }}
                     </button>
@@ -1834,7 +1834,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         type="button"
                         wire:click="setLayout('board')"
                         data-ui="kanban-toggle"
-                        class="rounded-md px-2.5 py-1.5 text-sm font-medium {{ $layout === 'board' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900' }}"
+                        class="rounded-md px-2.5 py-1.5 text-sm font-medium {{ $layout === 'board' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900' }}"
                     >
                         {{ __('Board') }}
                     </button>
@@ -1916,7 +1916,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <label class="block text-xs text-gray-500 mb-1">{{ __('Period filter') }}</label>
 
-                        <select wire:model.live="periodType" class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select wire:model.live="periodType" class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500">
 
                             <option value="created_at">{{ __('Created at') }}</option>
 
@@ -1932,7 +1932,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <input type="date" wire:model.live="periodFrom"
 
-                               class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                               class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500" />
 
                     </div>
 
@@ -1942,7 +1942,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <input type="date" wire:model.live="periodTo"
 
-                               class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                               class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500" />
 
                     </div>
 
@@ -1954,7 +1954,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <label class="inline-flex items-center gap-2 cursor-pointer select-none">
 
-                        <input type="checkbox" wire:model.live="urgentOnly" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <input type="checkbox" wire:model.live="urgentOnly" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
 
                         <span class="text-sm text-gray-700">{{ __('Only urgent') }}</span>
 
@@ -1962,7 +1962,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <label class="inline-flex items-center gap-2 cursor-pointer select-none">
 
-                        <input type="checkbox" wire:model.live="overdueOnly" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                        <input type="checkbox" wire:model.live="overdueOnly" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
 
                         <span class="text-sm text-gray-700">{{ __('Only overdue') }}</span>
 
@@ -1974,13 +1974,13 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         <input type="number" wire:model.live.debounce.300ms="priorityMin" min="1" max="10" placeholder="1"
 
-                               class="w-16 border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                               class="w-16 border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500" />
 
                         <span class="text-xs text-gray-500">{{ __('Priority to') }}</span>
 
                         <input type="number" wire:model.live.debounce.300ms="priorityMax" min="1" max="10" placeholder="10"
 
-                               class="w-16 border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                               class="w-16 border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500" />
 
                     </div>
 
@@ -2002,13 +2002,13 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             @foreach ($filterChips as $chip)
 
-                <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-indigo-50 text-indigo-700">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-primary-50 text-primary-700">
 
                     {{ $chip['label'] }}
 
                     <button type="button" wire:click="clearFilter('{{ $chip['key'] }}')"
 
-                            class="inline-flex items-center justify-center w-4 h-4 rounded-full text-indigo-500 hover:bg-indigo-100 hover:text-indigo-800 transition-colors"
+                            class="inline-flex items-center justify-center w-4 h-4 rounded-full text-primary-500 hover:bg-primary-100 hover:text-primary-800 transition-colors"
 
                             aria-label="{{ __('Reset filters') }}">
 
@@ -2022,7 +2022,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             <button type="button" wire:click="resetFilters"
 
-                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+                    class="text-xs font-medium text-primary-600 hover:text-primary-800 transition-colors">
 
                 {{ __('Reset filters') }}
 
@@ -2065,7 +2065,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 rows="4"
                                 required
                                 autofocus
-                                class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                 placeholder="{{ __('Write a comment...') }}"
                             ></textarea>
                         </label>
@@ -2074,16 +2074,16 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 <span class="mb-1 block text-xs font-medium text-gray-700">{{ __('Return date') }}</span>
                                 <input type="date" wire:model="kanbanPostponedUntil" required
                                     min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}"
-                                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500">
                             </label>
                         @endif
                         <div class="mt-4 flex justify-end gap-2">
-                            <x-action-button variant="ghost" type="button" wire:click="cancelKanbanMove">
+                            <x-button size="sm" variant="ghost" type="button" wire:click="cancelKanbanMove">
                                 {{ __('Cancel') }}
-                            </x-action-button>
-                            <x-action-button variant="primary" type="submit">
+                            </x-button>
+                            <x-button size="sm" variant="primary" type="submit">
                                 {{ __('Confirm') }}
-                            </x-action-button>
+                            </x-button>
                         </div>
                     </form>
                 </div>
@@ -2110,15 +2110,15 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     @if ($activeFilterCount > 0)
 
-                        <x-action-button variant="secondary" type="button" wire:click="resetFilters">
+                        <x-button size="sm" variant="secondary" type="button" wire:click="resetFilters">
 
                             {{ __('Reset filters') }}
 
-                        </x-action-button>
+                        </x-button>
 
                     @elseif (auth()->user()->can('create', \App\Models\Task::class))
 
-                        <x-action-button variant="primary" type="button"
+                        <x-button size="sm" variant="primary" type="button"
 
                                          data-shortcut="create-task"
 
@@ -2126,7 +2126,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                             {{ __('Create task') }}
 
-                        </x-action-button>
+                        </x-button>
 
                     @endif
 
@@ -2157,7 +2157,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     type="checkbox"
                                     data-ui="task-select-all"
                                     wire:key="select-all-md"
-                                    class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                    class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                     x-data
                                     x-bind:checked="{{ \Illuminate\Support\Js::from($pageIds) }}.length > 0 && {{ \Illuminate\Support\Js::from($pageIds) }}.every((id) => ($wire.selectedIds || []).map(Number).includes(Number(id)))"
                                     x-on:click.stop="$wire.toggleSelectPage('{{ implode(',', $pageIds) }}')"
@@ -2171,11 +2171,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 ['department', __('Department'), ''],
                                 ['deadline', __('Deadline'), ''],
                             ] as [$column, $label, $thStyle])
-                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide whitespace-nowrap {{ $sortBy === $column ? 'text-indigo-700' : 'text-gray-500' }}"
+                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide whitespace-nowrap {{ $sortBy === $column ? 'text-primary-700' : 'text-gray-500' }}"
                                     @if ($thStyle !== '') style="{{ $thStyle }}" @endif>
                                     <button type="button"
                                             wire:click="sortByColumn('{{ $column }}')"
-                                            class="inline-flex items-center gap-1 whitespace-nowrap hover:text-indigo-700">
+                                            class="inline-flex items-center gap-1 whitespace-nowrap hover:text-primary-700">
                                         {{ $label }}
                                         @if ($sortBy === $column)
                                             @if ($sortDir === 'asc')
@@ -2201,15 +2201,15 @@ new #[Layout('components.tasks-layout')] class extends Component
                             @php $lastActionSection = $sectionKey; @endphp
                             <tbody>
                                 <tr data-ui="action-section" data-action-section="{{ $sectionKey }}">
-                                    <td colspan="6" class="bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    <td colspan="6" class="bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                                         {{ $actionSections[$sectionKey]['label'] ?? $sectionKey }}
-                                        <span class="font-medium normal-case text-slate-400">· {{ $actionSections[$sectionKey]['count'] ?? 0 }}</span>
+                                        <span class="font-medium normal-case text-gray-400">· {{ $actionSections[$sectionKey]['count'] ?? 0 }}</span>
                                     </td>
                                 </tr>
                             </tbody>
                         @endif
                         <tbody class="divide-y divide-gray-50" x-data="{ open: false }">
-                            <tr class="cursor-pointer transition-colors group {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-indigo-50 hover:bg-indigo-50' : 'odd:bg-white even:bg-gray-50/50 hover:bg-gray-50' }}"
+                            <tr class="cursor-pointer transition-colors group {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-primary-50 hover:bg-primary-50' : 'odd:bg-white even:bg-gray-50/50 hover:bg-gray-50' }}"
                                 x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
                                 x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"
                                 x-on:touchstart="window.uiContext.touchStart($event, {{ $rowMenu }})"
@@ -2220,7 +2220,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         type="checkbox"
                                         data-ui="task-select"
                                         wire:key="select-md-{{ $task->id }}"
-                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                         x-bind:checked="($wire.selectedIds || []).map(Number).includes({{ $task->id }})"
                                         x-on:click.stop="$wire.toggleSelected({{ $task->id }})"
                                         aria-label="{{ __('Select #:number', ['number' => $task->number]) }}"
@@ -2231,7 +2231,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         @if ($tab !== 'action' && ! $task->isSubtask() && $task->subtasks->isNotEmpty())
                                             <button type="button"
                                                     class="inline-flex shrink-0 items-center justify-center rounded-md shadow-sm"
-                                                    style="background:#4f46e5;color:#fff;width:22px;height:22px;"
+                                                    style="background:#1F3A8A;color:#fff;width:22px;height:22px;"
                                                     @click.stop="open = !open"
                                                     :aria-expanded="open"
                                                     aria-label="{{ __('Subtasks') }}">
@@ -2253,11 +2253,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
                                         @endif
                                         @if (! $task->parent_id && ($subtaskProgress = $task->subtaskProgress()) !== '')
-                                            <span class="shrink-0 text-sm tabular-nums text-indigo-600">{{ $subtaskProgress }}</span>
+                                            <span class="shrink-0 text-sm tabular-nums text-primary-600">{{ $subtaskProgress }}</span>
                                         @endif
                                     </div>
                                     @if ($task->parent)
-                                        <p class="mt-0.5 pl-5 text-xs text-indigo-600 truncate">
+                                        <p class="mt-0.5 pl-5 text-xs text-primary-600 truncate">
                                             {{ __('Part of #:number · :title', ['number' => $task->parent->number, 'title' => $task->parent->title]) }}
                                         </p>
                                     @endif
@@ -2287,7 +2287,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     $childDeadline = $this->deadlineMeta($subtask);
                                     $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
                                 @endphp
-                                <tr class="cursor-pointer {{ (int) $peek === (int) $subtask->number || $this->isSelected($subtask->id) ? 'ring-1 ring-inset ring-indigo-300' : '' }}"
+                                <tr class="cursor-pointer {{ (int) $peek === (int) $subtask->number || $this->isSelected($subtask->id) ? 'ring-1 ring-inset ring-primary-300' : '' }}"
                                     style="display: none; background:#eef2ff;"
                                     :style="open ? 'display: table-row; background:#eef2ff;' : 'display: none;'"
                                     x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $subtask->number }})"
@@ -2300,7 +2300,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             type="checkbox"
                                             data-ui="task-select"
                                             wire:key="select-md-sub-{{ $subtask->id }}"
-                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                             x-bind:checked="($wire.selectedIds || []).map(Number).includes({{ $subtask->id }})"
                                             x-on:click.stop="$wire.toggleSelected({{ $subtask->id }})"
                                             aria-label="{{ __('Select #:number', ['number' => $subtask->number]) }}"
@@ -2351,13 +2351,13 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     @if ($sectionKey && $sectionKey !== $lastMobileActionSection)
                         @php $lastMobileActionSection = $sectionKey; @endphp
-                        <div data-ui="action-section" data-action-section="{{ $sectionKey }}" class="bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <div data-ui="action-section" data-action-section="{{ $sectionKey }}" class="bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                             {{ $actionSections[$sectionKey]['label'] ?? $sectionKey }}
-                            <span class="font-medium normal-case text-slate-400">· {{ $actionSections[$sectionKey]['count'] ?? 0 }}</span>
+                            <span class="font-medium normal-case text-gray-400">· {{ $actionSections[$sectionKey]['count'] ?? 0 }}</span>
                         </div>
                     @endif
 
-                    <div class="transition-colors {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-indigo-50' : 'hover:bg-gray-50' }}" x-data="{ open: false }">
+                    <div class="transition-colors {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-primary-50' : 'hover:bg-gray-50' }}" x-data="{ open: false }">
 
                         <div class="cursor-pointer"
                              x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
@@ -2377,7 +2377,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             type="checkbox"
                                             data-ui="task-select"
                                             wire:key="select-xs-{{ $task->id }}"
-                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                             x-bind:checked="($wire.selectedIds || []).map(Number).includes({{ $task->id }})"
                                             x-on:click.stop="$wire.toggleSelected({{ $task->id }})"
                                             aria-label="{{ __('Select #:number', ['number' => $task->number]) }}"
@@ -2392,7 +2392,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                                 <button type="button"
                                                         class="inline-flex shrink-0 items-center justify-center rounded-md shadow-sm"
-                                                        style="background:#4f46e5;color:#fff;width:22px;height:22px;"
+                                                        style="background:#1F3A8A;color:#fff;width:22px;height:22px;"
                                                         @click.stop="open = !open"
                                                         :aria-expanded="open"
                                                         aria-label="{{ __('Subtasks') }}">
@@ -2418,7 +2418,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                             @if (! $task->parent_id && ($subtaskProgress = $task->subtaskProgress()) !== '')
 
-                                                <span class="shrink-0 text-sm tabular-nums text-indigo-600">{{ $subtaskProgress }}</span>
+                                                <span class="shrink-0 text-sm tabular-nums text-primary-600">{{ $subtaskProgress }}</span>
 
                                             @endif
 
@@ -2426,7 +2426,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                                         @if ($task->parent)
 
-                                            <p class="mt-0.5 text-xs text-indigo-600 truncate">
+                                            <p class="mt-0.5 text-xs text-primary-600 truncate">
 
                                                 {{ __('Part of #:number · :title', ['number' => $task->parent->number, 'title' => $task->parent->title]) }}
 
@@ -2475,7 +2475,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 $childMenu = \Illuminate\Support\Js::from($this->rowActions($subtask));
                             @endphp
 
-                            <div class="relative cursor-pointer px-4 py-3 {{ (int) $peek === (int) $subtask->number || $this->isSelected($subtask->id) ? 'ring-1 ring-inset ring-indigo-300' : '' }}"
+                            <div class="relative cursor-pointer px-4 py-3 {{ (int) $peek === (int) $subtask->number || $this->isSelected($subtask->id) ? 'ring-1 ring-inset ring-primary-300' : '' }}"
                                  style="display: none; padding-left: 5rem; background:#eef2ff;"
                                  :style="open ? 'display: block; padding-left: 5rem; background:#eef2ff;' : 'display: none;'"
                                  x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $subtask->number }})"
@@ -2494,7 +2494,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             type="checkbox"
                                             data-ui="task-select"
                                             wire:key="select-xs-sub-{{ $subtask->id }}"
-                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                             x-bind:checked="($wire.selectedIds || []).map(Number).includes({{ $subtask->id }})"
                                             x-on:click.stop="$wire.toggleSelected({{ $subtask->id }})"
                                             aria-label="{{ __('Select #:number', ['number' => $subtask->number]) }}"
@@ -2562,18 +2562,18 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <span class="text-sm font-medium text-gray-900">
                         {{ __(':count selected', ['count' => count($selectedIds)]) }}
                     </span>
-                    <x-action-button variant="ghost" wire:click="clearSelection">
+                    <x-button type="button" size="sm" variant="ghost" wire:click="clearSelection">
                         {{ __('Clear selection') }}
-                    </x-action-button>
+                    </x-button>
 
                     @foreach ($bulkTransitions as $item)
-                        <x-action-button
+                        <x-button type="button" size="sm"
                             variant="{{ $item['destructive'] ? 'danger' : 'secondary' }}"
                             wire:click="chooseBulkStatus('{{ $item['value'] }}')"
-                            @class(['ring-2 ring-indigo-500 ring-offset-1' => $pendingBulkStatus === $item['value']])
+                            @class(['ring-2 ring-primary-500 ring-offset-1' => $pendingBulkStatus === $item['value']])
                         >
                             {{ $item['label'] }}
-                        </x-action-button>
+                        </x-button>
                     @endforeach
 
                     @if (count($bulkAssigneeOptions) > 0)
@@ -2588,12 +2588,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @endif
 
                     @if ($canBulkWatch)
-                        <x-action-button variant="secondary" wire:click="bulkWatch">
+                        <x-button type="button" size="sm" variant="secondary" wire:click="bulkWatch">
                             {{ __('Watch') }}
-                        </x-action-button>
-                        <x-action-button variant="secondary" wire:click="bulkUnwatch">
+                        </x-button>
+                        <x-button type="button" size="sm" variant="secondary" wire:click="bulkUnwatch">
                             {{ __('Unwatch') }}
-                        </x-action-button>
+                        </x-button>
                     @endif
                 </div>
 
@@ -2604,7 +2604,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <textarea
                                 wire:model="bulkComment"
                                 rows="2"
-                                class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                 placeholder="{{ $pendingBulkStatus ? __('Add a comment for this status change') : __('Explain why the task is reassigned') }}"
                             ></textarea>
                         </label>
@@ -2613,12 +2613,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 <span class="mb-1 block text-xs font-medium text-gray-700">{{ __('Return date') }}</span>
                                 <input type="date" wire:model="bulkPostponedUntil"
                                     min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}"
-                                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    class="rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500">
                             </label>
                         @endif
-                        <x-action-button variant="primary" wire:click="confirmBulkAction">
+                        <x-button type="button" size="sm" variant="primary" wire:click="confirmBulkAction">
                             {{ __('Confirm') }}
-                        </x-action-button>
+                        </x-button>
                     </div>
                 @endif
             </div>

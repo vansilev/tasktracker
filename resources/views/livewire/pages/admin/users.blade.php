@@ -280,11 +280,11 @@ new #[Layout('components.admin-layout')] class extends Component
 
         <x-text-input wire:model.live.debounce.300ms="search" class="w-full md:w-96" placeholder="{{ __('Search by name or email...') }}" />
 
-        <x-primary-button type="button" wire:click="$toggle('showCreate')">
+        <x-button variant="primary" type="button" wire:click="$toggle('showCreate')">
 
             {{ $showCreate ? __('Cancel') : __('Add user') }}
 
-        </x-primary-button>
+        </x-button>
 
     </x-card>
 
@@ -298,9 +298,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <div>
 
-                    <x-input-label :value="__('Full name')" class="text-xs" />
+                    <x-input-label for="f-newName" :value="__('Full name')" class="text-xs" />
 
-                    <x-text-input wire:model="newName" class="w-full mt-1" />
+                    <x-text-input id="f-newName" wire:model="newName" class="w-full mt-1" />
 
                     <x-input-error :messages="$errors->get('newName')" class="mt-1" />
 
@@ -308,9 +308,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <div>
 
-                    <x-input-label :value="__('Email')" />
+                    <x-input-label for="f-newEmail" :value="__('Email')" />
 
-                    <x-text-input wire:model="newEmail" type="email" class="w-full mt-1" />
+                    <x-text-input id="f-newEmail" wire:model="newEmail" type="email" class="w-full mt-1" />
 
                     <x-input-error :messages="$errors->get('newEmail')" class="mt-1" />
 
@@ -318,9 +318,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <div>
 
-                    <x-input-label :value="__('Password')" class="text-xs" />
+                    <x-input-label for="f-newPassword" :value="__('Password')" class="text-xs" />
 
-                    <x-text-input wire:model="newPassword" type="password" class="w-full mt-1" />
+                    <x-text-input id="f-newPassword" wire:model="newPassword" type="password" class="w-full mt-1" />
 
                     <x-input-error :messages="$errors->get('newPassword')" class="mt-1" />
 
@@ -328,9 +328,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <div>
 
-                    <x-input-label :value="__('Department')" class="text-xs" />
+                    <x-input-label for="f-newDepartmentId" :value="__('Department')" class="text-xs" />
 
-                    <select wire:model="newDepartmentId" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm text-sm">
+                    <select id="f-newDepartmentId" wire:model="newDepartmentId" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm text-sm">
 
                         <option value="">{{ __('— Not assigned —') }}</option>
 
@@ -346,9 +346,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <div>
 
-                    <x-input-label :value="__('System type')" class="text-xs" />
+                    <x-input-label for="f-newSystemType" :value="__('System type')" class="text-xs" />
 
-                    <select wire:model="newSystemType" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm text-sm">
+                    <select id="f-newSystemType" wire:model="newSystemType" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm text-sm">
 
                         @foreach ($systemTypes as $type)
 
@@ -362,9 +362,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <div>
 
-                    <x-input-label :value="__('Telegram chat ID')" />
+                    <x-input-label for="f-newTelegramChatId" :value="__('Telegram chat ID')" />
 
-                    <x-text-input wire:model="newTelegramChatId" class="w-full mt-1" placeholder="{{ __('Optional') }}" />
+                    <x-text-input id="f-newTelegramChatId" wire:model="newTelegramChatId" class="w-full mt-1" placeholder="{{ __('Optional') }}" />
 
                 </div>
 
@@ -392,7 +392,7 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <div class="md:col-span-2 lg:col-span-3">
 
-                    <x-primary-button>{{ __('Create user') }}</x-primary-button>
+                    <x-button variant="primary" type="submit">{{ __('Create user') }}</x-button>
 
                 </div>
 
@@ -450,9 +450,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                                     <div>
 
-                                        <x-input-label :value="__('Full name')" />
+                                        <x-input-label for="f-editName" :value="__('Full name')" />
 
-                                        <x-text-input wire:model="editName" class="w-full mt-1" />
+                                        <x-text-input id="f-editName" wire:model="editName" class="w-full mt-1" />
 
                                     </div>
 
@@ -466,17 +466,17 @@ new #[Layout('components.admin-layout')] class extends Component
 
                                     <div>
 
-                                        <x-input-label :value="__('Telegram chat ID')" />
+                                        <x-input-label for="f-editTelegramChatId" :value="__('Telegram chat ID')" />
 
-                                        <x-text-input wire:model="editTelegramChatId" class="w-full mt-1" />
+                                        <x-text-input id="f-editTelegramChatId" wire:model="editTelegramChatId" class="w-full mt-1" />
 
                                     </div>
 
                                     <div>
 
-                                        <x-input-label :value="__('Department')" />
+                                        <x-input-label for="f-departmentId" :value="__('Department')" />
 
-                                        <select wire:model="departmentId" class="w-full mt-1 border-gray-300 rounded-md shadow-sm">
+                                        <select id="f-departmentId" wire:model="departmentId" class="w-full mt-1 border-gray-300 rounded-md shadow-sm">
 
                                             <option value="">{{ __('— Not assigned —') }}</option>
 
@@ -492,9 +492,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                                     <div>
 
-                                        <x-input-label :value="__('System type')" />
+                                        <x-input-label for="f-systemType" :value="__('System type')" />
 
-                                        <select wire:model="systemType" class="w-full mt-1 border-gray-300 rounded-md shadow-sm">
+                                        <select id="f-systemType" wire:model="systemType" class="w-full mt-1 border-gray-300 rounded-md shadow-sm">
 
                                             @foreach ($systemTypes as $type)
 
@@ -530,9 +530,9 @@ new #[Layout('components.admin-layout')] class extends Component
 
                                     <div class="flex gap-2 md:col-span-2 lg:col-span-3">
 
-                                        <x-primary-button>{{ __('Save') }}</x-primary-button>
+                                        <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
 
-                                        <x-secondary-button type="button" wire:click="cancelEdit">{{ __('Cancel') }}</x-secondary-button>
+                                        <x-button variant="secondary" type="button" wire:click="cancelEdit">{{ __('Cancel') }}</x-button>
 
                                     </div>
 
@@ -566,15 +566,15 @@ new #[Layout('components.admin-layout')] class extends Component
 
                                 <div class="inline-flex flex-wrap justify-end gap-1">
 
-                                    <x-action-button variant="ghost" size="sm" wire:click="startEdit({{ $user->id }})">{{ __('Edit') }}</x-action-button>
+                                    <x-button type="button" variant="ghost" size="sm" wire:click="startEdit({{ $user->id }})">{{ __('Edit') }}</x-button>
 
                                     @if ($user->is_active)
 
-                                        <x-action-button variant="danger" size="sm" wire:click="deactivate({{ $user->id }})" wire:confirm="{{ __('Deactivate this user?') }}">{{ __('Deactivate') }}</x-action-button>
+                                        <x-button type="button" variant="danger" size="sm" wire:click="deactivate({{ $user->id }})" wire:confirm="{{ __('Deactivate this user?') }}">{{ __('Deactivate') }}</x-button>
 
                                     @else
 
-                                        <x-action-button variant="ghost" size="sm" wire:click="activate({{ $user->id }})">{{ __('Activate') }}</x-action-button>
+                                        <x-button type="button" variant="ghost" size="sm" wire:click="activate({{ $user->id }})">{{ __('Activate') }}</x-button>
 
                                     @endif
 

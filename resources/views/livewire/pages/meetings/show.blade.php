@@ -40,7 +40,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $participants = $people->participants($this->meeting);
 
         $speakers = $this->meeting->speakerNames();
-        $palette = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-violet-500', 'bg-teal-500', 'bg-orange-500', 'bg-lime-600', 'bg-pink-500'];
+        $palette = ['bg-primary-500', 'bg-green-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-violet-500', 'bg-teal-500', 'bg-orange-500', 'bg-lime-600', 'bg-pink-500'];
         $colours = [];
         foreach ($speakers as $i => $name) {
             $colours[$name] = $palette[$i % count($palette)];
@@ -270,7 +270,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     {{-- Header --}}
     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
-            <a href="{{ route('meetings.index') }}" wire:navigate class="text-xs font-medium text-indigo-600 hover:text-indigo-800">← {{ __('meetings.back') }}</a>
+            <a href="{{ route('meetings.index') }}" wire:navigate class="text-xs font-medium text-primary-600 hover:text-primary-800">← {{ __('meetings.back') }}</a>
             <h2 class="mt-1 text-xl font-semibold text-gray-900">{{ $meeting->title }}</h2>
             <p class="mt-0.5 text-sm text-gray-500">
                 {{ $meeting->started_at->timezone('Europe/Kyiv')->locale(app()->getLocale())->isoFormat('dddd, D MMMM YYYY, HH:mm') }}
@@ -298,7 +298,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             <div class="flex gap-1 rounded-lg bg-gray-100 p-1 text-sm">
                 @foreach (['tasks' => __('meetings.tab_tasks').($openCount ? " · {$openCount}" : ''), 'transcript' => __('meetings.tab_transcript'), 'fireflies' => __('meetings.tab_fireflies')] as $key => $label)
                     <button type="button" wire:click="$set('tab', '{{ $key }}')"
-                        class="flex-1 rounded-md px-3 py-1.5 font-medium transition-colors {{ $tab === $key ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
+                        class="flex-1 rounded-md px-3 py-1.5 font-medium transition-colors {{ $tab === $key ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
                         {{ $label }}
                     </button>
                 @endforeach
@@ -315,14 +315,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </div>
                         <div class="flex items-center gap-2">
                             @if ($meeting->isBeingAnalyzed())
-                                <span wire:poll.4s="checkAnalysis" class="inline-flex items-center gap-2 text-xs text-indigo-700" data-ui="meeting-analyzing">
+                                <span wire:poll.4s="checkAnalysis" class="inline-flex items-center gap-2 text-xs text-primary-700" data-ui="meeting-analyzing">
                                     <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
                                     {{ __('meetings.analyzing') }}
                                 </span>
                             @else
                             <button type="button" wire:click="analyze" wire:loading.attr="disabled"
                                 @if ($meeting->analyzed_at) wire:confirm="{{ __('meetings.reanalyze_confirm') }}" @endif
-                                class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium shadow-sm disabled:opacity-60 {{ $meeting->analyzed_at ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50' : 'bg-indigo-600 text-white hover:bg-indigo-700' }}">
+                                class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium shadow-sm disabled:opacity-60 {{ $meeting->analyzed_at ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50' : 'bg-primary-600 text-white hover:bg-primary-700' }}">
                                 <svg wire:loading wire:target="analyze" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
                                 <svg wire:loading.remove wire:target="analyze" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                                 {{ $meeting->analyzed_at ? __('meetings.reanalyze') : __('meetings.analyze') }}
@@ -345,7 +345,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 <li wire:key="draft-{{ $draft->id }}" class="flex gap-3 px-4 py-3 {{ $draft->status === 'dismissed' ? 'opacity-50' : '' }}">
                                     <div class="pt-1">
                                         @if ($open)
-                                            <input type="checkbox" value="{{ $draft->id }}" wire:model.live="selected" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                            <input type="checkbox" value="{{ $draft->id }}" wire:model.live="selected" aria-label="{{ __('Select') }}: {{ $draft->title }}" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
                                         @elseif ($draft->status === 'created')
                                             <svg class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                                         @else
@@ -354,13 +354,13 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     </div>
                                     <div class="min-w-0 flex-1 space-y-1.5">
                                         @if ($open)
-                                            <input type="text" value="{{ $draft->title }}" wire:change="setTitle({{ $draft->id }}, $event.target.value)"
-                                                class="w-full rounded-md border-transparent px-1.5 py-0.5 -mx-1.5 text-sm font-medium text-gray-900 hover:border-gray-200 focus:border-indigo-300 focus:ring-indigo-200">
+                                            <input type="text" value="{{ $draft->title }}" wire:change="setTitle({{ $draft->id }}, $event.target.value)" aria-label="{{ __('Title') }}"
+                                                class="w-full rounded-md border-transparent px-1.5 py-0.5 -mx-1.5 text-sm font-medium text-gray-900 hover:border-gray-200 focus:border-primary-300 focus:ring-primary-200">
                                         @else
                                             <div class="text-sm font-medium text-gray-900">
                                                 {{ $draft->title }}
                                                 @if ($draft->task)
-                                                    <a href="{{ route('tasks.show', $draft->task) }}" wire:navigate class="ml-1 text-indigo-600 hover:underline">№{{ $draft->task->number }}</a>
+                                                    <a href="{{ route('tasks.show', $draft->task) }}" wire:navigate class="ml-1 text-primary-600 hover:underline">№{{ $draft->task->number }}</a>
                                                 @endif
                                             </div>
                                         @endif
@@ -370,13 +370,13 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         @endif
 
                                         @if ($draft->quote)
-                                            <div class="rounded-md border-l-2 border-indigo-200 bg-indigo-50/50 px-2.5 py-1.5 text-xs text-gray-700">
+                                            <div class="rounded-md border-l-2 border-primary-200 bg-primary-50/50 px-2.5 py-1.5 text-xs text-gray-700">
                                                 «{{ $draft->quote }}»
                                                 <span class="text-gray-500">— {{ $draft->speaker_name }}</span>
                                                 @if ($draft->start_seconds !== null)
                                                     <span class="whitespace-nowrap">
-                                                        · <a href="{{ $meeting->firefliesUrl($draft->start_seconds) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:underline">▶ {{ \App\Models\Meeting::formatSeconds($draft->start_seconds) }} {{ __('meetings.in_recording') }}</a>
-                                                        · <button type="button" wire:click="showAt({{ $draft->start_seconds }})" class="font-medium text-indigo-600 hover:underline">{{ __('meetings.in_transcript') }}</button>
+                                                        · <a href="{{ $meeting->firefliesUrl($draft->start_seconds) }}" target="_blank" rel="noopener" class="font-medium text-primary-600 hover:underline">▶ {{ \App\Models\Meeting::formatSeconds($draft->start_seconds) }} {{ __('meetings.in_recording') }}</a>
+                                                        · <button type="button" wire:click="showAt({{ $draft->start_seconds }})" class="font-medium text-primary-600 hover:underline">{{ __('meetings.in_transcript') }}</button>
                                                     </span>
                                                 @endif
                                             </div>
@@ -386,7 +386,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <label class="flex items-center gap-1.5">
                                                 <span class="text-gray-500">{{ __('meetings.assignee') }}</span>
                                                 @if ($open)
-                                                    <select wire:change="setAssignee({{ $draft->id }}, $event.target.value)" class="rounded-md border-gray-200 py-0.5 pl-2 pr-7 text-xs focus:border-indigo-300 focus:ring-indigo-200 {{ $draft->assignee ? '' : 'text-red-600' }}">
+                                                    <select wire:change="setAssignee({{ $draft->id }}, $event.target.value)" class="rounded-md border-gray-200 py-0.5 pl-2 pr-7 text-xs focus:border-primary-300 focus:ring-primary-200 {{ $draft->assignee ? '' : 'text-red-600' }}">
                                                         <option value="">{{ __('meetings.no_assignee') }}</option>
                                                         @foreach ($users as $dept => $list)
                                                             <optgroup label="{{ $dept }}">
@@ -403,7 +403,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <label class="flex items-center gap-1.5">
                                                 <span class="text-gray-500">{{ __('meetings.deadline') }}</span>
                                                 @if ($open)
-                                                    <input type="date" value="{{ $draft->deadline?->toDateString() }}" wire:change="setDeadline({{ $draft->id }}, $event.target.value)" class="rounded-md border-gray-200 py-0.5 px-2 text-xs focus:border-indigo-300 focus:ring-indigo-200">
+                                                    <input type="date" value="{{ $draft->deadline?->toDateString() }}" wire:change="setDeadline({{ $draft->id }}, $event.target.value)" class="rounded-md border-gray-200 py-0.5 px-2 text-xs focus:border-primary-300 focus:ring-primary-200">
                                                 @else
                                                     <span class="text-gray-800">{{ $draft->deadline?->format('d.m.Y') ?? '—' }}</span>
                                                 @endif
@@ -427,7 +427,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         @if ($open)
                                             <button type="button" wire:click="dismiss({{ $draft->id }})" class="text-xs text-gray-500 hover:text-red-600">{{ __('meetings.dismiss') }}</button>
                                         @elseif ($draft->status === 'dismissed')
-                                            <button type="button" wire:click="restore({{ $draft->id }})" class="text-xs text-indigo-600 hover:text-indigo-800">{{ __('meetings.restore') }}</button>
+                                            <button type="button" wire:click="restore({{ $draft->id }})" class="text-xs text-primary-600 hover:text-primary-800">{{ __('meetings.restore') }}</button>
                                         @endif
                                     </div>
                                 </li>
@@ -436,7 +436,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         @if ($openCount > 0)
                             <div class="sticky bottom-0 flex flex-col gap-3 rounded-b-xl border-t border-gray-100 bg-white/95 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-                                <button type="button" wire:click="toggleAll" class="text-left text-xs font-medium text-indigo-600 hover:text-indigo-800">{{ __('meetings.select_all') }}</button>
+                                <button type="button" wire:click="toggleAll" class="text-left text-xs font-medium text-primary-600 hover:text-primary-800">{{ __('meetings.select_all') }}</button>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <label class="flex items-center gap-1.5 text-xs text-gray-500">
                                         {{ __('meetings.category') }}
@@ -447,7 +447,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         </select>
                                     </label>
                                     <button type="button" wire:click="createSelected" wire:loading.attr="disabled" @disabled(count($selected) === 0)
-                                        class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50">
+                                        class="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50">
                                         {{ __('meetings.create_selected', ['count' => count($selected)]) }}
                                     </button>
                                 </div>
@@ -467,7 +467,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                              el.classList.add('bg-yellow-200'); setTimeout(() => el.classList.remove('bg-yellow-200'), 3000);
                          }, 50)">
                         <div class="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-2.5">
-                            <input type="search" x-model="q" placeholder="{{ __('meetings.search') }}" class="w-full rounded-md border-gray-200 text-sm focus:border-indigo-300 focus:ring-indigo-200">
+                            <input type="search" x-model="q" placeholder="{{ __('meetings.search') }}" class="w-full rounded-md border-gray-200 text-sm focus:border-primary-300 focus:ring-primary-200">
                         </div>
                         <div x-ref="box" class="relative max-h-[70vh] space-y-3 overflow-y-auto px-4 py-3" data-ui="meeting-transcript">
                             @foreach ($blocks as $block)
@@ -480,7 +480,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             @if (($speakerUsers[$block['speaker']] ?? null) && $speakerUsers[$block['speaker']] !== $block['speaker'])
                                                 <span class="text-gray-500">· {{ $speakerUsers[$block['speaker']] }}</span>
                                             @endif
-                                            <a href="{{ $meeting->firefliesUrl($block['start']) }}" target="_blank" rel="noopener" class="ml-1 text-gray-500 hover:text-indigo-600">{{ \App\Models\Meeting::formatSeconds($block['start']) }}</a>
+                                            <a href="{{ $meeting->firefliesUrl($block['start']) }}" target="_blank" rel="noopener" class="ml-1 text-gray-500 hover:text-primary-600">{{ \App\Models\Meeting::formatSeconds($block['start']) }}</a>
                                         </div>
                                         <p class="text-sm leading-relaxed text-gray-800">
                                             @foreach ($block['lines'] as $line)
@@ -511,7 +511,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         @foreach (\App\Models\Meeting::ACCESS_MODES as $mode)
                             <label class="flex cursor-pointer items-start gap-2 text-sm">
                                 <input type="radio" name="access_mode" value="{{ $mode }}" @checked($meeting->access_mode === $mode)
-                                    wire:click="setAccessMode('{{ $mode }}')" class="mt-0.5 border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                    wire:click="setAccessMode('{{ $mode }}')" class="mt-0.5 border-gray-300 text-primary-600 focus:ring-primary-500">
                                 <span>
                                     <span class="font-medium text-gray-900">{{ __('meetings.access_mode.'.$mode) }}</span>
                                     <span class="block text-xs text-gray-500">{{ __('meetings.access_hint.'.$mode) }}</span>
@@ -525,15 +525,15 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <div class="mb-1.5 text-xs font-medium text-gray-700">{{ __('meetings.viewers') }}</div>
                             <div class="flex flex-wrap gap-1.5">
                                 @forelse ($viewers as $viewer)
-                                    <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-800 ring-1 ring-indigo-200" wire:key="viewer-{{ $viewer->id }}">
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs text-primary-800 ring-1 ring-primary-200" wire:key="viewer-{{ $viewer->id }}">
                                         {{ $viewer->name }}
-                                        <button type="button" wire:click="removeViewer({{ $viewer->id }})" class="text-indigo-400 hover:text-red-600" title="{{ __('meetings.viewer_remove') }}">×</button>
+                                        <button type="button" wire:click="removeViewer({{ $viewer->id }})" class="text-primary-400 hover:text-red-600" title="{{ __('meetings.viewer_remove') }}">×</button>
                                     </span>
                                 @empty
                                     <span class="text-xs text-gray-500">{{ __('meetings.viewers_none') }}</span>
                                 @endforelse
                             </div>
-                            <select wire:change="addViewer($event.target.value); $event.target.value = ''" class="mt-2 w-full rounded-md border-gray-200 py-1 pl-2 pr-7 text-xs">
+                            <select wire:change="addViewer($event.target.value); $event.target.value = ''" aria-label="{{ __('meetings.viewer_add') }}" class="mt-2 w-full rounded-md border-gray-200 py-1 pl-2 pr-7 text-xs">
                                 <option value="">{{ __('meetings.viewer_add') }}</option>
                                 @foreach ($users as $dept => $list)
                                     <optgroup label="{{ $dept }}">
@@ -585,7 +585,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 @if (! $p['spoke']) <span class="text-gray-500">· {{ __('meetings.invited') }}</span> @endif
                             </div>
                             @if ($isAdmin)
-                                <select wire:change="mapPerson({{ $i }}, $event.target.value)" class="ml-4 mt-1 w-[calc(100%-1rem)] rounded-md border-gray-200 py-0.5 pl-2 pr-7 text-xs {{ $p['user'] || $p['external'] ? 'text-gray-600' : 'text-amber-700' }}">
+                                <select wire:change="mapPerson({{ $i }}, $event.target.value)" aria-label="{{ __('Employee') }}: {{ $p['label'] }}" class="ml-4 mt-1 w-[calc(100%-1rem)] rounded-md border-gray-200 py-0.5 pl-2 pr-7 text-xs {{ $p['user'] || $p['external'] ? 'text-gray-600' : 'text-amber-700' }}">
                                     <option value="" @selected(! $p['user'] && ! $p['external'])>{{ __('meetings.unmapped') }}</option>
                                     <option value="external" @selected($p['external'])>{{ __('meetings.external') }}</option>
                                     @foreach ($users as $dept => $list)

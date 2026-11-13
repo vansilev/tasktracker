@@ -150,9 +150,9 @@ new class extends Component
             <x-input-error :messages="$errors->get('name')" class="mt-1" />
         </div>
 
-        <x-primary-button wire:loading.attr="disabled" wire:target="createKey">
+        <x-button variant="primary" type="submit" wire:loading.attr="disabled" wire:target="createKey">
             {{ __('kommo_read.create') }}
-        </x-primary-button>
+        </x-button>
     </form>
 
     @if ($plainKey)
@@ -167,22 +167,19 @@ new class extends Component
                     {{ __('kommo_read.step_2_title') }}
                 </h3>
 
-                <a
-                    href="{{ $this->installLink() }}"
-                    class="mt-3 inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-                >
+                <x-button variant="primary" :href="$this->installLink()" class="mt-3">
                     {{ __('kommo_read.install') }}
-                </a>
+                </x-button>
                 <p class="mt-2 text-xs text-gray-500">{{ __('kommo_read.install_hint') }}</p>
 
                 <details class="mt-4 rounded-lg border border-gray-200 p-4 text-sm text-gray-700">
-                    <summary class="cursor-pointer font-medium text-indigo-600">
+                    <summary class="cursor-pointer font-medium text-primary-600">
                         {{ __('kommo_read.manual_title') }}
                     </summary>
 
                     <div class="mt-3 space-y-4">
                         <details class="text-xs text-gray-600">
-                            <summary class="cursor-pointer font-medium text-indigo-600">
+                            <summary class="cursor-pointer font-medium text-primary-600">
                                 {{ __('api_token.where_file') }}
                             </summary>
                             <div class="mt-2 space-y-2 rounded-lg bg-gray-50 p-3">
@@ -196,14 +193,14 @@ new class extends Component
                             <p>{{ __('kommo_read.manual_new_file') }}</p>
                             <pre class="mt-2 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-5 text-gray-800">{{ $this->fullCursorConfig() }}</pre>
                             <div class="mt-2" x-data="{ copied: false, text: @js($this->fullCursorConfig()) }">
-                                <x-action-button
+                                <x-button size="sm"
                                     variant="secondary"
                                     type="button"
                                     x-on:click="navigator.clipboard.writeText(text); copied = true"
                                 >
                                     <span x-show="!copied">{{ __('kommo_read.copy_full_file') }}</span>
                                     <span x-show="copied" x-cloak>{{ __('api_token.copied') }}</span>
-                                </x-action-button>
+                                </x-button>
                             </div>
                         </div>
 
@@ -211,21 +208,21 @@ new class extends Component
                             <p>{{ __('kommo_read.manual_existing_file') }}</p>
                             <pre class="mt-2 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-5 text-gray-800">{{ $this->cursorServerEntry() }}</pre>
                             <div class="mt-2" x-data="{ copied: false, text: @js($this->cursorServerEntry()) }">
-                                <x-action-button
+                                <x-button size="sm"
                                     variant="secondary"
                                     type="button"
                                     x-on:click="navigator.clipboard.writeText(text); copied = true"
                                 >
                                     <span x-show="!copied">{{ __('kommo_read.copy_server') }}</span>
                                     <span x-show="copied" x-cloak>{{ __('api_token.copied') }}</span>
-                                </x-action-button>
+                                </x-button>
                             </div>
                         </div>
                     </div>
                 </details>
 
                 <details class="mt-3 rounded-lg border border-gray-200 p-4 text-sm text-gray-700">
-                    <summary class="cursor-pointer font-medium text-indigo-600">
+                    <summary class="cursor-pointer font-medium text-primary-600">
                         {{ __('kommo_read.cloud_title') }}
                     </summary>
 
@@ -248,14 +245,14 @@ new class extends Component
                             <p class="text-xs font-medium text-gray-500">{{ __('api_token.cloud_header_value_label') }}</p>
                             <code class="mt-1 block break-all rounded bg-white px-2 py-1.5">{{ $this->bearerValue() }}</code>
                             <div class="mt-2" x-data="{ copied: false, text: @js($this->bearerValue()) }">
-                                <x-action-button
+                                <x-button size="sm"
                                     variant="secondary"
                                     type="button"
                                     x-on:click="navigator.clipboard.writeText(text); copied = true"
                                 >
                                     <span x-show="!copied">{{ __('api_token.copy_header_value') }}</span>
                                     <span x-show="copied" x-cloak>{{ __('api_token.copied') }}</span>
-                                </x-action-button>
+                                </x-button>
                             </div>
                         </div>
                     </div>
@@ -272,7 +269,7 @@ new class extends Component
                 </ol>
             </div>
 
-            <button type="button" wire:click="hideKey" class="text-sm text-indigo-600 hover:text-indigo-800">
+            <button type="button" wire:click="hideKey" class="text-sm text-primary-600 hover:text-primary-800">
                 {{ __('api_token.hide') }}
             </button>
         </div>
@@ -303,14 +300,14 @@ new class extends Component
                             </p>
                         </div>
 
-                        <x-action-button
+                        <x-button size="sm"
                             variant="danger"
                             type="button"
                             wire:click="revoke({{ $key->id }})"
                             wire:confirm="{{ __('kommo_read.revoke_confirm') }}"
                         >
                             {{ __('api_token.revoke') }}
-                        </x-action-button>
+                        </x-button>
                     </li>
                 @endforeach
             </ul>

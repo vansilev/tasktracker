@@ -26,7 +26,7 @@
                         <article
                             data-kanban-card="{{ $task->id }}"
                             draggable="false"
-                            class="cursor-grab select-none rounded-lg border border-gray-100 bg-white p-3 shadow-sm transition hover:border-indigo-200"
+                            class="cursor-grab select-none rounded-lg border border-gray-100 bg-white p-3 shadow-sm transition hover:border-primary-200"
                             style="touch-action:none"
                             x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
                             x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"
@@ -39,7 +39,7 @@
                                         <span class="truncate text-sm {{ ($unreadCounts[$task->id] ?? 0) > 0 ? 'font-semibold text-gray-950' : 'font-medium text-gray-900' }}">{{ $task->title ?: Str::limit($task->plainDescription(), 60) }}</span>
                                     </div>
                                     @if ($task->parent)
-                                        <p class="mt-0.5 truncate text-xs text-indigo-600">
+                                        <p class="mt-0.5 truncate text-xs text-primary-600">
                                             {{ __('Part of #:number · :title', ['number' => $task->parent->number, 'title' => $task->parent->title]) }}
                                         </p>
                                     @endif

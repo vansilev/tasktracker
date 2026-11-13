@@ -13,7 +13,7 @@
                     type="button"
                     x-on:click="$store.toasts.undo(toast)"
                     data-ui="toast-undo"
-                    class="shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+                    class="shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
                 >
                     {{ __('Undo') }}
                 </button>

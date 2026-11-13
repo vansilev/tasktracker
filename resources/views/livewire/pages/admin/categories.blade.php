@@ -113,7 +113,7 @@ new #[Layout('components.admin-layout')] class extends Component
             <div class="flex-1 min-w-[200px]">
                 <x-text-input wire:model="name" class="w-full" placeholder="{{ __('Category name') }}" />
             </div>
-            <x-primary-button>{{ __('Add') }}</x-primary-button>
+            <x-button variant="primary" type="submit">{{ __('Add') }}</x-button>
         </form>
         <x-input-error :messages="$errors->get('name')" class="mt-2" />
     </x-card>
@@ -136,15 +136,15 @@ new #[Layout('components.admin-layout')] class extends Component
                                 <td colspan="4" class="px-4 py-3">
                                     <form wire:submit="saveEdit" class="flex flex-wrap gap-3 items-end">
                                         <div>
-                                            <x-input-label :value="__('Order')" class="text-xs" />
-                                            <x-text-input wire:model="editSortOrder" type="number" class="w-24 mt-1" />
+                                            <x-input-label for="f-editSortOrder" :value="__('Order')" class="text-xs" />
+                                            <x-text-input id="f-editSortOrder" wire:model="editSortOrder" type="number" class="w-24 mt-1" />
                                         </div>
                                         <div class="flex-1 min-w-[200px]">
-                                            <x-input-label :value="__('Name')" class="text-xs" />
-                                            <x-text-input wire:model="editName" class="w-full mt-1" />
+                                            <x-input-label for="f-editName" :value="__('Name')" class="text-xs" />
+                                            <x-text-input id="f-editName" wire:model="editName" class="w-full mt-1" />
                                         </div>
-                                        <x-primary-button>{{ __('Save') }}</x-primary-button>
-                                        <x-secondary-button type="button" wire:click="cancelEdit">{{ __('Cancel') }}</x-secondary-button>
+                                        <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
+                                        <x-button variant="secondary" type="button" wire:click="cancelEdit">{{ __('Cancel') }}</x-button>
                                     </form>
                                 </td>
                             </tr>
@@ -157,10 +157,10 @@ new #[Layout('components.admin-layout')] class extends Component
                                 </td>
                                 <td class="px-4 py-2.5 text-right">
                                     <div class="inline-flex flex-wrap justify-end gap-1">
-                                        <x-action-button variant="ghost" size="sm" wire:click="startEdit({{ $category->id }})">{{ __('Edit') }}</x-action-button>
-                                        <x-action-button variant="ghost" size="sm" wire:click="toggle({{ $category->id }})">
+                                        <x-button type="button" variant="ghost" size="sm" wire:click="startEdit({{ $category->id }})">{{ __('Edit') }}</x-button>
+                                        <x-button type="button" variant="ghost" size="sm" wire:click="toggle({{ $category->id }})">
                                             {{ $category->is_active ? __('Archive') : __('Restore') }}
-                                        </x-action-button>
+                                        </x-button>
                                     </div>
                                 </td>
                             </tr>

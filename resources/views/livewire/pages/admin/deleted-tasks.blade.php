@@ -63,7 +63,7 @@ new #[Layout('components.admin-layout')] class extends Component
                                     type="button"
                                     wire:click="restore({{ $task->id }})"
                                     wire:confirm="{{ __('Restore this task?') }}"
-                                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                                    class="text-xs font-medium text-primary-600 hover:text-primary-800"
                                 >
                                     {{ __('Restore') }}
                                 </button>

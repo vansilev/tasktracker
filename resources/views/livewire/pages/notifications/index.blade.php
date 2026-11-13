@@ -74,7 +74,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Notifications'])] class ext
             <button
                 type="button"
                 wire:click="showInbox('unread')"
-                class="rounded-md px-3 py-1.5 text-sm font-medium {{ $inbox === 'unread' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900' }}"
+                class="rounded-md px-3 py-1.5 text-sm font-medium {{ $inbox === 'unread' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900' }}"
             >
                 {{ __('notification.unread') }}
                 @if ($unreadCount > 0)
@@ -84,14 +84,14 @@ new #[Layout('components.tasks-layout', ['title' => 'Notifications'])] class ext
             <button
                 type="button"
                 wire:click="showInbox('all')"
-                class="rounded-md px-3 py-1.5 text-sm font-medium {{ $inbox === 'all' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900' }}"
+                class="rounded-md px-3 py-1.5 text-sm font-medium {{ $inbox === 'all' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900' }}"
             >
                 {{ __('notification.all') }}
             </button>
         </div>
 
         @if ($unreadCount > 0)
-            <button type="button" wire:click="markAllAsRead" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+            <button type="button" wire:click="markAllAsRead" class="text-sm font-medium text-primary-600 hover:text-primary-800">
                 {{ __('notification.mark_all_read') }}
             </button>
         @endif
@@ -106,9 +106,9 @@ new #[Layout('components.tasks-layout', ['title' => 'Notifications'])] class ext
                 type="button"
                 data-ui="notification-item"
                 wire:click="open('{{ $notification->id }}')"
-                class="flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-start last:border-b-0 hover:bg-gray-50 {{ $notification->read_at ? '' : 'bg-indigo-50/40' }}"
+                class="flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-start last:border-b-0 hover:bg-gray-50 {{ $notification->read_at ? '' : 'bg-primary-50/40' }}"
             >
-                <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-gray-200' : 'bg-indigo-500' }}" aria-hidden="true"></span>
+                <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $notification->read_at ? 'bg-gray-200' : 'bg-primary-500' }}" aria-hidden="true"></span>
                 <span class="min-w-0 flex-1">
                     <span class="block truncate text-sm font-medium text-gray-900">{{ InAppNotification::heading($data) }}</span>
                     <span class="mt-0.5 block text-sm text-gray-600">{{ InAppNotification::line($data) }}</span>

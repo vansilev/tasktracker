@@ -41,7 +41,7 @@
                                     aria-controls="cursor-panel-{{ $key }}"
                                     x-bind:aria-selected="tab === '{{ $key }}'"
                                     x-on:click="tab = '{{ $key }}'; history.replaceState(null, '', '#{{ $key }}')"
-                                    x-bind:class="tab === '{{ $key }}' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'"
+                                    x-bind:class="tab === '{{ $key }}' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'"
                                     class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
                                 >
                                     {{ $label }}

@@ -87,7 +87,7 @@ new class extends Component
                     @if ($canCreate)
                         <button
                             type="button"
-                            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-900 hover:bg-indigo-50"
+                            class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-gray-900 hover:bg-primary-50"
                             onclick="Livewire.navigate('{{ route('tasks.create') }}')"
                         >
                             <span>{{ __('Create task') }}</span>
@@ -101,7 +101,7 @@ new class extends Component
                         <button
                             type="button"
                             wire:key="command-task-{{ $task->id }}"
-                            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-indigo-50"
+                            class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-primary-50"
                             onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')"
                         >
                             <span class="shrink-0 tabular-nums text-gray-500">#{{ $task->number }}</span>
