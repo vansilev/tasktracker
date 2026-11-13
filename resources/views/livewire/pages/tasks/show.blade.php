@@ -104,6 +104,9 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public array $watcherIds = [];
 
+    /** Combobox buffer: picking a person adds them to $watcherIds. */
+    public ?int $watcherToAdd = null;
+
     public ?int $editingCommentId = null;
 
     public string $editCommentBody = '';
@@ -305,6 +308,20 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->task->watchers()->sync($this->watcherIds);
         $this->task->load('watchers');
         $this->editingWatchers = false;
+    }
+
+    public function updatedWatcherToAdd($value): void
+    {
+        $id = (int) $value;
+        if ($id > 0 && ! in_array($id, array_map('intval', $this->watcherIds), true)) {
+            $this->watcherIds[] = (string) $id;
+        }
+        $this->watcherToAdd = null;
+    }
+
+    public function removeWatcherId(int $id): void
+    {
+        $this->watcherIds = array_values(array_filter($this->watcherIds, fn ($w) => (int) $w !== $id));
     }
 
     public function cancelEditWatchers(): void
@@ -1341,7 +1358,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         <a href="{{ route('tasks.show', $subtask) }}" wire:navigate draggable="false"
                                            class="flex flex-1 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 leading-5">
                                             <span class="shrink-0 text-sm tabular-nums text-gray-500">#{{ $subtask->number }}</span>
-                                            <span class="flex-1 min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
+                                            <span class="flex-1 min-w-[10rem] sm:min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
                                             @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
                                                 <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
                                             @endif
@@ -1481,12 +1498,10 @@ new #[Layout('components.tasks-layout')] class extends Component
             </div>
 
             {{-- Right sidebar --}}
-            <aside class="space-y-4 lg:sticky lg:top-6 self-start">
+            <aside class="order-first lg:order-none lg:sticky lg:top-6 self-start rounded-surface border border-gray-200 bg-white divide-y divide-gray-200" aria-label="{{ __('Meta') }}">
                 @php $deadline = $this->deadlineMeta(); @endphp
-                <x-card>
-                    <x-slot name="header">
-                        <h2 class="text-sm font-semibold text-gray-900">{{ __('Meta') }}</h2>
-                    </x-slot>
+                <section class="p-5">
+                    <h2 class="text-sm font-semibold text-gray-900 mb-4">{{ __('Meta') }}</h2>
                     <dl class="space-y-3">
                         <div>
                             <dt class="text-xs text-gray-500">{{ __('Status') }}</dt>
@@ -1574,27 +1589,39 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </dd>
                         </div>
                     </dl>
-                </x-card>
+                </section>
 
-                <x-card>
-                    <x-slot name="header">
+                <section class="p-5">
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('Watchers') }}</h2>
-                    </x-slot>
-                    @if ($canManageWatchers && ! $editingWatchers)
-                        <x-slot name="actions">
-                            <x-button type="button" size="sm" variant="ghost" wire:click="startEditWatchers">
+                        @if ($canManageWatchers && ! $editingWatchers)
+                            <x-button type="button" size="sm" variant="ghost" class="-me-2" wire:click="startEditWatchers">
                                 {{ __('Manage watchers') }}
                             </x-button>
-                        </x-slot>
-                    @endif
+                        @endif
+                    </div>
                     @if ($editingWatchers)
                         <div class="space-y-3">
-                            <select wire:model="watcherIds" multiple aria-label="{{ __('Watchers') }}"
-                                    class="w-full border-gray-300 rounded-lg shadow-sm h-32 text-sm focus:border-primary-500 focus:ring-primary-500">
-                                @foreach ($allUsers as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                @endforeach
-                            </select>
+                            @php
+                                $watcherIdsInt = array_map('intval', $watcherIds);
+                                $chosenWatchers = $allUsers->whereIn('id', $watcherIdsInt);
+                            @endphp
+                            @if ($chosenWatchers->isNotEmpty())
+                                <ul class="flex flex-wrap gap-1.5">
+                                    @foreach ($chosenWatchers as $w)
+                                        <li class="inline-flex items-center gap-1 rounded-control bg-gray-100 py-0.5 ps-2 pe-1 text-body-sm text-gray-800">
+                                            {{ $w->name }}
+                                            <button type="button" wire:click="removeWatcherId({{ $w->id }})" class="rounded p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-900" aria-label="{{ __('Delete') }}: {{ $w->name }}"><x-icon.x-mark class="w-3.5 h-3.5" /></button>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                            <x-combobox
+                                wire:key="show-watcher-picker-{{ count($watcherIds) }}"
+                                wire:model.live="watcherToAdd"
+                                :options="$allUsers->reject(fn ($u) => in_array($u->id, $watcherIdsInt, true))->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])->values()->all()"
+                                :placeholder="__('Add watcher')"
+                            />
                             <div class="flex gap-2">
                                 <x-button variant="primary" type="button" wire:click="saveWatchers">{{ __('Save') }}</x-button>
                                 <x-button variant="secondary" type="button" wire:click="cancelEditWatchers">{{ __('Cancel') }}</x-button>
@@ -1607,7 +1634,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <ul class="space-y-2">
                                 @foreach ($task->watchers as $watcher)
                                     <li class="flex items-center gap-2 text-sm text-gray-700">
-                                        <span class="w-6 h-6 shrink-0 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-[10px] font-semibold">{{ $this->initials($watcher->name) }}</span>
+                                        <span class="w-6 h-6 shrink-0 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">{{ $this->initials($watcher->name) }}</span>
                                         <span class="flex-1 min-w-0 truncate">{{ $watcher->name }}</span>
                                         @if ($canManageWatchers)
                                             <button type="button" wire:click="removeWatcher({{ $watcher->id }})" class="p-0.5 shrink-0 rounded text-gray-500 hover:text-red-700 hover:bg-red-50" aria-label="{{ __('Delete') }}"><x-icon.x-mark /></button>
@@ -1617,17 +1644,15 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </ul>
                         @endif
                     @endif
-                </x-card>
+                </section>
 
-                <x-card
+                <section
                     x-data="clipboardImagePaste($wire, 'pastedTaskFile')"
                     @paste="handlePaste($event)"
                     tabindex="0"
-                    class="outline-none focus:ring-2 focus:ring-primary-200"
+                    class="p-5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-200"
                 >
-                    <x-slot name="header">
-                        <h2 class="text-sm font-semibold text-gray-900">{{ __('Attachments') }}</h2>
-                    </x-slot>
+                    <h2 class="text-sm font-semibold text-gray-900 mb-3">{{ __('Attachments') }}</h2>
                     <ul class="space-y-2 mb-3">
                         @forelse ($task->attachments->whereNull('comment_id') as $attachment)
                             <x-attachment-item :attachment="$attachment" :task="$task" />
@@ -1645,7 +1670,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         <x-input-error :messages="$errors->get('uploadFiles.*')" class="mt-1" />
                         <x-input-error :messages="$errors->get('pastedTaskFile')" class="mt-1" />
                     @endif
-                </x-card>
+                </section>
             </aside>
         </div>
     @endif

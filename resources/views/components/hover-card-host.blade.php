@@ -16,7 +16,7 @@
                 <div class="flex items-start justify-between gap-2">
                     <p class="text-xs tabular-nums text-gray-500" x-text="'#' + $store.hoverCard.data.number"></p>
                     <span
-                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
                         x-bind:class="$store.hoverCard.data.statusClass"
                         x-text="$store.hoverCard.data.status"
                     ></span>

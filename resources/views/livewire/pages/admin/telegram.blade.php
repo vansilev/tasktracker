@@ -122,7 +122,7 @@ new #[Layout('components.admin-layout')] class extends Component
                 <thead class="bg-gray-50/80">
                     <tr>
                         @foreach ([__('Employee'), __('Department'), 'Telegram', __('Switched off by the person'), ''] as $heading)
-                            <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ $heading }}</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ $heading }}</th>
                         @endforeach
                     </tr>
                 </thead>

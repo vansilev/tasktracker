@@ -138,13 +138,13 @@ new #[Layout('components.admin-layout')] class extends Component
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50/80">
                     <tr>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Date') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Actor') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('IP') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Action') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Entity') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Changes') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide"></th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Date') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Actor') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('IP') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Action') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Entity') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Changes') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">

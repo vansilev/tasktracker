@@ -577,7 +577,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 <span class="h-2 w-2 shrink-0 rounded-full {{ $p['speaker'] ? ($colours[$p['speaker']] ?? 'bg-gray-300') : 'bg-gray-200' }}"></span>
                                 <span class="min-w-0 flex-1 truncate text-sm {{ $p['user'] ? 'font-medium text-gray-900' : 'text-gray-600' }}">{{ $p['label'] }}</span>
                                 @if ($p['user'] && $p['source'] !== 'none')
-                                    <span class="text-[11px] text-gray-500">{{ __('meetings.source.'.$p['source']) }}</span>
+                                    <span class="text-xs text-gray-500">{{ __('meetings.source.'.$p['source']) }}</span>
                                 @endif
                             </div>
                             <div class="ml-4 mt-0.5 truncate text-xs text-gray-500">

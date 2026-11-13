@@ -464,5 +464,7 @@
     "Period start": "Начало периода",
     "Period end": "Конец периода",
     "Checklist item": "Пункт чек-листа",
-    "Select": "Выбрать"
+    "Select": "Выбрать",
+    "Statistics for the period": "Статистика за период",
+    "Add watcher": "Добавить наблюдателя"
 }

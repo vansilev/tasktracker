@@ -418,19 +418,19 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <tr>
 
-                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Full name') }}</th>
+                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Full name') }}</th>
 
-                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Email') }}</th>
+                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Email') }}</th>
 
-                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Department') }}</th>
+                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Department') }}</th>
 
-                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Type') }}</th>
+                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Type') }}</th>
 
-                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Roles') }}</th>
+                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Roles') }}</th>
 
-                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Status') }}</th>
+                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Status') }}</th>
 
-                    <th class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Actions') }}</th>
+                    <th class="px-4 py-2.5 text-right text-xs font-medium text-gray-600">{{ __('Actions') }}</th>
 
                 </tr>
 
@@ -570,7 +570,7 @@ new #[Layout('components.admin-layout')] class extends Component
 
                                     @if ($user->is_active)
 
-                                        <x-button type="button" variant="danger" size="sm" wire:click="deactivate({{ $user->id }})" wire:confirm="{{ __('Deactivate this user?') }}">{{ __('Deactivate') }}</x-button>
+                                        <x-button type="button" variant="ghost" size="sm" class="!text-danger-700 hover:!bg-danger-50" wire:click="deactivate({{ $user->id }})" wire:confirm="{{ __('Deactivate this user?') }}">{{ __('Deactivate') }}</x-button>
 
                                     @else
 

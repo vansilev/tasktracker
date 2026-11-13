@@ -38,6 +38,9 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public array $watcherIds = [];
 
+    /** Combobox buffer: picking a person adds them to $watcherIds. */
+    public ?int $watcherToAdd = null;
+
     public array $uploadFiles = [];
 
     public $pastedCreateFile = null;
@@ -48,6 +51,20 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->departmentId = $user->department_id;
 
         abort_unless($user->can('create', Task::class), 403);
+    }
+
+    public function updatedWatcherToAdd($value): void
+    {
+        $id = (int) $value;
+        if ($id > 0 && ! in_array($id, array_map('intval', $this->watcherIds), true)) {
+            $this->watcherIds[] = $id;
+        }
+        $this->watcherToAdd = null;
+    }
+
+    public function removeWatcherId(int $id): void
+    {
+        $this->watcherIds = array_values(array_filter($this->watcherIds, fn ($w) => (int) $w !== $id));
     }
 
     public function updatedPastedCreateFile(): void
@@ -157,9 +174,9 @@ new #[Layout('components.tasks-layout')] class extends Component
         {{ __('Back to tasks') }}
     </a>
 
-    <form wire:submit="save" class="max-w-5xl">
-        <div class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 items-start">
-            <x-card>
+    <form wire:submit="save" class="max-w-6xl">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <x-card class="lg:col-span-2">
                 <x-slot name="header">
                     <div>
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('Create task') }}</h2>
@@ -199,7 +216,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                 </div>
             </x-card>
 
-            <div class="space-y-4 lg:sticky lg:top-6 self-start">
+            <div class="space-y-4 lg:sticky lg:top-6 self-start lg:col-span-1">
                 <x-card>
                     <div class="space-y-4">
                         <div>
@@ -276,23 +293,38 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </div>
 
                         <div>
-                            <x-input-label for="f-watcherIds" :value="__('Watchers')" class="text-xs text-gray-500 font-medium" />
-                            <select id="f-watcherIds" wire:model="watcherIds" multiple
-                                    class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm h-28 focus:border-primary-500 focus:ring-primary-500">
-                                @foreach ($allUsers as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-input-label for="f-watcherToAdd" :value="__('Watchers')" class="text-xs text-gray-500 font-medium" />
+                            @php
+                                $watcherIdsInt = array_map('intval', $watcherIds);
+                                $chosenWatchers = $allUsers->whereIn('id', $watcherIdsInt);
+                            @endphp
+                            @if ($chosenWatchers->isNotEmpty())
+                                <ul class="mt-1 flex flex-wrap gap-1.5">
+                                    @foreach ($chosenWatchers as $w)
+                                        <li class="inline-flex items-center gap-1 rounded-control bg-gray-100 py-0.5 ps-2 pe-1 text-body-sm text-gray-800">
+                                            {{ $w->name }}
+                                            <button type="button" wire:click="removeWatcherId({{ $w->id }})" class="rounded p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-900" aria-label="{{ __('Delete') }}: {{ $w->name }}"><x-icon.x-mark class="w-3.5 h-3.5" /></button>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                            <x-combobox id="f-watcherToAdd"
+                                class="mt-1.5"
+                                wire:key="create-watcher-picker-{{ count($watcherIds) }}"
+                                wire:model.live="watcherToAdd"
+                                :options="$allUsers->reject(fn ($u) => in_array($u->id, $watcherIdsInt, true))->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])->values()->all()"
+                                :placeholder="__('Add watcher')"
+                            />
                         </div>
                     </div>
                 </x-card>
 
-                <div class="flex gap-3">
-                    <x-button variant="primary" type="submit">{{ __('Create task') }}</x-button>
-                    <a href="{{ route('tasks.index') }}" wire:navigate>
-                        <x-button variant="secondary" type="button">{{ __('Cancel') }}</x-button>
-                    </a>
-                </div>
+            </div>
+
+            {{-- Form actions under the main column, left-aligned, in reading order. --}}
+            <div class="flex gap-3 lg:col-span-2">
+                <x-button variant="primary" type="submit">{{ __('Create task') }}</x-button>
+                <x-button variant="secondary" :href="route('tasks.index')" wire:navigate>{{ __('Cancel') }}</x-button>
             </div>
         </div>
     </form>

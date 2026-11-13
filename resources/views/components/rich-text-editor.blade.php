@@ -188,7 +188,7 @@
              role="toolbar"
              aria-label="{{ __('editor.table') }}"
              class="flex flex-wrap items-center gap-0.5 border-b border-gray-200 bg-primary-50/60 px-1.5 py-1 text-xs">
-            <span class="px-1 text-[11px] font-medium uppercase tracking-wide text-primary-700">{{ __('editor.table') }}</span>
+            <span class="px-1 text-xs font-medium uppercase tracking-wide text-primary-700">{{ __('editor.table') }}</span>
             <button type="button" class="{{ $btnWide }}"
                     title="{{ __('editor.row_add') }}"
                     @mousedown.prevent @click="run((c) => c.addRowAfter())">+ {{ __('editor.row_add') }}</button>

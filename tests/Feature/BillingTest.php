@@ -159,7 +159,7 @@ class BillingTest extends TestCase
         $this->assertSame('amber', $meta['tone']);
     }
 
-    public function test_missing_fields_show_yellow_needs_fill_badges(): void
+    public function test_missing_fields_are_listed_in_one_line(): void
     {
         $admin = $this->admin();
         BillingItem::factory()->create([
@@ -177,9 +177,12 @@ class BillingTest extends TestCase
         $this->actingAs($admin)
             ->get('/billing')
             ->assertOk()
-            ->assertSee(__('billing.issue.payer'))
-            ->assertSee(__('billing.issue.owner'))
-            ->assertSee(__('billing.issue.card_last4'));
+            // One quiet line per row instead of a badge per missing field.
+            ->assertSee(__('billing.missing_prefix', ['items' => implode(', ', [
+                __('billing.issue_short.payer'),
+                __('billing.issue_short.owner'),
+                __('billing.issue_short.card_last4'),
+            ])]));
     }
 
     public function test_empty_amount_is_invoice_not_yellow(): void

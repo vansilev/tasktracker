@@ -457,11 +457,11 @@ new class extends Component
 
                             <div class="grid grid-cols-2 gap-3">
                                 <div class="rounded-xl bg-primary-50 px-4 py-3">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide text-primary-700/70">{{ __('billing.amount') }}</div>
+                                    <div class="text-xs font-medium uppercase tracking-wide text-primary-700/70">{{ __('billing.amount') }}</div>
                                     <div class="mt-1 text-xl font-semibold text-gray-900 leading-tight">{{ $item->formattedAmount() }}</div>
                                 </div>
                                 <div class="rounded-xl px-4 py-3 {{ $dueBox }}">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide {{ $dueMuted }}">{{ __('billing.next_due') }}</div>
+                                    <div class="text-xs font-medium uppercase tracking-wide {{ $dueMuted }}">{{ __('billing.next_due') }}</div>
                                     <div class="mt-1 text-xl font-semibold leading-tight {{ $dueStrong }}">{{ $due['relative'] ?? $due['text'] }}</div>
                                     @if (($due['date'] ?? null) && ($due['relative'] ?? '') !== ($due['date'] ?? ''))
                                         <div class="mt-0.5 text-sm {{ $dueStrong }} opacity-80">{{ $due['date'] }}</div>
@@ -483,7 +483,7 @@ new class extends Component
 
                             <div class="grid sm:grid-cols-2 gap-2.5">
                                 <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.method_label') }}</div>
+                                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.method_label') }}</div>
                                     <div class="mt-0.5 text-sm font-medium text-gray-900">
                                         {{ $item->payment_method->label() }}
                                         @if ($item->card_last4)
@@ -500,11 +500,11 @@ new class extends Component
                                     @endif
                                 </div>
                                 <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.kind_label') }}</div>
+                                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.kind_label') }}</div>
                                     <div class="mt-0.5 text-sm font-medium text-gray-900">{{ $frequency }}</div>
                                 </div>
                                 <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.payer') }}</div>
+                                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.payer') }}</div>
                                     <div class="mt-0.5 text-sm font-medium text-gray-900">
                                         @if ($item->payer)
                                             {{ $item->payer->name }}
@@ -516,7 +516,7 @@ new class extends Component
                                     </div>
                                 </div>
                                 <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.owner') }}</div>
+                                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.owner') }}</div>
                                     <div class="mt-0.5 text-sm font-medium text-gray-900">
                                         @if ($item->owner)
                                             {{ $item->owner->name }}
@@ -532,13 +532,13 @@ new class extends Component
                                 </div>
                                 @if ($item->account_ref)
                                     <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
-                                        <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.account_ref') }}</div>
+                                        <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.account_ref') }}</div>
                                         <div class="mt-0.5 text-sm font-medium text-gray-900 break-all">{{ $item->account_ref }}</div>
                                     </div>
                                 @endif
                                 @if ($item->vat_note)
                                     <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
-                                        <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('billing.vat_note') }}</div>
+                                        <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.vat_note') }}</div>
                                         <div class="mt-0.5 text-sm font-medium text-gray-900">{{ $item->vat_note }}</div>
                                     </div>
                                 @endif
@@ -550,7 +550,7 @@ new class extends Component
 
                             @if ($item->notes)
                                 <div class="rounded-lg border border-gray-100 bg-white px-3.5 py-3">
-                                    <div class="text-[11px] font-medium uppercase tracking-wide text-gray-500 mb-1">{{ __('billing.notes') }}</div>
+                                    <div class="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">{{ __('billing.notes') }}</div>
                                     <p class="text-sm text-gray-700 whitespace-pre-line">{{ $item->notes }}</p>
                                 </div>
                             @endif

@@ -79,12 +79,12 @@ new #[Layout('components.admin-layout')] class extends Component
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50/80">
                     <tr>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Name') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Users') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Permissions') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Visible depts') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Status') }}</th>
-                        <th class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Actions') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Name') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Users') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Permissions') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Visible depts') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Status') }}</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-medium text-gray-600">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">

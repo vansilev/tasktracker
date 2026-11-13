@@ -95,7 +95,7 @@ class BillingItemService
                 'relative' => '—',
                 'date' => null,
                 'tone' => 'gray',
-                'class' => 'text-gray-500',
+                'class' => 'text-gray-600',
             ];
         }
 
@@ -113,7 +113,7 @@ class BillingItemService
                 'relative' => $relative,
                 'date' => $formatted,
                 'tone' => 'red',
-                'class' => 'text-red-600 font-medium',
+                'class' => 'text-danger-700',
             ];
         }
 
@@ -125,7 +125,7 @@ class BillingItemService
                 'relative' => $relative,
                 'date' => $formatted,
                 'tone' => 'amber',
-                'class' => 'text-amber-600 font-medium',
+                'class' => 'text-warning-700',
             ];
         }
 
@@ -137,7 +137,7 @@ class BillingItemService
                 'relative' => $relative,
                 'date' => $formatted,
                 'tone' => 'amber',
-                'class' => 'text-amber-600 font-medium',
+                'class' => 'text-warning-700',
             ];
         }
 
@@ -149,7 +149,7 @@ class BillingItemService
                 'relative' => $relative,
                 'date' => $formatted,
                 'tone' => 'amber',
-                'class' => 'text-amber-600 font-medium',
+                'class' => 'text-warning-700',
             ];
         }
 

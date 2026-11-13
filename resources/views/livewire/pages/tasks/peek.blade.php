@@ -204,7 +204,7 @@ new class extends Component
 
             @if ($task->subtasks->isNotEmpty())
                 <div>
-                    <p class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('Subtasks') }}</p>
+                    <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('Subtasks') }}</p>
                     <ul class="space-y-1">
                         @foreach ($task->subtasks as $subtask)
                             <li>
@@ -220,7 +220,7 @@ new class extends Component
             @endif
 
             <div>
-                <p class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('Comments') }}</p>
+                <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('Comments') }}</p>
                 @php
                     $thread = $comments->sortBy('created_at')->values();
                 @endphp

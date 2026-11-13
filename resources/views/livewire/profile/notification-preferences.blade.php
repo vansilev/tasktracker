@@ -130,9 +130,9 @@ new class extends Component
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-100">
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('notification.event') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-600">{{ __('notification.event') }}</th>
                         @foreach ($this->channels() as $channel)
-                            <th class="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide text-center whitespace-nowrap">
+                            <th class="px-4 py-2 text-xs font-medium text-gray-600 text-center whitespace-nowrap">
                                 {{ __('notification.channels.'.$channel) }}
                             </th>
                         @endforeach

@@ -95,7 +95,7 @@ new class extends Component
                         </button>
                     @endif
 
-                    <p class="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('Tasks') }}</p>
+                    <p class="px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('Tasks') }}</p>
 
                     @forelse ($tasks as $task)
                         <button

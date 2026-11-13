@@ -204,101 +204,37 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
 <div class="space-y-4">
     <span class="sr-only">{{ __('Quick links') }}</span>
 
-    <x-card padding="p-4">
-        <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs font-medium text-gray-500 shrink-0">{{ __('Period filter') }}</span>
-            <div class="inline-flex flex-wrap rounded-lg border border-gray-200 p-0.5 bg-gray-50">
-                @foreach (['week' => __('Week'), 'month' => __('Month'), 'quarter' => __('Quarter'), 'custom' => __('Custom range')] as $value => $label)
-                    <button type="button" wire:click="$set('period', '{{ $value }}')"
-                            class="shrink-0 whitespace-nowrap px-2.5 py-1 text-xs font-medium rounded-md transition-colors {{ $period === $value ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
-                        {{ $label }}
-                    </button>
-                @endforeach
-            </div>
-            <input type="date" wire:model.live="dateFrom" aria-label="{{ __('Period start') }}"
-                   class="rounded-lg border-gray-300 text-xs shadow-sm focus:border-primary-500 focus:ring-primary-500">
-            <span class="text-gray-500 text-xs">—</span>
-            <input type="date" wire:model.live="dateTo" aria-label="{{ __('Period end') }}"
-                   class="rounded-lg border-gray-300 text-xs shadow-sm focus:border-primary-500 focus:ring-primary-500">
-            <span class="text-xs text-gray-500">
-                {{ __('Period: :from — :to', [
-                    'from' => $periodFrom->timezone(config('app.timezone'))->format('d.m.Y'),
-                    'to' => $periodTo->timezone(config('app.timezone'))->format('d.m.Y'),
-                ]) }}
-            </span>
-        </div>
-    </x-card>
-
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <x-card padding="p-4" class="h-full">
+    {{-- KPI strip: one surface, four cells, no empty tiles. --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-px overflow-hidden rounded-surface border border-gray-200 bg-gray-200">
+        <div class="bg-white p-4">
             <a href="{{ route('tasks.index', ['tab' => 'all']) }}" wire:navigate class="group block">
-                <p class="text-2xl font-bold text-gray-900 group-hover:text-primary-700 transition-colors">{{ $openByStatus['total'] }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('Open tasks') }}</p>
+                <p class="text-display font-semibold tabular-nums text-gray-900 group-hover:text-primary-700">{{ $openByStatus['total'] }}</p>
+                <p class="text-caption text-gray-600">{{ __('Open tasks') }}</p>
             </a>
             <div class="mt-2 flex flex-wrap gap-1">
                 @foreach ($openStatuses as $status)
                     @php $count = $openByStatus['by_status'][$status->value] ?? 0; @endphp
                     @if ($count > 0)
                         <a href="{{ route('tasks.index', ['tab' => 'all', 'status' => $status->value]) }}" wire:navigate
-                           class="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium rounded-md {{ $status->badgeClasses() }} hover:opacity-80 transition-opacity">
-                            {{ $status->label() }} <span class="font-semibold">{{ $count }}</span>
+                           class="inline-flex items-center gap-1 rounded-control px-1.5 py-0.5 text-caption font-medium {{ $status->badgeClasses() }} hover:opacity-80">
+                            {{ $status->label() }} <span class="tabular-nums">{{ $count }}</span>
                         </a>
                     @endif
                 @endforeach
             </div>
-        </x-card>
-        <a href="{{ route('tasks.index', ['tab' => 'assigned']) }}" wire:navigate class="block group">
-            <x-card padding="p-4" class="group-hover:border-primary-200 transition-colors h-full">
-                <p class="text-2xl font-bold text-gray-900">{{ $myTasks['count'] }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('My tasks') }}</p>
-            </x-card>
+        </div>
+        <a href="{{ route('tasks.index', ['tab' => 'assigned']) }}" wire:navigate class="group block bg-white p-4 hover:bg-gray-50">
+            <p class="text-display font-semibold tabular-nums text-gray-900 group-hover:text-primary-700">{{ $myTasks['count'] }}</p>
+            <p class="text-caption text-gray-600">{{ __('My tasks') }}</p>
         </a>
-        <a href="{{ route('tasks.index', ['tab' => 'all', 'urgentOnly' => true]) }}" wire:navigate class="block group">
-            <x-card padding="p-4" class="group-hover:border-primary-200 transition-colors h-full">
-                <p class="text-2xl font-bold text-gray-900">{{ $urgent['count'] }}</p>
-                <p class="text-xs text-gray-600 mt-1 inline-flex items-center gap-1">{{ __('Urgent') }} <x-icon.fire class="w-3.5 h-3.5 text-accent-600" /></p>
-            </x-card>
+        <a href="{{ route('tasks.index', ['tab' => 'all', 'urgentOnly' => true]) }}" wire:navigate class="group block bg-white p-4 hover:bg-gray-50">
+            <p class="text-display font-semibold tabular-nums text-gray-900 group-hover:text-primary-700">{{ $urgent['count'] }}</p>
+            <p class="text-caption text-gray-600 inline-flex items-center gap-1">{{ __('Urgent') }} <x-icon.fire class="w-3.5 h-3.5 text-accent-600" /></p>
         </a>
-        <a href="{{ route('tasks.index', ['tab' => 'all', 'overdueOnly' => true]) }}" wire:navigate class="block group">
-            <x-card padding="p-4" class="group-hover:border-primary-200 transition-colors h-full">
-                <p class="text-2xl font-bold text-gray-900">{{ $overdue['count'] }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('Overdue tasks') }}</p>
-            </x-card>
+        <a href="{{ route('tasks.index', ['tab' => 'all', 'overdueOnly' => true]) }}" wire:navigate class="group block bg-white p-4 hover:bg-gray-50">
+            <p class="text-display font-semibold tabular-nums {{ $overdue['count'] > 0 ? 'text-danger-700' : 'text-gray-900' }} group-hover:text-primary-700">{{ $overdue['count'] }}</p>
+            <p class="text-caption text-gray-600">{{ __('Overdue tasks') }}</p>
         </a>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <x-card>
-            <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ __('By department') }}</h3>
-            @php($chartEmpty = collect($departmentChart['data']['datasets'] ?? [])->flatMap(fn ($d) => $d['data'] ?? [])->sum() == 0)
-            <div wire:ignore class="h-64 relative">
-                <canvas id="dashboard-department-chart" data-chart='@json($departmentChart)' @if ($chartEmpty) hidden @endif></canvas>
-                <div data-chart-empty="dashboard-department-chart" class="absolute inset-0" @unless ($chartEmpty) hidden @endunless><p class="h-full flex items-center justify-center text-sm text-gray-600">{{ __('No data for this period.') }}</p></div>
-            </div>
-        </x-card>
-        <x-card>
-            <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ __('By category') }}</h3>
-            @php($chartEmpty = collect($categoryChart['data']['datasets'] ?? [])->flatMap(fn ($d) => $d['data'] ?? [])->sum() == 0)
-            <div wire:ignore class="h-64 relative">
-                <canvas id="dashboard-category-chart" data-chart='@json($categoryChart)' @if ($chartEmpty) hidden @endif></canvas>
-                <div data-chart-empty="dashboard-category-chart" class="absolute inset-0" @unless ($chartEmpty) hidden @endunless><p class="h-full flex items-center justify-center text-sm text-gray-600">{{ __('No data for this period.') }}</p></div>
-            </div>
-        </x-card>
-        <x-card class="flex flex-col justify-center">
-            <h3 class="text-sm font-semibold text-gray-900">{{ __('Average closing time') }}</h3>
-            <p class="text-xs text-gray-500 mt-1">{{ __('For tasks completed in the selected period.') }}</p>
-            @if ($avgClosingLabel)
-                <p class="text-3xl font-bold text-gray-900 mt-4">{{ $avgClosingLabel }}</p>
-            @else
-                <p class="text-sm text-gray-600 mt-4">{{ __('No data yet.') }}</p>
-            @endif
-            <p class="text-xs text-gray-500 mt-2">
-                {{ __('Period: :from — :to', [
-                    'from' => $periodFrom->timezone(config('app.timezone'))->format('d.m.Y'),
-                    'to' => $periodTo->timezone(config('app.timezone'))->format('d.m.Y'),
-                ]) }}
-            </p>
-        </x-card>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -317,7 +253,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
                                         #{{ $task['number'] }} {{ $task['title'] }}
                                     </p>
                                 </a>
-                                <span class="shrink-0 text-xs font-medium text-red-600">
+                                <span class="shrink-0 text-xs tabular-nums text-danger-700">
                                     {{ $task['deadline']?->timezone(config('app.timezone'))->format('d.m.Y') }}
                                 </span>
                             </li>
@@ -376,7 +312,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
                                 </a>
                                 <div class="shrink-0 flex items-center gap-2">
                                     @if ($task->deadline)
-                                        <span class="text-xs {{ $task->deadline->isPast() ? 'text-red-600 font-medium' : 'text-gray-500' }}">
+                                        <span class="text-xs {{ $task->deadline->isPast() ? 'text-danger-700' : 'text-gray-600' }}">
                                             {{ $task->deadline->timezone(config('app.timezone'))->format('d.m.Y') }}
                                         </span>
                                     @endif
@@ -394,4 +330,62 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
             </div>
         </x-card>
     </div>
+
+    <section class="space-y-3 pt-2" aria-label="{{ __('Statistics for the period') }}">
+        <div class="flex flex-wrap items-center gap-2">
+            <h2 class="text-title-sm font-semibold text-gray-900 me-2">{{ __('Statistics for the period') }}</h2>
+            <div class="inline-flex flex-wrap rounded-control bg-gray-100 p-0.5">
+                @foreach (['week' => __('Week'), 'month' => __('Month'), 'quarter' => __('Quarter'), 'custom' => __('Custom range')] as $value => $label)
+                    <button type="button" wire:click="$set('period', '{{ $value }}')"
+                            class="shrink-0 whitespace-nowrap px-2.5 py-1 text-xs font-medium rounded-md transition-colors {{ $period === $value ? 'bg-white text-primary-700 ring-1 ring-gray-200' : 'text-gray-600 hover:text-gray-900' }}">
+                        {{ $label }}
+                    </button>
+                @endforeach
+            </div>
+            <input type="date" wire:model.live="dateFrom" aria-label="{{ __('Period start') }}"
+                   class="h-8 rounded-control border-gray-300 bg-white text-xs focus:border-primary-600 focus:ring-primary-600">
+            <span class="text-gray-500 text-xs">—</span>
+            <input type="date" wire:model.live="dateTo" aria-label="{{ __('Period end') }}"
+                   class="h-8 rounded-control border-gray-300 bg-white text-xs focus:border-primary-600 focus:ring-primary-600">
+            <span class="sr-only">
+                {{ __('Period: :from — :to', [
+                    'from' => $periodFrom->timezone(config('app.timezone'))->format('d.m.Y'),
+                    'to' => $periodTo->timezone(config('app.timezone'))->format('d.m.Y'),
+                ]) }}
+            </span>
+        </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <x-card>
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ __('By department') }}</h3>
+            @php($chartEmpty = collect($departmentChart['data']['datasets'] ?? [])->flatMap(fn ($d) => $d['data'] ?? [])->sum() == 0)
+            <div wire:ignore class="h-64 relative">
+                <canvas id="dashboard-department-chart" data-chart='@json($departmentChart)' @if ($chartEmpty) hidden @endif></canvas>
+                <div data-chart-empty="dashboard-department-chart" class="absolute inset-0" @unless ($chartEmpty) hidden @endunless><p class="h-full flex items-center justify-center text-sm text-gray-600">{{ __('No data for this period.') }}</p></div>
+            </div>
+        </x-card>
+        <x-card>
+            <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ __('By category') }}</h3>
+            @php($chartEmpty = collect($categoryChart['data']['datasets'] ?? [])->flatMap(fn ($d) => $d['data'] ?? [])->sum() == 0)
+            <div wire:ignore class="h-64 relative">
+                <canvas id="dashboard-category-chart" data-chart='@json($categoryChart)' @if ($chartEmpty) hidden @endif></canvas>
+                <div data-chart-empty="dashboard-category-chart" class="absolute inset-0" @unless ($chartEmpty) hidden @endunless><p class="h-full flex items-center justify-center text-sm text-gray-600">{{ __('No data for this period.') }}</p></div>
+            </div>
+        </x-card>
+        <x-card class="flex flex-col justify-center">
+            <h3 class="text-sm font-semibold text-gray-900">{{ __('Average closing time') }}</h3>
+            <p class="text-xs text-gray-500 mt-1">{{ __('For tasks completed in the selected period.') }}</p>
+            @if ($avgClosingLabel)
+                <p class="text-display font-semibold text-gray-900 mt-4">{{ $avgClosingLabel }}</p>
+            @else
+                <p class="text-sm text-gray-600 mt-4">{{ __('No data yet.') }}</p>
+            @endif
+            <p class="text-xs text-gray-500 mt-2">
+                {{ __('Period: :from — :to', [
+                    'from' => $periodFrom->timezone(config('app.timezone'))->format('d.m.Y'),
+                    'to' => $periodTo->timezone(config('app.timezone'))->format('d.m.Y'),
+                ]) }}
+            </p>
+        </x-card>
+    </div>
+    </section>
 </div>

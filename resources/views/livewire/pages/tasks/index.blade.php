@@ -1636,7 +1636,9 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
-        <nav class="flex items-center gap-1 overflow-x-auto" aria-label="{{ __('Tasks') }}">
+        {{-- Tabs scroll sideways on narrow screens; the fade shows there is more. --}}
+        <div class="relative min-w-0 after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-10 after:bg-gradient-to-l after:from-gray-50 after:content-[''] lg:after:hidden">
+        <nav class="flex items-center gap-1 overflow-x-auto pe-8 lg:pe-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="{{ __('Tasks') }}">
 
             @foreach ([
 
@@ -1663,7 +1665,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     {{ $label }}
                     @if ($key === 'action' && $actionCount > 0)
-                        <span data-ui="action-count" class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary-600 px-1.5 text-[11px] font-semibold text-white">{{ $actionCount }}</span>
+                        <span data-ui="action-count" class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary-600 px-1.5 text-xs font-semibold text-white">{{ $actionCount }}</span>
                     @endif
 
                 </button>
@@ -1671,14 +1673,11 @@ new #[Layout('components.tasks-layout')] class extends Component
             @endforeach
 
         </nav>
+        </div>
 
         @can('create', \App\Models\Task::class)
 
-            <x-button variant="primary" size="md" type="button"
-
-                             data-shortcut="create-task"
-
-                             onclick="Livewire.navigate('{{ route('tasks.create') }}')">
+            <x-button variant="primary" :href="route('tasks.create')" wire:navigate data-shortcut="create-task" class="self-start lg:self-auto">
 
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
 
@@ -1694,7 +1693,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+    <div class="rounded-surface border border-gray-200 bg-white p-4 space-y-4">
 
         <div class="flex flex-col lg:flex-row lg:items-center gap-3">
 
@@ -1791,7 +1790,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 </button>
 
-                <div class="flex items-center gap-1.5">
+                <div class="hidden sm:flex items-center gap-1.5">
 
                     <select wire:model.live="sortBy" aria-label="{{ __('Sort by') }}" class="border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500">
                         <option value="priority">{{ __('Priority') }}</option>
@@ -1822,7 +1821,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 </div>
 
-                <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+                <div class="hidden sm:inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
                     <button
                         type="button"
                         wire:click="setLayout('list')"
@@ -1852,9 +1851,27 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
 
+                    {{-- On phones sorting lives here instead of the toolbar. --}}
+                    <div class="sm:hidden">
+                        <label for="f-sortBy-mobile" class="block text-xs text-gray-600 mb-1">{{ __('Sort by') }}</label>
+                        <div class="flex items-center gap-1.5">
+                            <select id="f-sortBy-mobile" wire:model.live="sortBy" class="h-9 flex-1 rounded-control border-gray-300 text-sm focus:border-primary-600 focus:ring-primary-600">
+                                <option value="priority">{{ __('Priority') }}</option>
+                                <option value="title">{{ __('Title') }}</option>
+                                <option value="status">{{ __('Status') }}</option>
+                                <option value="department">{{ __('Department') }}</option>
+                                <option value="deadline">{{ __('Deadline') }}</option>
+                                <option value="created_at">{{ __('Created at') }}</option>
+                            </select>
+                            <button type="button" wire:click="toggleSortDir" class="inline-flex h-9 w-9 items-center justify-center rounded-control border border-gray-300 bg-white text-gray-600" aria-label="{{ $sortDir === 'asc' ? __('Ascending') : __('Descending') }}">
+                                <svg class="w-4 h-4 {{ $sortDir === 'asc' ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
                     <div>
 
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('Status') }}</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('Status') }}</label>
 
                         <x-combobox
                             wire:model.live="status"
@@ -1866,7 +1883,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
 
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('Department') }}</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('Department') }}</label>
 
                         <x-combobox
                             wire:model.live="departmentId"
@@ -1878,7 +1895,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
 
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('Category') }}</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('Category') }}</label>
 
                         <x-combobox
                             wire:model.live="categoryId"
@@ -1890,7 +1907,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
 
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('Assignee') }}</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('Assignee') }}</label>
 
                         <x-combobox
                             wire:model.live="assigneeId"
@@ -1902,7 +1919,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
 
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('Initiator') }}</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('Initiator') }}</label>
 
                         <x-combobox
                             wire:model.live="initiatorId"
@@ -1914,7 +1931,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
 
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('Period filter') }}</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('Period filter') }}</label>
 
                         <select wire:model.live="periodType" class="w-full border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500">
 
@@ -1928,7 +1945,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
 
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('From') }}</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('From') }}</label>
 
                         <input type="date" wire:model.live="periodFrom"
 
@@ -1938,7 +1955,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <div>
 
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('To') }}</label>
+                        <label class="block text-xs text-gray-600 mb-1">{{ __('To') }}</label>
 
                         <input type="date" wire:model.live="periodTo"
 
@@ -2171,7 +2188,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 ['department', __('Department'), ''],
                                 ['deadline', __('Deadline'), ''],
                             ] as [$column, $label, $thStyle])
-                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide whitespace-nowrap {{ $sortBy === $column ? 'text-primary-700' : 'text-gray-500' }}"
+                                <th class="px-4 py-2.5 text-left text-xs font-medium whitespace-nowrap {{ $sortBy === $column ? 'text-primary-700' : 'text-gray-500' }}"
                                     @if ($thStyle !== '') style="{{ $thStyle }}" @endif>
                                     <button type="button"
                                             wire:click="sortByColumn('{{ $column }}')"
