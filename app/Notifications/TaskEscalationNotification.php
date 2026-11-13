@@ -4,8 +4,12 @@ namespace App\Notifications;
 
 use App\Models\TaskReminder;
 use App\Models\User;
+use App\Notifications\Messages\TelegramWidgetMessage;
 use App\Services\ReminderSettings;
+use App\Support\TelegramAppLinks;
 use App\Support\TelegramReminderFormat as F;
+use App\Support\TelegramTaskCard;
+use App\Support\TelegramWidget as W;
 use App\Support\WorkCalendar;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -52,13 +56,69 @@ class TaskEscalationNotification extends Notification implements ShouldQueue
                 : [];
     }
 
-    public function toTelegram(object $notifiable): TelegramMessage
+    public function toTelegram(object $notifiable): TelegramMessage|TelegramWidgetMessage
     {
         /** @var User $notifiable */
-        return TelegramMessage::create()
+        $locale = $notifiable->preferredLocale();
+        $text = TelegramMessage::create()
             ->parseMode('HTML')
             ->options(['disable_web_page_preview' => true])
-            ->content($this->text($notifiable->preferredLocale()));
+            ->content($this->text($locale));
+
+        if (! app(ReminderSettings::class)->widgetsFor($notifiable->id)) {
+            return $text;
+        }
+
+        [$html, $caption] = $this->widget($locale);
+        // A head may comment on the task right from here; the comment goes in as theirs.
+        $keyboard = count($this->items) === 1
+            ? TelegramAppLinks::widgetKeyboard([[['text' => __('notification.bot.comment', [], $locale), 'callback_data' => 'c:'.$this->items[0]['task_id']]]])
+            : TelegramTaskCard::listKeyboard($this->items);
+
+        return TelegramWidgetMessage::make($html, W::caption($caption), $text, $keyboard);
+    }
+
+    /** @return array{0: string, 1: string} the HTML and the caption */
+    public function widget(string $locale): array
+    {
+        $t = fn (string $key, array $replace = []) => __('notification.escalation.'.$key, $replace, $locale);
+        $w = fn (string $key, array $replace = []) => __('notification.widget.'.$key, $replace, $locale);
+        $role = $this->role === TaskReminder::ROLE_HEAD ? $w('you_head') : $w('you_digest');
+        $comment = function (array $item) use ($t): string {
+            $c = $item['comment'] ?? null;
+
+            return $c === null ? W::meta(['💬 '.e($t('no_comments'))], 'margin-top:6px') : W::box('💬 '.$c['author'].' · '.$c['date'], $c['excerpt']);
+        };
+
+        if (count($this->items) === 1) {
+            $item = $this->items[0];
+            $days = F::days((int) $item['days_overdue'], $locale);
+            $html = W::chips([['🔺 '.$w('escalation_chip', ['days' => $days])], [$role, 'gy']])
+                .W::title($item['task_id'], $item['number'], $item['title'])
+                .W::meta([
+                    '🎯 '.e($t('responsible')).' <b>'.e($item['responsible']).'</b> · '.F::status($item['status'], $locale),
+                    '🗓 '.e(Str::ucfirst(__('notification.reminder.was_due', ['date' => F::weekdayDate($item['deadline_date'], $locale)], $locale))),
+                    F::priorityLine((int) $item['priority'], $locale),
+                ])
+                .$comment($item)
+                .W::todo('👤 '.e($this->why($locale)))
+                .W::linkButtons($item['task_id'], $item['number'], $locale);
+
+            return [W::document($html, $locale), '🔺 '.$w('escalation_chip', ['days' => $days]).': '.$item['responsible'].', #'.$item['number'].' '.$item['title']];
+        }
+
+        $count = count($this->items);
+        $rows = '';
+
+        foreach ($this->items as $item) {
+            $rows .= W::row($item['task_id'], $item['number'], $item['title'],
+                '🎯 <b>'.e($item['responsible']).'</b> · '.e($w('overdue_by', ['days' => F::days((int) $item['days_overdue'], $locale)])));
+        }
+
+        $title = $t('head_list', ['tasks' => trans_choice('notification.escalation.tasks', $count, ['count' => $count], $locale)]);
+        $html = W::chips([['🔺 '.$title], [$role, 'gy']]).'<div style="margin-top:6px">'.$rows.'</div>'.W::todo('👤 '.e($this->why($locale)));
+
+        return [W::document($html, $locale), '🔺 '.$title];
     }
 
     public function text(string $locale): string

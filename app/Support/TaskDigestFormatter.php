@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Support\TelegramReminderFormat as F;
+use App\Support\TelegramWidget as W;
 
 /**
  * Turns the data of TaskDigestService::build() into Telegram messages in the reminders' look:
@@ -52,6 +53,87 @@ class TaskDigestFormatter
         $blocks[] = F::link(route('tasks.index', ['tab' => 'all', 'overdueOnly' => 1]), $t('overdue_link'));
 
         return $this->packMessages($blocks);
+    }
+
+    /** How many tasks a widget tab lists before "N more — in the tracker". */
+    private const WIDGET_ROWS = 12;
+
+    /**
+     * The digest as one HTML widget: tiles with the totals and a tab per group.
+     *
+     * @param  array<string, mixed>  $digest
+     * @return array{0: string, 1: string} the HTML and the caption
+     */
+    public function widget(array $digest, string $locale): array
+    {
+        $t = fn (string $key, array $replace = []) => __('notification.digest.'.$key, $replace, $locale);
+        $w = fn (string $key, array $replace = []) => __('notification.widget.'.$key, $replace, $locale);
+        $totals = $digest['totals'];
+        $listUrl = route('tasks.index', ['tab' => 'all', 'overdueOnly' => 1]);
+        $more = fn (int $left) => $left > 0 ? '<a class=r href="'.e($listUrl).'">'.e($w('more', ['count' => $left])).'</a>' : '';
+        $limit = function (array $rows, callable $line) use ($more): string {
+            return implode('', array_map($line, array_slice($rows, 0, self::WIDGET_ROWS))).$more(count($rows) - self::WIDGET_ROWS);
+        };
+
+        $overdue = [];
+        $bars = '';
+        $max = max([1, ...array_map(fn (array $d) => (int) $d['count'], $digest['overdue'])]);
+
+        foreach ($digest['overdue'] as $department) {
+            $bars .= W::bar($department['department'], (int) $department['count'], $max);
+
+            foreach ($department['people'] as $person) {
+                foreach ($person['tasks'] as $row) {
+                    $overdue[] = $row + ['person' => $person['name'], 'department' => $department['department']];
+                }
+            }
+        }
+
+        usort($overdue, fn (array $a, array $b) => [(int) $a['days'], $a['number']] <=> [(int) $b['days'], $b['number']]);
+
+        $soon = array_merge(
+            array_map(fn (array $row) => $row + ['when' => '⏰ '.mb_strtolower($t('group_today'))], $digest['today']),
+            array_map(fn (array $row) => $row + ['when' => '🟡 '.mb_strtolower($t('group_tomorrow'))], $digest['tomorrow']),
+        );
+
+        $pages = [
+            [$w('tab_overdue'), $limit($overdue, fn (array $row) => W::row($row['task_id'], $row['number'], $row['title'],
+                '👤 '.e($row['person']).' · '.e($row['department']).' · <b>'.e(F::days(max(1, -(int) $row['days']), $locale)).'</b>'))
+                .($totals['service_overdue'] > 0 ? W::meta(['<i>'.e($t('service_overdue', ['count' => $totals['service_overdue']])).'</i>'], 'margin-top:6px') : '')],
+            [$w('tab_soon'), $limit($soon, fn (array $row) => W::row($row['task_id'], $row['number'], $row['title'],
+                e($row['when']).' · 👤 '.e($row['person']).' · '.F::status($row['status'], $locale)))],
+            [$w('tab_stuck'), $limit($digest['stuck'] ?? [], fn (array $row) => W::row($row['notice']->task->id, $row['notice']->task->number,
+                (string) ($row['notice']->task->title ?: $row['notice']->task->plainDescription()),
+                '⏳ '.e($w('waits', ['name' => (string) $row['notice']->user?->name, 'days' => trans_choice('notification.digest.work_days', max(1, $row['work_days']), ['count' => max(1, $row['work_days'])], $locale)]))))],
+            [$w('tab_stale'), $limit($digest['stale'], fn (array $row) => W::row($row['task_id'], $row['number'], $row['title'],
+                '💤 <b>'.e(trans_choice('notification.digest.work_days', $row['stale_work_days'], ['count' => $row['stale_work_days']], $locale)).'</b> · 👤 '.e($row['person'])))],
+            [$w('tab_departments'), $bars === '' ? '' : '<div style="margin-top:6px">'.$bars.'</div>'],
+        ];
+
+        $footer = array_filter([
+            $digest['escalated'] !== [] ? '🔺 '.e($t('group_escalated')).': <b>'.count($digest['escalated']).'</b>' : null,
+            $digest['no_telegram'] !== [] ? '📵 '.e($w('no_telegram', ['names' => implode(', ', array_column($digest['no_telegram'], 'name'))])) : null,
+            '📌 '.e($t('total')).' '.e($this->totalLine($digest, $locale)),
+        ]);
+
+        $title = $t($digest['department'] === null ? 'title' : 'title_department', [
+            'date' => F::weekdayDate($digest['date'], $locale),
+            'department' => $digest['department'],
+        ]);
+
+        $html = W::chips([], '📊 '.$title)
+            .W::tiles([
+                [(int) $totals['open'], $w('tile_open')],
+                [(int) $totals['overdue'], $w('tile_overdue'), true],
+                [(int) $totals['today'] + (int) $totals['tomorrow'], $w('tile_soon')],
+                [count($digest['stuck'] ?? []), $w('tile_stuck')],
+            ])
+            .W::tabs($pages)
+            .W::meta($footer, 'margin-top:8px');
+
+        $caption = '📊 '.$title.' · '.$t('open', ['count' => $totals['open']]).' · '.$t('overdue', ['count' => $totals['overdue']]);
+
+        return [W::document($html, $locale), $caption];
     }
 
     /**

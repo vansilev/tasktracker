@@ -28,7 +28,7 @@ class TelegramTaskCard
 
     public function __construct(private TaskWorkflowService $workflow) {}
 
-    public function text(Task $task, User $user, ?string $headline = null): string
+    public function text(Task $task, User $user, ?string $headline = null, array $extra = []): string
     {
         $locale = $user->preferredLocale();
         $t = fn (string $key, array $replace = []) => __('notification.bot.'.$key, $replace, $locale);
@@ -55,6 +55,7 @@ class TelegramTaskCard
                     : $t('deadline', ['date' => F::weekdayDate($this->deadlineDate($task), $locale)])),
                 F::priorityLine(max(1, min(10, (int) $task->priority)), $locale),
             ],
+            $extra,
             F::link(route('tasks.show', $task), __('notification.open_task', [], $locale)),
         ]);
 

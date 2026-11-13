@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\TaskAttachmentController;
+use App\Http\Controllers\TelegramAppController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Middleware\EnsureCanViewMeetings;
 use App\Models\BillingItem;
@@ -16,6 +17,12 @@ Route::post('telegram/webhook', TelegramWebhookController::class)
     // button presses after the morning reminders must fit into it.
     ->middleware('throttle:300,1')
     ->name('telegram.webhook');
+
+// The window Telegram opens over the chat. The page is empty; its data comes only for
+// Telegram's signed initData (TelegramAppController).
+Route::get('telegram/app', [TelegramAppController::class, 'page'])->name('telegram.app');
+Route::post('telegram/app/context', [TelegramAppController::class, 'context'])->middleware('throttle:60,1')->name('telegram.app.context');
+Route::post('telegram/app/submit', [TelegramAppController::class, 'submit'])->middleware('throttle:30,1')->name('telegram.app.submit');
 
 Volt::route('dashboard', 'pages.dashboard')
     ->middleware(['auth', 'verified'])

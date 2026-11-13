@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\TelegramWidget;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -37,6 +38,41 @@ class TelegramBotClient
     }
 
     /**
+     * An HTML widget with a caption and buttons under it. When the widget does not fit or
+     * Telegram refuses it, the fallback text goes instead, so the news always arrives.
+     *
+     * @param  list<list<array<string, mixed>>>|null  $keyboard
+     * @param  list<list<array<string, mixed>>>|null  $fallbackKeyboard
+     * @return int|null id of the sent message
+     */
+    public function sendWidget(string $chatId, string $html, string $captionHtml, ?array $keyboard, string $fallbackHtml, ?array $fallbackKeyboard): ?int
+    {
+        if (! $this->mayWriteTo($chatId)) {
+            return null;
+        }
+
+        if (TelegramWidget::fits($html)) {
+            $result = $this->call('sendWidget', $this->withKeyboard([
+                'chat_id' => $chatId,
+                'html' => $html,
+                'caption' => $captionHtml,
+                'parse_mode' => 'HTML',
+            ], $keyboard ?: null), refusal: $refused);
+
+            if (is_array($result)) {
+                return (int) ($result['message_id'] ?? 0) ?: null;
+            }
+
+            // A timeout may still have delivered it: only a plain refusal gets the text instead.
+            if (! $refused) {
+                return null;
+            }
+        }
+
+        return $this->sendMessage($chatId, $fallbackHtml, $fallbackKeyboard);
+    }
+
+    /**
      * A question the person answers by replying: Telegram opens the reply box for them.
      *
      * @return int|null id of the question, to match the answer against
@@ -62,16 +98,43 @@ class TelegramBotClient
      * Replaces the text and the buttons of a message. Passing no keyboard removes the buttons.
      *
      * @param  list<list<array{text: string, callback_data?: string, url?: string}>>|null  $keyboard
+     *
+     * On a widget (which has no text) the buttons go; $widgetCaption, when given, becomes its
+     * caption, otherwise the new content comes as a message of its own.
      */
-    public function editMessage(string $chatId, int $messageId, string $html, ?array $keyboard = null): bool
+    public function editMessage(string $chatId, int $messageId, string $html, ?array $keyboard = null, ?string $widgetCaption = null): bool
     {
-        return $this->call('editMessageText', $this->withKeyboard([
+        $edited = $this->call('editMessageText', $this->withKeyboard([
             'chat_id' => $chatId,
             'message_id' => $messageId,
             'text' => $html,
             'parse_mode' => 'HTML',
             'disable_web_page_preview' => true,
-        ], $keyboard ?? [])) !== null;
+        ], $keyboard ?? []), refusal: $refused, quietOn: 'no text in the message');
+
+        if ($edited !== null || ! $refused || $this->lastDescription === null || ! str_contains($this->lastDescription, 'no text in the message')) {
+            return $edited !== null;
+        }
+
+        if ($widgetCaption !== null) {
+            return $this->call('editMessageCaption', [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'caption' => $widgetCaption,
+                'parse_mode' => 'HTML',
+                'reply_markup' => json_encode(['inline_keyboard' => $keyboard ?? []], JSON_UNESCAPED_UNICODE),
+            ]) !== null;
+        }
+
+        // A widget has no text to replace and its HTML never changes: its buttons go, and the
+        // new content arrives as a message of its own right under it.
+        $this->call('editMessageReplyMarkup', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'reply_markup' => json_encode(['inline_keyboard' => []]),
+        ]);
+
+        return $this->sendMessage($chatId, $html, $keyboard) !== null;
     }
 
     /** Stops the "loading" spinner on the pressed button; $text shows as a small toast. */
@@ -123,8 +186,12 @@ class TelegramBotClient
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>|true|null null = the call failed
      */
-    private function call(string $method, array $payload): array|bool|null
+    private ?string $lastDescription = null;
+
+    private function call(string $method, array $payload, ?bool &$refusal = null, ?string $quietOn = null): array|bool|null
     {
+        $refusal = false;
+        $this->lastDescription = null;
         $token = config('services.telegram.token');
 
         if (! filled($token)) {
@@ -142,7 +209,13 @@ class TelegramBotClient
             }
 
             if (! $response->successful() || $response->json('ok') !== true) {
-                Log::warning("Telegram {$method} failed: ".$response->status().' '.mb_strimwidth((string) $response->json('description'), 0, 200, '…'));
+                $this->lastDescription = (string) $response->json('description');
+                // Telegram answered: the call was refused, not lost on the way.
+                $refusal = $response->status() >= 400 && $response->status() < 500;
+
+                if ($quietOn === null || ! str_contains($this->lastDescription, $quietOn)) {
+                    Log::warning("Telegram {$method} failed: ".$response->status().' '.mb_strimwidth($this->lastDescription, 0, 200, '…'));
+                }
 
                 return null;
             }

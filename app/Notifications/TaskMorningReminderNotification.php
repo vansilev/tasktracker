@@ -3,11 +3,14 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Notifications\Messages\TelegramWidgetMessage;
 use App\Services\ReminderSettings;
 use App\Services\TaskReminderService;
 use App\Services\TaskVisibilityService;
+use App\Support\TelegramAppLinks;
 use App\Support\TelegramReminderFormat as F;
 use App\Support\TelegramTaskCard;
+use App\Support\TelegramWidget as W;
 use App\Support\WorkCalendar;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -52,16 +55,110 @@ class TaskMorningReminderNotification extends Notification implements ShouldQueu
                 : [];
     }
 
-    public function toTelegram(object $notifiable): TelegramMessage
+    public function toTelegram(object $notifiable): TelegramMessage|TelegramWidgetMessage
     {
         /** @var User $notifiable */
-        return TelegramMessage::create()
+        $locale = $notifiable->preferredLocale();
+        $text = TelegramMessage::create()
             ->parseMode('HTML')
             ->options(array_filter([
                 'disable_web_page_preview' => true,
                 'reply_markup' => $this->keyboard($notifiable),
             ]))
-            ->content($this->text($notifiable->preferredLocale()));
+            ->content($this->text($locale));
+
+        if (! app(ReminderSettings::class)->widgetsFor($notifiable->id)) {
+            return $text;
+        }
+
+        [$html, $caption] = $this->widget($locale);
+        $rows = $this->keyboardRows($notifiable);
+
+        return TelegramWidgetMessage::make($html, W::caption($caption), $text, count($this->rows) > 1 ? $rows : TelegramAppLinks::widgetKeyboard($rows));
+    }
+
+    /**
+     * The same news as text(), as a widget: one task as a card, several as tabs by urgency.
+     *
+     * @return array{0: string, 1: string} the HTML and the caption
+     */
+    public function widget(string $locale): array
+    {
+        $t = fn (string $key, array $replace = []) => __('notification.reminder.'.$key, $replace, $locale);
+        $w = fn (string $key, array $replace = []) => __('notification.widget.'.$key, $replace, $locale);
+
+        if (count($this->rows) === 1) {
+            $row = $this->rows[0];
+            $days = (int) $row['days'];
+            $date = F::weekdayDate($row['deadline_date'], $locale);
+            [$chip, $colour] = match (true) {
+                $days < 0 => [$t('head_overdue', ['days' => F::days($days, $locale)]), 'red'],
+                $days === 0 => [$t('head_today'), 'red'],
+                $days === 1 => [$t('head_tomorrow'), 'or'],
+                default => [$t('head_in_days', ['days' => F::days($days, $locale)]), 'bl'],
+            };
+            $status = e(__('notification.reminder.status_quoted', ['status' => __('task.status.'.$row['status'], [], $locale)], $locale));
+            $action = $this->action($row, $locale);
+            $who = match ($row['role']) {
+                'watcher' => ['👀 '.e($t('you_watcher')), '🎯 '.str_replace('%s', $status, e($t('responsible_is', ['name' => $row['responsible'], 'status' => '%s'])))],
+                'initiator' => ['🙋 '.str_replace('%s', $status, e($t('you_initiator', ['status' => '%s']))), filled($row['assignee']) ? '🎯 '.e($t('assignee_is', ['name' => $row['assignee']])) : null],
+                default => ['🎯 '.str_replace('%s', $status, e($t('you_assignee', ['status' => '%s'])))],
+            };
+
+            $html = W::chips([[F::urgencyEmoji($days).' '.$chip, $colour], F::isHighPriority((int) $row['priority']) ? [F::priorityTag((int) $row['priority'], $locale) ?? '', 'gy'] : null])
+                .W::title($row['task_id'], $row['number'], $row['title'])
+                .W::meta([...$who, '🗓 '.e($days < 0 ? $t('was_due', ['date' => $date]) : $t('due', ['date' => $date]))])
+                .($action === null ? '' : W::todo('👉 <b>'.e($t('what')).'</b> '.e($action)))
+                .W::linkButtons($row['task_id'], $row['number'], $locale);
+
+            return [W::document($html, $locale), F::urgencyEmoji($days).' '.$chip.': #'.$row['number'].' '.$row['title']];
+        }
+
+        $own = array_values(array_filter($this->rows, fn (array $row) => $row['role'] !== 'watcher'));
+        $watched = array_values(array_filter($this->rows, fn (array $row) => $row['role'] === 'watcher'));
+        $bucket = fn (int $days) => match (true) {
+            $days < 0 => 'overdue', $days === 0 => 'today', $days === 1 => 'tomorrow', default => 'later'
+        };
+        $groups = ['overdue' => [], 'today' => [], 'tomorrow' => [], 'later' => []];
+
+        foreach ($own as $row) {
+            $groups[$bucket((int) $row['days'])][] = $row;
+        }
+
+        $line = function (array $row) use ($locale, $t): string {
+            $days = (int) $row['days'];
+            $facts = array_filter([
+                '🗓 '.($days < 0 ? '<b>'.e(F::days($days, $locale)).'</b> · '.e($t('was_due', ['date' => F::shortDate($row['deadline_date'])])) : e(F::weekdayDate($row['deadline_date'], $locale))),
+                F::priorityTag((int) $row['priority'], $locale) === null ? null : e(F::priorityTag((int) $row['priority'], $locale)),
+                $row['role'] === 'watcher' ? '👀 '.e($row['responsible']) : (($action = $this->action($row, $locale)) === null ? null : '👉 '.e($action)),
+            ]);
+
+            return W::row($row['task_id'], $row['number'], $row['title'], implode(' · ', $facts));
+        };
+
+        $labels = ['overdue' => $t('group_overdue'), 'today' => $t('group_today'), 'tomorrow' => $t('group_tomorrow'), 'later' => __('notification.widget.later', [], $locale)];
+        $pages = [];
+        $tiles = [];
+
+        foreach ($groups as $key => $rows) {
+            if ($rows !== []) {
+                $pages[] = [$labels[$key], implode('', array_map($line, $rows))];
+                $tiles[] = [count($rows), mb_strtolower($labels[$key]), $key === 'overdue'];
+            }
+        }
+
+        if ($watched !== []) {
+            $pages[] = [$w('watching'), W::meta([e($t('watcher_note'))]).implode('', array_map($line, $watched))];
+            $tiles[] = [count($watched), mb_strtolower($w('watching'))];
+        }
+
+        $html = W::chips([], '📋 '.$t('list_title', ['date' => F::weekdayDate($this->date, $locale)]))
+            .W::tiles(array_slice($tiles, 0, 4))
+            .W::tabs($pages);
+
+        $summary = implode(', ', array_map(fn (array $tile) => $tile[0].' '.$tile[1], $tiles));
+
+        return [W::document($html, $locale), '📋 '.$w('list_caption', ['summary' => $summary])];
     }
 
     /**
@@ -70,14 +167,21 @@ class TaskMorningReminderNotification extends Notification implements ShouldQueu
      */
     private function keyboard(User $user): ?string
     {
-        if (count($this->rows) > 1) {
-            $rows = TelegramTaskCard::listKeyboard($this->rows);
-        } else {
-            $task = app(TaskVisibilityService::class)->accessibleQuery($user)->whereKey($this->rows[0]['task_id'])->first();
-            $rows = $task === null ? [] : app(TelegramTaskCard::class)->keyboard($task, $user);
-        }
+        $rows = $this->keyboardRows($user);
 
         return $rows === [] ? null : json_encode(['inline_keyboard' => $rows], JSON_UNESCAPED_UNICODE);
+    }
+
+    /** @return list<list<array<string, mixed>>> */
+    private function keyboardRows(User $user): array
+    {
+        if (count($this->rows) > 1) {
+            return TelegramTaskCard::listKeyboard($this->rows);
+        }
+
+        $task = app(TaskVisibilityService::class)->accessibleQuery($user)->whereKey($this->rows[0]['task_id'])->first();
+
+        return $task === null ? [] : app(TelegramTaskCard::class)->keyboard($task, $user);
     }
 
     /**

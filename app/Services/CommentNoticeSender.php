@@ -6,7 +6,9 @@ use App\Models\CommentNotice;
 use App\Models\NotificationDelivery;
 use App\Models\User;
 use App\Support\CommentNoticeFormat;
+use App\Support\TelegramAppLinks;
 use App\Support\TelegramTaskCard;
+use App\Support\TelegramWidget;
 use App\Support\WorkCalendar;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -122,6 +124,7 @@ class CommentNoticeSender
                 $this->deliver(collect([$item]), $stats, fn (string $locale) => [
                     $this->format->mention($item['notice'], $locale),
                     $this->mentionKeyboard($item['notice'], $locale),
+                    fn () => $this->format->mentionWidget($item['notice'], $locale),
                 ]);
             }
 
@@ -137,6 +140,7 @@ class CommentNoticeSender
                 $this->deliver($comments->values(), $stats, fn (string $locale) => [
                     $this->format->batch($comments->values(), $away, $locale),
                     TelegramTaskCard::listKeyboard($tasks),
+                    fn () => $this->format->batchWidget($comments->values(), $away, $locale),
                 ]);
 
                 continue;
@@ -153,6 +157,7 @@ class CommentNoticeSender
                         [['text' => __('notification.comments.reply', [], $locale), 'callback_data' => 'p:'.$item['notice']->id, 'style' => 'primary']],
                         ...$this->linkRows($item['notice'], $locale),
                     ],
+                    fn () => $this->format->commentWidget($item['notice'], $item['role'], $locale),
                 ]);
             }
         }
@@ -162,7 +167,7 @@ class CommentNoticeSender
      * One Telegram message for one or several notices of the same person.
      *
      * @param  Collection<int, array{notice: CommentNotice, role: string}>  $items
-     * @param  callable(string): array{0: string, 1: list<list<array<string, string>>>}  $build
+     * @param  callable(string): array{0: string, 1: list<list<array<string, mixed>>>, 2: callable(): array{0: string, 1: string}}  $build
      * @param  array<string, int>  $stats
      */
     private function deliver(Collection $items, array &$stats, callable $build): void
@@ -188,8 +193,8 @@ class CommentNoticeSender
         $messageId = null;
 
         try {
-            [$text, $keyboard] = $build($user->preferredLocale());
-            $messageId = $this->bot->sendMessage((string) $user->telegram_chat_id, $text, $keyboard);
+            [$text, $keyboard, $widget] = $build($user->preferredLocale());
+            $messageId = $this->send($user, $text, $keyboard, $widget);
         } catch (Throwable $e) {
             report($e);
         }
@@ -247,10 +252,11 @@ class CommentNoticeSender
 
             $locale = $notice->user->preferredLocale();
             $waited = max($days, $this->calendar->workDaysBetween($notice->sent_at, $now));
-            $sent = $this->bot->sendMessage(
-                (string) $notice->user->telegram_chat_id,
+            $sent = $this->send(
+                $notice->user,
                 $this->format->mentionReminder($notice, $waited, $locale),
                 $this->mentionKeyboard($notice, $locale),
+                fn () => $this->format->mentionReminderWidget($notice, $waited, $locale),
             ) !== null;
 
             $stats['reminders'] += $sent ? 1 : 0;
@@ -303,9 +309,13 @@ class CommentNoticeSender
             }
 
             $waited = max($days, $this->calendar->workDaysBetween($notice->created_at, $now));
-            $sent = $this->bot->sendMessage(
-                (string) $author->telegram_chat_id,
+            $sent = $this->send(
+                $author,
                 $this->format->unanswered($notice, $waited, $author->preferredLocale()),
+                null,
+                fn () => $this->format->unansweredWidget($notice, $waited, $author->preferredLocale()),
+                // The author can write in the task right from the message.
+                [[['text' => __('notification.bot.comment', [], $author->preferredLocale()), 'callback_data' => 'c:'.$notice->task_id]]],
             ) !== null;
 
             $stats['author_notes'] += $sent ? 1 : 0;
@@ -351,6 +361,28 @@ class CommentNoticeSender
         }
 
         return null;
+    }
+
+    /**
+     * A widget for those who get widgets, the text for everyone else — and the text too when
+     * the widget does not fit or Telegram refuses it.
+     *
+     * @param  list<list<array<string, mixed>>>|null  $keyboard
+     * @param  callable(): array{0: string, 1: string}  $widget
+     * @param  list<list<array<string, mixed>>>|null  $widgetKeyboard  buttons only the widget gets
+     */
+    private function send(User $user, string $text, ?array $keyboard, callable $widget, ?array $widgetKeyboard = null): ?int
+    {
+        $chatId = (string) $user->telegram_chat_id;
+
+        if (! $this->settings->widgetsFor($user->id)) {
+            return $this->bot->sendMessage($chatId, $text, $keyboard);
+        }
+
+        [$html, $caption] = $widget();
+        $buttons = TelegramAppLinks::widgetKeyboard($widgetKeyboard ?? $keyboard ?? []);
+
+        return $this->bot->sendWidget($chatId, $html, TelegramWidget::caption($caption), $buttons ?: null, $text, $keyboard);
     }
 
     /** @return list<list<array<string, mixed>>> */

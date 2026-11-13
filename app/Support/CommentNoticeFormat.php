@@ -8,6 +8,7 @@ use App\Models\TaskComment;
 use App\Services\HtmlContentService;
 use App\Services\TaskContentService;
 use App\Support\TelegramReminderFormat as F;
+use App\Support\TelegramWidget as W;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -129,6 +130,118 @@ class CommentNoticeFormat
         $blocks[] = e($t('batch_hint'));
 
         return F::join($blocks);
+    }
+
+    // ─── The same messages as HTML widgets ──────────────────────────────────────────────
+    // Each returns [HTML, caption]. The caption is what notifications and old apps show.
+
+    /** @return array{0: string, 1: string} */
+    public function mentionWidget(CommentNotice $notice, string $locale): array
+    {
+        $t = $this->t($locale);
+        $comment = $notice->comment;
+        $task = $notice->task;
+
+        $html = W::chips([['📣 '.$t('mention_title'), 'bl']])
+            .W::title($task->id, $task->number, $this->title($task))
+            .$this->quoteBox($comment, $locale)
+            .W::meta([$this->assigneeLine($task, $locale)], 'margin-top:6px')
+            .W::todo('👉 <b>'.e(__('notification.reminder.what', [], $locale)).'</b> '.e($t('mention_action')))
+            .W::linkButtons($task->id, $task->number, $locale);
+
+        return [W::document($html, $locale), '📣 '.($comment->author?->name ?? '—').' · #'.$task->number.': '.$this->text($comment, 300)];
+    }
+
+    /** @return array{0: string, 1: string} */
+    public function mentionReminderWidget(CommentNotice $notice, int $workDays, string $locale): array
+    {
+        $t = $this->t($locale);
+        $task = $notice->task;
+        $title = $t('reminder_title', ['days' => $this->workDays($workDays, $locale)]);
+
+        $html = W::chips([['🔔 '.$title, 'or']])
+            .W::title($task->id, $task->number, $this->title($task))
+            .$this->quoteBox($notice->comment, $locale, full: true)
+            .W::todo('👉 <b>'.e(__('notification.reminder.what', [], $locale)).'</b> '.e($t('mention_action')))
+            .W::linkButtons($task->id, $task->number, $locale);
+
+        return [W::document($html, $locale), '🔔 '.$title.' · #'.$task->number];
+    }
+
+    /** @return array{0: string, 1: string} */
+    public function unansweredWidget(CommentNotice $notice, int $workDays, string $locale): array
+    {
+        $t = $this->t($locale);
+        $task = $notice->task;
+        $title = $t('unanswered_title', ['days' => $this->workDays($workDays, $locale)]);
+
+        $html = W::chips([['⏳ '.$title, 'or']])
+            .W::title($task->id, $task->number, $this->title($task))
+            .W::meta(['📣 '.e($t('you_asked')).' <b>'.e((string) $notice->user?->name).'</b>'])
+            .W::box($this->moment($notice->comment->created_at, $locale, full: true), $this->text($notice->comment, self::TEXT_LIMIT))
+            .W::todo('ℹ️ '.e($t('unanswered_note')))
+            .W::linkButtons($task->id, $task->number, $locale);
+
+        return [W::document($html, $locale), '⏳ '.$title.': '.$notice->user?->name.' · #'.$task->number];
+    }
+
+    /** @return array{0: string, 1: string} */
+    public function commentWidget(CommentNotice $notice, string $role, string $locale): array
+    {
+        $t = $this->t($locale);
+        $task = $notice->task;
+
+        $html = W::chips([['💬 '.$t('comment_title'), 'gy']])
+            .W::title($task->id, $task->number, $this->title($task))
+            .$this->quoteBox($notice->comment, $locale)
+            .W::meta([$this->roleLine($task, $role, $locale, full: true)], 'margin-top:6px')
+            .W::linkButtons($task->id, $task->number, $locale);
+
+        return [W::document($html, $locale), '💬 '.($notice->comment->author?->name ?? '—').' · #'.$task->number.': '.$this->text($notice->comment, 300)];
+    }
+
+    /**
+     * @param  Collection<int, array{notice: CommentNotice, role: string}>  $items
+     * @return array{0: string, 1: string}
+     */
+    public function batchWidget(Collection $items, bool $whileAway, string $locale): array
+    {
+        $t = $this->t($locale);
+        $count = $items->count();
+        $title = $t($whileAway ? 'batch_title_away' : 'batch_title', [
+            'comments' => trans_choice('notification.comments.comments', $count, ['count' => $count], $locale),
+        ]);
+        $groups = $items->groupBy(fn (array $item) => $item['notice']->task_id);
+        $html = W::chips([], ($whileAway ? '🌙 ' : '💬 ').$title);
+        $caption = [];
+
+        foreach ($groups as $ofTask) {
+            $task = $ofTask->first()['notice']->task;
+            $inner = '';
+
+            foreach ($ofTask as $item) {
+                $comment = $item['notice']->comment;
+                $inner .= W::box(($comment->author?->name ?? '—').' · '.$this->moment($comment->created_at, $locale), $this->text($comment, self::TEXT_LIMIT_IN_LIST));
+            }
+
+            $html .= W::details(
+                '<span class=n>#'.$task->number.'</span> '.e(W::cut($this->title($task), 70)).' · '.$ofTask->count(),
+                $inner.W::linkButtons($task->id, $task->number, $locale),
+            );
+            $caption[] = '#'.$task->number.' ('.$ofTask->count().')';
+        }
+
+        return [W::document($html, $locale), ($whileAway ? '🌙 ' : '💬 ').$title.': '.implode(', ', $caption)];
+    }
+
+    private function quoteBox(TaskComment $comment, string $locale, bool $full = false): string
+    {
+        return W::box('💬 '.($comment->author?->name ?? '—').' · '.$this->moment($comment->created_at, $locale, $full), $this->text($comment, self::TEXT_LIMIT));
+    }
+
+    private function assigneeLine(Task $task, string $locale): string
+    {
+        return '🎯 '.e(__('notification.bot.assignee_is', ['name' => $task->assignee?->name ?? '—'], $locale)).' · '.F::status($task->status->value, $locale);
     }
 
     /** One line of the digest's "waiting on the person" block. */

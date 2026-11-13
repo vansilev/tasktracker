@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Notifications\Messages\TelegramWidgetMessage;
 use App\Services\ReminderSettings;
 use App\Support\WorkCalendar;
 use Illuminate\Bus\Queueable;
@@ -33,6 +34,8 @@ class TaskDigestNotification extends Notification implements ShouldQueue
         public int $part,
         public int $parts,
         public bool $scheduled = true,
+        public ?string $widgetHtml = null,
+        public ?string $widgetCaption = null,
     ) {}
 
     /** The scheduled digest never leaves outside working hours; the next run picks it up. */
@@ -52,12 +55,19 @@ class TaskDigestNotification extends Notification implements ShouldQueue
                 : [];
     }
 
-    public function toTelegram(object $notifiable): TelegramMessage
+    public function toTelegram(object $notifiable): TelegramMessage|TelegramWidgetMessage
     {
-        return TelegramMessage::create()
+        $text = TelegramMessage::create()
             ->parseMode('HTML')
             ->options(['disable_web_page_preview' => true])
             ->content($this->text);
+
+        // `??`: a digest queued before widgets existed has no such property at all.
+        $html = $this->widgetHtml ?? null;
+
+        return $html === null
+            ? $text
+            : TelegramWidgetMessage::make($html, (string) ($this->widgetCaption ?? ''), $text);
     }
 
     /** @return array<string, mixed> */

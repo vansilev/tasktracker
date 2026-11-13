@@ -16,6 +16,7 @@ use App\Notifications\TaskMentionedNotification;
 use App\Notifications\TaskOverdueNotification;
 use App\Notifications\TaskReviewSlaExpiredNotification;
 use App\Notifications\TaskStatusChangedNotification;
+use App\Support\WorkCalendar;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 
@@ -23,6 +24,9 @@ class TaskNotificationService
 {
     /** @var list<string> */
     public const PREFERENCE_CHANNELS = ['database', 'email', 'telegram'];
+
+    /** @var list<string> */
+    public const PERSONAL_TELEGRAM_EVENTS = ['task.assigned', 'task.status_changed'];
 
     public function __construct(private TelegramGroupNotifier $group) {}
 
@@ -64,7 +68,7 @@ class TaskNotificationService
 
         $recipients = collect([$task->initiator, $task->assignee])->merge($task->watchers);
 
-        $this->sendTaskStatusChanged($task, $actor, $oldStatus, $newStatus, $recipients);
+        $this->sendTaskStatusChanged($task, $actor, $oldStatus, $newStatus, $recipients, $reasonExcerpt);
         $this->group->notifyStatusChanged($task, $actor, $oldStatus, $newStatus, $reasonExcerpt);
 
         // Changing the status is a reaction: questions put to this person in the task are answered.
@@ -238,8 +242,10 @@ class TaskNotificationService
         }
 
         if (
-            config('services.telegram.dm_enabled')
-            && ! $this->replacedByMorningReminder($event)
+            (
+                (config('services.telegram.dm_enabled') && ! $this->replacedByMorningReminder($event))
+                || $this->sentPersonallyByBot($user, $event)
+            )
             && $this->isChannelEnabled($user, $event, 'telegram')
             && filled($user->telegram_chat_id)
         ) {
@@ -247,6 +253,19 @@ class TaskNotificationService
         }
 
         return $channels;
+    }
+
+    /**
+     * "A task is yours now" and "the status changed" go to the person in Telegram once the
+     * reminder bot is on, whatever the old all-events switch says: they replace the group chat.
+     */
+    private function sentPersonallyByBot(User $user, string $event): bool
+    {
+        $settings = app(ReminderSettings::class);
+
+        return in_array($event, self::PERSONAL_TELEGRAM_EVENTS, true)
+            && $settings->enabled()
+            && $settings->allowsPersonalMessages($user->id);
     }
 
     /**
@@ -284,12 +303,13 @@ class TaskNotificationService
         TaskStatus $oldStatus,
         TaskStatus $newStatus,
         Collection $recipients,
+        ?string $reasonExcerpt = null,
     ): void {
         $this->sendToUsers(
             $recipients,
             $actor,
             'task.status_changed',
-            fn () => new TaskStatusChangedNotification($task, $actor, $oldStatus, $newStatus),
+            fn () => new TaskStatusChangedNotification($task, $actor, $oldStatus, $newStatus, $reasonExcerpt),
         );
     }
 
@@ -356,6 +376,16 @@ class TaskNotificationService
 
                 /** @var Notification $notification */
                 $notification = $notificationFactory();
+
+                // Telegram keeps to working hours; the bell and e-mail go out at once.
+                if (in_array($event, self::PERSONAL_TELEGRAM_EVENTS, true)) {
+                    $moment = app(WorkCalendar::class)->nextSendMoment();
+
+                    if ($moment->isFuture()) {
+                        $notification->delay(['telegram' => $moment]);
+                    }
+                }
+
                 $user->notify($notification);
             });
     }

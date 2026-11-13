@@ -10,8 +10,10 @@ use App\Models\Task;
 use App\Models\User;
 use App\Support\CommentNoticeFormat;
 use App\Support\Deadline;
+use App\Support\TelegramAppLinks;
 use App\Support\TelegramReminderFormat as F;
 use App\Support\TelegramTaskCard;
+use App\Support\TelegramWidget;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -193,7 +195,13 @@ class TelegramActionService
 
         if ($notice->kind === CommentNotice::KIND_MENTION && $notice->acknowledged_at !== null) {
             // The buttons go, the message keeps the question and shows when it was acknowledged.
-            $this->bot->editMessage($chatId, $messageId, app(CommentNoticeFormat::class)->mention($notice, $user->preferredLocale(), $notice->acknowledged_at));
+            $format = app(CommentNoticeFormat::class);
+            $locale = $user->preferredLocale();
+            // On a widget the caption says so instead; built only for those who get widgets.
+            $widgetCaption = app(ReminderSettings::class)->widgetsFor($user->id)
+                ? TelegramWidget::caption($format->mentionWidget($notice, $locale)[1])."\n<b>👍 ".e(__('notification.widget.ack_caption', ['time' => $notice->acknowledged_at->copy()->timezone(config('app.timezone'))->format('H:i')], $locale)).'</b>'
+                : null;
+            $this->bot->editMessage($chatId, $messageId, $format->mention($notice, $locale, $notice->acknowledged_at), null, $widgetCaption);
         }
 
         if ($done) {
@@ -501,7 +509,7 @@ class TelegramActionService
         $approverLocale = $approver->preferredLocale();
         $b = fn (string $key, array $replace = []) => __('notification.bot.'.$key, $replace, $approverLocale);
 
-        $this->bot->sendMessage((string) $approver->telegram_chat_id, F::join([
+        $requestText = F::join([
             [
                 '🗓 <b>'.e($b('deadline_request_title')).'</b>',
                 F::taskLink($task->id, $task->number, (string) ($task->title ?: $task->plainDescription()), $approverLocale),
@@ -515,13 +523,37 @@ class TelegramActionService
             ],
             e($b('deadline_request_note')),
             F::link(route('tasks.show', $task), __('notification.open_task', [], $approverLocale)),
-        ]), [
+        ]);
+        $requestKeyboard = [
             [
                 ['text' => $b('approve'), 'callback_data' => 'a:'.$request->id, 'style' => 'success'],
                 ['text' => $b('reject'), 'callback_data' => 'r:'.$request->id, 'style' => 'danger'],
             ],
             TelegramTaskCard::linkRow($task, $approverLocale),
-        ]);
+        ];
+
+        if (app(ReminderSettings::class)->widgetsFor($approver->id)) {
+            $line = str_replace(['%1', '%2'], ['<s>'.e(F::weekdayDate($old, $approverLocale)).'</s>', '<b>'.e(F::weekdayDate($date, $approverLocale)).'</b>'], e($b('deadline_request_line', [
+                'name' => $user->name, 'old' => '%1', 'new' => '%2',
+            ])));
+            $html = TelegramWidget::chips([['🗓 '.$b('deadline_request_title'), 'bl']])
+                .TelegramWidget::title($task->id, $task->number, (string) ($task->title ?: $task->plainDescription()))
+                .TelegramWidget::meta(['🎯 '.$line])
+                .TelegramWidget::box($b('reason'), mb_strimwidth($reason, 0, 600, '…'))
+                .TelegramWidget::todo('👉 '.e($b('deadline_request_note')))
+                .TelegramWidget::linkButtons($task->id, $task->number, $approverLocale);
+
+            $this->bot->sendWidget(
+                (string) $approver->telegram_chat_id,
+                TelegramWidget::document($html, $approverLocale),
+                TelegramWidget::caption('🗓 '.$user->name.': #'.$task->number.' '.F::weekdayDate($old, $approverLocale).' → '.F::weekdayDate($date, $approverLocale)),
+                TelegramAppLinks::widgetKeyboard($requestKeyboard),
+                $requestText,
+                $requestKeyboard,
+            );
+        } else {
+            $this->bot->sendMessage((string) $approver->telegram_chat_id, $requestText, $requestKeyboard);
+        }
 
         $this->bot->sendMessage($chatId, e($this->t($user, 'deadline_request_sent', [
             'name' => $approver->name, 'date' => F::weekdayDate($date, $locale),
@@ -535,7 +567,7 @@ class TelegramActionService
      *
      * @return array{0: string, 1: bool}
      */
-    private function decide(User $user, int $requestId, bool $approve, string $chatId, int $messageId): array
+    private function decide(User $user, int $requestId, bool $approve, string $chatId, int $messageId, ?string $reason = null): array
     {
         $outcome = DB::transaction(function () use ($user, $requestId, $approve): array {
             $request = DeadlineChangeRequest::query()->whereKey($requestId)->lockForUpdate()->first();
@@ -595,7 +627,7 @@ class TelegramActionService
         $locale = $user->preferredLocale();
 
         if (! in_array($result, ['approved', 'rejected'], true)) {
-            if (in_array($result, ['request_closed', 'request_stale'], true)) {
+            if ($messageId > 0 && in_array($result, ['request_closed', 'request_stale'], true)) {
                 // The buttons are of no use any more.
                 $this->bot->editMessage($chatId, $messageId, e($this->t($user, $result)));
             }
@@ -607,9 +639,20 @@ class TelegramActionService
         $new = $request->new_deadline->format('Y-m-d');
         $this->auditAction($user, $task, $approve ? 'deadline_approved' : 'deadline_rejected', ['from' => $old, 'to' => $new]);
 
-        $message = fn (User $reader): string => $this->decisionMessage($reader, $user, $task, $old, $new, $approve);
+        if (! $approve && $reason !== null) {
+            // The reason stays in the task, so it is seen in the tracker too.
+            $this->tasks->addComment($task, $user, __('notification.bot.deadline_rejected_comment', [
+                'old' => F::shortDate($old), 'new' => F::shortDate($new), 'reason' => $reason,
+            ], $request->requester?->preferredLocale() ?? $user->preferredLocale()), ContentSource::PlainText);
+        }
 
-        $this->bot->editMessage($chatId, $messageId, $message($user));
+        $message = fn (User $reader): string => $this->decisionMessage($reader, $user, $task, $old, $new, $approve, $reason);
+
+        if ($messageId > 0) {
+            $this->bot->editMessage($chatId, $messageId, $message($user));
+        } else {
+            $this->bot->sendMessage($chatId, $message($user));
+        }
 
         $requester = $request->requester;
 
@@ -623,7 +666,7 @@ class TelegramActionService
         return [$this->t($user, $approve ? 'approved_toast' : 'rejected_toast'), false];
     }
 
-    private function decisionMessage(User $reader, User $decider, Task $task, string $old, string $new, bool $approved): string
+    private function decisionMessage(User $reader, User $decider, Task $task, string $old, string $new, bool $approved, ?string $reason = null): string
     {
         $locale = $reader->preferredLocale();
         $b = fn (string $key, array $replace = []) => __('notification.bot.'.$key, $replace, $locale);
@@ -638,6 +681,7 @@ class TelegramActionService
             e($approved
                 ? $b('approved_by', ['name' => $decider->name])
                 : $b('rejected_by', ['name' => $decider->name, 'date' => F::weekdayDate($old, $locale)])),
+            $reason === null ? null : '💬 '.e($b('reason')).'<blockquote>'.e(mb_strimwidth($reason, 0, 600, '…')).'</blockquote>',
             F::link(route('tasks.show', $task), __('notification.open_task', [], $locale)),
         ]);
     }
@@ -685,6 +729,202 @@ class TelegramActionService
         }
 
         return $date;
+    }
+
+    // ─── The window inside Telegram (Mini App) ────────────────────────────────────────────
+    // The same actions as the bot's questions, with everything typed at once. Each returns
+    // [done, what to tell the person]; every check of the button flow is made again here.
+
+    /** @return array{0: bool, 1: string} */
+    public function appComment(User $user, int $taskId, string $text): array
+    {
+        $task = $this->task($user, $taskId);
+        $text = trim($text);
+
+        if ($task === null || ! Gate::forUser($user)->allows('comment', $task)) {
+            return [false, $this->t($user, 'not_available')];
+        }
+
+        if ($text === '') {
+            return [false, $this->t($user, 'empty_text')];
+        }
+
+        try {
+            $this->tasks->addComment($task, $user, $text, ContentSource::PlainText);
+        } catch (AuthorizationException) {
+            return [false, $this->t($user, 'not_available')];
+        }
+
+        $this->auditAction($user, $task, 'comment', ['via' => 'app']);
+
+        return [true, $this->t($user, 'comment_added').' #'.$task->number];
+    }
+
+    /** @return array{0: bool, 1: string} */
+    public function appStatus(User $user, int $taskId, ?TaskStatus $to, ?string $reason, ?string $date, string $chatId): array
+    {
+        $task = $this->task($user, $taskId);
+
+        if ($task === null || $to === null) {
+            return [false, $this->t($user, 'not_available')];
+        }
+
+        if (! in_array($to, $this->workflow->allowedTransitions($user, $task), true)) {
+            return [false, $this->t($user, 'already_changed', ['status' => '«'.__('task.status.'.$task->status->value, [], $user->preferredLocale()).'»'])];
+        }
+
+        $reason = trim((string) $reason) ?: null;
+
+        if (TaskStatus::requiresComment($to, $task->status) && $reason === null) {
+            return [false, $this->t($user, 'app_reason_required')];
+        }
+
+        if ($to === TaskStatus::Postponed) {
+            $date = $date === null ? null : self::parseDate($date);
+
+            if ($date === null || $date <= now()->timezone(config('app.timezone'))->format('Y-m-d')) {
+                return [false, $this->t($user, 'date_not_future')];
+            }
+        } else {
+            $date = null;
+        }
+
+        [$toast, $failed] = $this->changeStatus($user, $task, $to, $reason, $date, $chatId, null);
+
+        // An empty answer means somebody is changing this task right now.
+        return [! $failed && $toast !== '', $toast ?: $this->t($user, 'app_already_sent')];
+    }
+
+    /** @return array{0: bool, 1: string} */
+    public function appDeadline(User $user, int $taskId, string $date, string $reason, string $chatId): array
+    {
+        $task = $this->task($user, $taskId);
+        $reason = trim($reason);
+
+        if ($task === null || ! $this->card->canAskToMoveDeadline($task, $user)) {
+            return [false, $this->t($user, 'not_available')];
+        }
+
+        if ($this->pendingRequest($task) !== null && $task->initiator_id !== $user->id && ! $user->isAdmin()) {
+            return [false, $this->t($user, 'request_exists')];
+        }
+
+        $date = self::parseDate($date);
+
+        if ($date === null || $date <= now()->timezone(config('app.timezone'))->format('Y-m-d')) {
+            return [false, $this->t($user, 'date_not_future')];
+        }
+
+        if ($date === $this->deadlineDate($task)) {
+            return [false, $this->t($user, 'date_same')];
+        }
+
+        if ($reason === '') {
+            return [false, $this->t($user, 'app_reason_required')];
+        }
+
+        $this->requestDeadline($user, $task, $date, $reason, $chatId);
+
+        return [true, ''];
+    }
+
+    /** @return array{0: bool, 1: string} */
+    public function appReject(User $user, int $requestId, string $reason, string $chatId): array
+    {
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            return [false, $this->t($user, 'app_reason_required')];
+        }
+
+        [$toast, $alert] = $this->decide($user, $requestId, false, $chatId, 0, $reason);
+
+        return [! $alert, $toast];
+    }
+
+    /**
+     * What the window shows before the person types: the task, and the question, the request
+     * or the statuses the chosen action is about. Null when it is not this person's to see.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function appContext(User $user, string $mode, array $ids): ?array
+    {
+        $locale = $user->preferredLocale();
+        $quote = null;
+        $request = null;
+
+        if ($mode === 'reply') {
+            $notice = CommentNotice::query()->with(['comment.author'])->whereKey((int) ($ids['notice'] ?? 0))->where('user_id', $user->id)->first();
+
+            if ($notice === null || $notice->comment === null) {
+                return null;
+            }
+
+            $ids['task'] = $notice->task_id;
+            $quote = [
+                'author' => ($notice->comment->author?->name ?? '—').' · '.$notice->comment->created_at->copy()->timezone(config('app.timezone'))->format('d.m H:i'),
+                'text' => app(CommentNoticeFormat::class)->text($notice->comment, 700),
+            ];
+        }
+
+        if ($mode === 'reject') {
+            $request = DeadlineChangeRequest::query()->with('requester')->whereKey((int) ($ids['req'] ?? 0))->where('approver_id', $user->id)->first();
+
+            if ($request === null || $request->old_deadline === null || $request->new_deadline === null) {
+                return null;
+            }
+
+            $ids['task'] = $request->task_id;
+        }
+
+        $task = $this->task($user, (int) ($ids['task'] ?? 0));
+
+        if ($task === null) {
+            return null;
+        }
+
+        $statuses = [];
+
+        if ($mode === 'status') {
+            foreach ($this->workflow->allowedTransitions($user, $task) as $to) {
+                $statuses[] = [
+                    'value' => $to->value,
+                    'label' => $this->card->transitionLabel($task->status, $to, $locale),
+                    'reason' => TaskStatus::requiresComment($to, $task->status),
+                    'date' => $to === TaskStatus::Postponed,
+                    'danger' => in_array($to, [TaskStatus::Rejected, TaskStatus::Cancelled], true),
+                ];
+            }
+        }
+
+        return [
+            'task' => [
+                'id' => $task->id,
+                'number' => $task->number,
+                'title' => (string) ($task->title ?: $task->plainDescription()),
+                'status' => __('task.status.'.$task->status->value, [], $locale),
+                'assignee' => $task->assignee?->name,
+                'initiator' => $task->initiator?->name,
+                'deadline' => $task->deadline === null ? null : F::weekdayDate($this->deadlineDate($task), $locale),
+                'deadline_iso' => $task->deadline === null ? null : $this->deadlineDate($task),
+                'url' => route('tasks.show', $task),
+            ],
+            'quote' => $quote,
+            'request' => $request === null ? null : [
+                'id' => $request->id,
+                'requester' => $request->requester?->name,
+                'old' => F::weekdayDate($request->old_deadline->copy()->timezone(config('app.timezone'))->format('Y-m-d'), $locale),
+                'new' => F::weekdayDate($request->new_deadline->format('Y-m-d'), $locale),
+                'reason' => $request->reason,
+                'open' => $request->status === DeadlineChangeRequest::STATUS_PENDING,
+            ],
+            'statuses' => $statuses,
+            'can_comment' => Gate::forUser($user)->allows('comment', $task),
+            'can_move_deadline' => $this->card->canAskToMoveDeadline($task, $user),
+            'moves_itself' => $task->initiator_id === $user->id || $user->isAdmin(),
+            'today' => now()->timezone(config('app.timezone'))->format('Y-m-d'),
+        ];
     }
 
     /**

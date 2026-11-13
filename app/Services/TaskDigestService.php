@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\TaskDigestNotification;
 use App\Support\Deadline;
 use App\Support\TaskDigestFormatter;
+use App\Support\TelegramWidget;
 use App\Support\WorkCalendar;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -184,7 +185,24 @@ class TaskDigestService
     /** @param  array<string, mixed>  $digest */
     private function dispatch(array $digest, User $user, bool $scheduled, bool $dryRun, ?Department $department = null): int
     {
-        $messages = app(TaskDigestFormatter::class)->messages($digest, $user->preferredLocale());
+        $formatter = app(TaskDigestFormatter::class);
+        $messages = $formatter->messages($digest, $user->preferredLocale());
+
+        // One widget instead of several messages, when it fits. Its fallback is the first text
+        // part: Telegram refusing a widget that fits is the rare case.
+        if ($this->settings->widgetsFor($user->id)) {
+            [$html, $caption] = $formatter->widget($digest, $user->preferredLocale());
+
+            if (TelegramWidget::fits($html)) {
+                if (! $dryRun) {
+                    $user->notify(new TaskDigestNotification(
+                        $digest['date'], $department?->id ?? 0, $messages[0], 1, 1, $scheduled, $html, TelegramWidget::caption($caption),
+                    ));
+                }
+
+                return 1;
+            }
+        }
 
         if (! $dryRun) {
             foreach ($messages as $index => $text) {

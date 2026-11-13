@@ -159,6 +159,22 @@ class ReminderSettings
         return $pilot === [] || in_array($userId, $pilot, true);
     }
 
+    /**
+     * Whether this person's messages go as HTML widgets instead of text. Off until an admin
+     * turns it on (setting `telegram_widgets`); `telegram_widget_user_ids`, when set, limits it
+     * to those people — the way to try widgets on one person first.
+     */
+    public function widgetsFor(int $userId): bool
+    {
+        if (! filter_var($this->settings->get('telegram_widgets', false), FILTER_VALIDATE_BOOLEAN)) {
+            return false;
+        }
+
+        $only = $this->intList('telegram_widget_user_ids');
+
+        return $only === [] || in_array($userId, $only, true);
+    }
+
     /** @return list<int> */
     private function intList(string $key): array
     {
