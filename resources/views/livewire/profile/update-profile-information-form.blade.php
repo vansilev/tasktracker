@@ -49,7 +49,7 @@ new class extends Component
 
     <form wire:submit="updateProfileInformation" class="mt-4 space-y-4">
         <div>
-            <x-input-label for="name" :value="__('Name')" class="text-xs text-gray-500 font-medium" />
+            <x-input-label for="name" :value="__('Full name')" class="text-xs text-gray-500 font-medium" />
             <x-text-input wire:model="name" id="name" name="name" type="text" class="mt-1 block w-full text-sm rounded-lg" required autofocus autocomplete="name" />
             <x-input-error class="mt-1" :messages="$errors->get('name')" />
         </div>

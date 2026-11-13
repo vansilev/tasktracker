@@ -111,7 +111,7 @@ new #[Layout('layouts.guest')] class extends Component
     <div class="mt-6 flex justify-center gap-1 p-0.5 bg-gray-100 rounded-lg text-xs w-fit mx-auto">
         @foreach (['ru' => 'RU', 'uk' => 'UA', 'en' => 'EN'] as $code => $label)
             <a href="{{ route('locale.switch', $code) }}"
-               class="px-3 py-1.5 rounded-md transition-colors {{ app()->getLocale() === $code ? 'bg-white text-indigo-700 font-semibold shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
+               class="px-3 py-1.5 rounded-md transition-colors {{ app()->getLocale() === $code ? 'bg-white text-indigo-700 font-semibold shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
                 {{ $label }}
             </a>
         @endforeach

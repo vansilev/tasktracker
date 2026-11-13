@@ -18,6 +18,6 @@
         <span class="{{ $w }} {{ $h }} rounded-sm {{ $i <= $filled ? $color : 'bg-gray-200' }}"></span>
     @endfor
     @if ($priority >= 9)
-        <span class="ms-1" title="{{ __('Urgent') }}">🔥</span>
+        <span class="ms-1 text-red-600" title="{{ __('Urgent') }}"><x-icon.fire class="w-3.5 h-3.5" /><span class="sr-only">{{ __('Urgent') }}</span></span>
     @endif
 </div>

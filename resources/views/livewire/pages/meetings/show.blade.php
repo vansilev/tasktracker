@@ -425,7 +425,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     </div>
                                     <div class="shrink-0 pt-0.5">
                                         @if ($open)
-                                            <button type="button" wire:click="dismiss({{ $draft->id }})" class="text-xs text-gray-400 hover:text-red-600">{{ __('meetings.dismiss') }}</button>
+                                            <button type="button" wire:click="dismiss({{ $draft->id }})" class="text-xs text-gray-500 hover:text-red-600">{{ __('meetings.dismiss') }}</button>
                                         @elseif ($draft->status === 'dismissed')
                                             <button type="button" wire:click="restore({{ $draft->id }})" class="text-xs text-indigo-600 hover:text-indigo-800">{{ __('meetings.restore') }}</button>
                                         @endif
@@ -478,9 +478,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         <div class="text-xs">
                                             <span class="font-semibold text-gray-900">{{ $block['speaker'] }}</span>
                                             @if (($speakerUsers[$block['speaker']] ?? null) && $speakerUsers[$block['speaker']] !== $block['speaker'])
-                                                <span class="text-gray-400">· {{ $speakerUsers[$block['speaker']] }}</span>
+                                                <span class="text-gray-500">· {{ $speakerUsers[$block['speaker']] }}</span>
                                             @endif
-                                            <a href="{{ $meeting->firefliesUrl($block['start']) }}" target="_blank" rel="noopener" class="ml-1 text-gray-400 hover:text-indigo-600">{{ \App\Models\Meeting::formatSeconds($block['start']) }}</a>
+                                            <a href="{{ $meeting->firefliesUrl($block['start']) }}" target="_blank" rel="noopener" class="ml-1 text-gray-500 hover:text-indigo-600">{{ \App\Models\Meeting::formatSeconds($block['start']) }}</a>
                                         </div>
                                         <p class="text-sm leading-relaxed text-gray-800">
                                             @foreach ($block['lines'] as $line)
@@ -530,7 +530,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         <button type="button" wire:click="removeViewer({{ $viewer->id }})" class="text-indigo-400 hover:text-red-600" title="{{ __('meetings.viewer_remove') }}">×</button>
                                     </span>
                                 @empty
-                                    <span class="text-xs text-gray-400">{{ __('meetings.viewers_none') }}</span>
+                                    <span class="text-xs text-gray-500">{{ __('meetings.viewers_none') }}</span>
                                 @endforelse
                             </div>
                             <select wire:change="addViewer($event.target.value); $event.target.value = ''" class="mt-2 w-full rounded-md border-gray-200 py-1 pl-2 pr-7 text-xs">
@@ -577,12 +577,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 <span class="h-2 w-2 shrink-0 rounded-full {{ $p['speaker'] ? ($colours[$p['speaker']] ?? 'bg-gray-300') : 'bg-gray-200' }}"></span>
                                 <span class="min-w-0 flex-1 truncate text-sm {{ $p['user'] ? 'font-medium text-gray-900' : 'text-gray-600' }}">{{ $p['label'] }}</span>
                                 @if ($p['user'] && $p['source'] !== 'none')
-                                    <span class="text-[11px] text-gray-400">{{ __('meetings.source.'.$p['source']) }}</span>
+                                    <span class="text-[11px] text-gray-500">{{ __('meetings.source.'.$p['source']) }}</span>
                                 @endif
                             </div>
                             <div class="ml-4 mt-0.5 truncate text-xs text-gray-500">
                                 {{ collect([$p['speaker'] && $p['speaker'] !== $p['label'] ? $p['speaker'] : null, $p['email']])->filter()->implode(' · ') }}
-                                @if (! $p['spoke']) <span class="text-gray-400">· {{ __('meetings.invited') }}</span> @endif
+                                @if (! $p['spoke']) <span class="text-gray-500">· {{ __('meetings.invited') }}</span> @endif
                             </div>
                             @if ($isAdmin)
                                 <select wire:change="mapPerson({{ $i }}, $event.target.value)" class="ml-4 mt-1 w-[calc(100%-1rem)] rounded-md border-gray-200 py-0.5 pl-2 pr-7 text-xs {{ $p['user'] || $p['external'] ? 'text-gray-600' : 'text-amber-700' }}">
@@ -597,7 +597,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     @endforeach
                                 </select>
                             @elseif ($p['external'])
-                                <div class="ml-4 text-xs text-gray-400">{{ __('meetings.external') }}</div>
+                                <div class="ml-4 text-xs text-gray-500">{{ __('meetings.external') }}</div>
                             @endif
                         </li>
                     @endforeach

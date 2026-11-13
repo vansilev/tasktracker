@@ -20,7 +20,7 @@
             </template>
             <button
                 type="button"
-                class="shrink-0 rounded-md p-0.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                class="shrink-0 rounded-md p-0.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                 x-on:click="$store.toasts.dismiss(toast.id)"
                 aria-label="{{ __('Close') }}"
             >

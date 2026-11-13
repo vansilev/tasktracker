@@ -326,7 +326,7 @@ new class extends Component
                             @if ($canManage && ! $editing)
                                 <x-action-button variant="secondary" size="sm" type="button" wire:click="startEdit">{{ __('Edit') }}</x-action-button>
                             @endif
-                            <button type="button" wire:click="close" class="text-gray-400 hover:text-gray-700 text-lg leading-none" aria-label="{{ __('Cancel') }}">✕</button>
+                            <button type="button" wire:click="close" class="p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100" aria-label="{{ __('Close') }}"><x-icon.x-mark class="w-5 h-5" /></button>
                         </div>
                     </div>
 
@@ -511,7 +511,7 @@ new class extends Component
                                         @elseif ($canManage)
                                             <button type="button" wire:click="startEdit" class="text-amber-700 hover:underline font-normal">{{ __('billing.specify') }}</button>
                                         @else
-                                            <span class="text-gray-400 font-normal">—</span>
+                                            <span class="text-gray-500 font-normal">—</span>
                                         @endif
                                     </div>
                                 </div>
@@ -523,7 +523,7 @@ new class extends Component
                                         @elseif ($canManage)
                                             <button type="button" wire:click="startEdit" class="text-amber-700 hover:underline font-normal">{{ __('billing.specify') }}</button>
                                         @else
-                                            <span class="text-gray-400 font-normal">—</span>
+                                            <span class="text-gray-500 font-normal">—</span>
                                         @endif
                                     </div>
                                     @if ($item->owner_label && ! $item->owner)
@@ -584,7 +584,7 @@ new class extends Component
                                     @endif
                                 </div>
                             @empty
-                                <p class="text-sm text-gray-400">{{ __('billing.history_empty') }}</p>
+                                <p class="text-sm text-gray-500">{{ __('billing.history_empty') }}</p>
                             @endforelse
                         </div>
                     </div>

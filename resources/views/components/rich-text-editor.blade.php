@@ -216,7 +216,7 @@
         <div wire:ignore class="rte-surface relative">
             @if ($placeholder !== '')
                 <p x-show="isEmpty" x-cloak
-                   class="pointer-events-none absolute left-3 top-3 m-0 select-none text-sm text-gray-400">{{ $placeholder }}</p>
+                   class="pointer-events-none absolute left-3 top-3 m-0 select-none text-sm text-gray-500">{{ $placeholder }}</p>
             @endif
             <div x-ref="editor"
                  class="prose prose-sm max-w-none px-3 pt-2 pb-3 text-gray-800"

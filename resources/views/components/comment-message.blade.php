@@ -55,7 +55,7 @@
                 @endunless
                 <time datetime="{{ $comment->created_at?->toIso8601String() }}">{{ $comment->created_at?->format('d.m.Y H:i') }}</time>
                 @if ($comment->edited_at)
-                    <span class="text-gray-400">({{ __('task.edited') }})</span>
+                    <span class="text-gray-500">({{ __('task.edited') }})</span>
                 @endif
             </p>
         @endunless
@@ -162,7 +162,7 @@
                                 <button type="button"
                                         x-ref="trigger"
                                         @click="togglePicker()"
-                                        class="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                        class="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-600"
                                         aria-label="{{ __('Add reaction') }}"
                                         title="{{ __('Add reaction') }}">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true">

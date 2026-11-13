@@ -133,7 +133,7 @@ new class extends Component
                         <span class="min-w-0 flex-1">
                             <span class="block truncate text-sm font-medium text-gray-900">{{ InAppNotification::heading($data) }}</span>
                             <span class="mt-0.5 block text-xs leading-4 text-gray-600">{{ InAppNotification::line($data) }}</span>
-                            <span class="mt-1 block text-xs text-gray-400">{{ $notification->created_at->diffForHumans() }}</span>
+                            <span class="mt-1 block text-xs text-gray-500">{{ $notification->created_at->diffForHumans() }}</span>
                         </span>
                     </button>
                 @empty

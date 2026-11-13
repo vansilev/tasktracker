@@ -1699,7 +1699,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         <div class="flex flex-col lg:flex-row lg:items-center gap-3">
 
             <div class="relative w-full lg:flex-1">
-                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
                 <x-text-input
@@ -1735,23 +1735,23 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             class="min-w-0 flex-1 truncate text-left text-sm font-medium {{ $activeSavedFilterId === $sf->id ? 'text-indigo-700' : 'text-gray-900' }}">
                                         {{ $sf->name }}
                                         @if ($sf->is_default)
-                                            <span class="ml-1 text-xs text-indigo-500">★</span>
+                                            <x-icon.star class="inline w-3.5 h-3.5 ml-1 -mt-0.5 text-indigo-600" /><span class="sr-only">{{ __('Default') }}</span>
                                         @endif
                                     </button>
                                     <div class="hidden shrink-0 items-center gap-0.5 group-hover:flex">
                                         <button type="button" wire:click="updateSavedFilter({{ $sf->id }})"
-                                                class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                                class="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-600"
                                                 title="{{ __('Overwrite with current filters') }}">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H16"/></svg>
                                         </button>
                                         <button type="button" wire:click="toggleDefaultFilter({{ $sf->id }})"
-                                                class="rounded p-1 {{ $sf->is_default ? 'text-indigo-500' : 'text-gray-400' }} hover:bg-gray-100 hover:text-indigo-600"
+                                                class="rounded p-1 {{ $sf->is_default ? 'text-indigo-500' : 'text-gray-500' }} hover:bg-gray-100 hover:text-indigo-600"
                                                 title="{{ $sf->is_default ? __('Remove default') : __('Set as default') }}">
                                             <svg class="w-3.5 h-3.5" fill="{{ $sf->is_default ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
                                         </button>
                                         <button type="button" wire:click="deleteSavedFilter({{ $sf->id }})"
                                                 wire:confirm="{{ __('Delete this view?') }}"
-                                                class="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                                class="rounded p-1 text-gray-500 hover:bg-red-50 hover:text-red-600"
                                                 title="{{ __('Delete view') }}">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         </button>
@@ -2247,7 +2247,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         @endif
                                         <x-task-number :task="$task" />
                                         <x-task-unread :count="(int) ($unreadCounts[$task->id] ?? 0)" />
-                                        <span class="text-gray-400" aria-hidden="true">&middot;</span>
+                                        <span class="text-gray-500" aria-hidden="true">&middot;</span>
                                         <span class="truncate {{ ($unreadCounts[$task->id] ?? 0) > 0 ? 'font-semibold text-gray-950' : 'font-medium text-gray-900' }}">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
                                         @if (($waitingOn = $task->waitingOnLabel()) !== '')
                                             <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
@@ -2312,7 +2312,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <span aria-hidden="true" style="position:absolute;left:0.7rem;top:50%;width:5.1rem;height:1.5px;background:#818cf8;margin-top:-0.75px;"></span>
                                             <x-task-number :task="$subtask" />
                                             <x-task-unread :count="(int) ($unreadCounts[$subtask->id] ?? 0)" />
-                                            <span class="text-gray-400" aria-hidden="true">&middot;</span>
+                                            <span class="text-gray-500" aria-hidden="true">&middot;</span>
                                             <span class="truncate {{ ($unreadCounts[$subtask->id] ?? 0) > 0 ? 'font-semibold text-gray-900' : 'text-gray-700' }}">{{ $subtask->title }}</span>
                                             @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
                                                 <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
@@ -2409,7 +2409,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <x-task-number :task="$task" />
                                             <x-task-unread :count="(int) ($unreadCounts[$task->id] ?? 0)" />
 
-                                            <span class="text-gray-400" aria-hidden="true">&middot;</span>
+                                            <span class="text-gray-500" aria-hidden="true">&middot;</span>
 
                                             <span class="truncate text-sm {{ ($unreadCounts[$task->id] ?? 0) > 0 ? 'font-semibold text-gray-950' : 'font-medium text-gray-900' }}">{{ $task->title ?: Str::limit($task->plainDescription(), 80) }}</span>
                                             @if (($waitingOn = $task->waitingOnLabel()) !== '')
@@ -2508,7 +2508,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <x-task-number :task="$subtask" />
                                             <x-task-unread :count="(int) ($unreadCounts[$subtask->id] ?? 0)" />
 
-                                            <span class="text-gray-400" aria-hidden="true">&middot;</span>
+                                            <span class="text-gray-500" aria-hidden="true">&middot;</span>
 
                                             <span class="truncate text-sm {{ ($unreadCounts[$subtask->id] ?? 0) > 0 ? 'font-semibold text-gray-900' : 'text-gray-700' }}">{{ $subtask->title }}</span>
                                             @if (($waitingOn = $subtask->waitingOnLabel()) !== '')

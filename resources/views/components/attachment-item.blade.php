@@ -31,14 +31,15 @@
         @endif
     </div>
     <div class="flex items-center gap-1.5 shrink-0 pt-0.5">
-        <span class="text-gray-400 text-xs">{{ number_format($attachment->size / 1024, 1) }} KB</span>
+        <span class="text-gray-500 text-xs">{{ number_format($attachment->size / 1024, 1) }} KB</span>
         @can('deleteAttachment', [$task, $attachment])
             <button
                 type="button"
                 wire:click="deleteAttachment({{ $attachment->id }})"
                 wire:confirm="{{ __('Delete this attachment?') }}"
-                class="text-xs text-red-600 hover:text-red-800"
-            >✕</button>
+                class="p-1 rounded text-gray-500 hover:text-red-700 hover:bg-red-50"
+                aria-label="{{ __('Delete') }}"
+            ><x-icon.x-mark /></button>
         @endcan
     </div>
 </li>

@@ -247,7 +247,7 @@ new #[Layout('components.admin-layout')] class extends Component
                                                                     <span class="flex items-center gap-1">
                                                                         <button type="button" wire:click="moveQueue({{ $i }}, -1)" @disabled($i === 0) class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-30">↑</button>
                                                                         <button type="button" wire:click="moveQueue({{ $i }}, 1)" @disabled($i === count($queueIds) - 1) class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-30">↓</button>
-                                                                        <x-action-button variant="danger" size="sm" type="button" wire:click="removeFromQueue({{ $qid }})">✕</x-action-button>
+                                                                        <x-action-button variant="danger" size="sm" type="button" wire:click="removeFromQueue({{ $qid }})" aria-label="{{ __('Delete') }}"><x-icon.x-mark /></x-action-button>
                                                                     </span>
                                                                 </li>
                                                             @endforeach

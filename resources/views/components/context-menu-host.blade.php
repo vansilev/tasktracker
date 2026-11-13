@@ -26,14 +26,14 @@
                         <div class="my-1 border-t border-gray-100"></div>
                         <button type="button" class="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-indigo-50" x-on:click="$store.contextMenu.view = 'status'">
                             <span>{{ __('Change status') }}</span>
-                            <span class="text-gray-400">›</span>
+                            <span class="text-gray-500">›</span>
                         </button>
                     </div>
                 </template>
                 <template x-if="$store.contextMenu.payload?.canAssign && $store.contextMenu.payload?.assignees?.length">
                     <button type="button" class="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-indigo-50" x-on:click="$store.contextMenu.view = 'assign'">
                         <span>{{ __('Assign') }}</span>
-                        <span class="text-gray-400">›</span>
+                        <span class="text-gray-500">›</span>
                     </button>
                 </template>
             </div>

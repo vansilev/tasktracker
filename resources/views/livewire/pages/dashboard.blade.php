@@ -217,7 +217,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
             </div>
             <input type="date" wire:model.live="dateFrom"
                    class="rounded-lg border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            <span class="text-gray-400 text-xs">—</span>
+            <span class="text-gray-500 text-xs">—</span>
             <input type="date" wire:model.live="dateTo"
                    class="rounded-lg border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
             <span class="text-xs text-gray-500">
@@ -256,7 +256,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
         <a href="{{ route('tasks.index', ['tab' => 'all', 'urgentOnly' => true]) }}" wire:navigate class="block group">
             <x-card padding="p-4" class="group-hover:border-indigo-200 transition-colors h-full">
                 <p class="text-2xl font-bold text-gray-900">{{ $urgent['count'] }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ __('Urgent') }} 🔥</p>
+                <p class="text-xs text-gray-600 mt-1 inline-flex items-center gap-1">{{ __('Urgent') }} <x-icon.fire class="w-3.5 h-3.5 text-red-600" /></p>
             </x-card>
         </a>
         <a href="{{ route('tasks.index', ['tab' => 'all', 'overdueOnly' => true]) }}" wire:navigate class="block group">
@@ -283,9 +283,11 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
         <x-card class="flex flex-col justify-center">
             <h3 class="text-sm font-semibold text-gray-900">{{ __('Average closing time') }}</h3>
             <p class="text-xs text-gray-500 mt-1">{{ __('For tasks completed in the selected period.') }}</p>
-            <p class="text-3xl font-bold text-gray-900 mt-4">
-                {{ $avgClosingLabel ?? __('No data yet.') }}
-            </p>
+            @if ($avgClosingLabel)
+                <p class="text-3xl font-bold text-gray-900 mt-4">{{ $avgClosingLabel }}</p>
+            @else
+                <p class="text-sm text-gray-600 mt-4">{{ __('No data yet.') }}</p>
+            @endif
             <p class="text-xs text-gray-500 mt-2">
                 {{ __('Period: :from — :to', [
                     'from' => $periodFrom->timezone(config('app.timezone'))->format('d.m.Y'),

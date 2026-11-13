@@ -285,7 +285,7 @@ new class extends Component
                 <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
                     <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
                         <h2 id="billing-create-title" class="text-sm font-semibold text-gray-900">{{ __('billing.create') }}</h2>
-                        <button type="button" wire:click="close" class="text-gray-400 hover:text-gray-700 text-lg leading-none" aria-label="{{ __('Cancel') }}">✕</button>
+                        <button type="button" wire:click="close" class="p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100" aria-label="{{ __('Close') }}"><x-icon.x-mark class="w-5 h-5" /></button>
                     </div>
 
                     <div class="p-5 space-y-4 max-h-[calc(100vh-10rem)] overflow-y-auto">
@@ -300,7 +300,7 @@ new class extends Component
 
                         <div class="flex flex-wrap gap-2 text-xs font-medium">
                             @for ($i = 1; $i <= 4; $i++)
-                                <span class="px-2 py-1 rounded {{ $step === $i ? 'bg-indigo-50 text-indigo-700' : 'text-gray-400' }}">{{ $i }}. {{ __('billing.step.'.$i) }}</span>
+                                <span class="px-2 py-1 rounded {{ $step === $i ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500' }}">{{ $i }}. {{ __('billing.step.'.$i) }}</span>
                             @endfor
                         </div>
 

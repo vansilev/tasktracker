@@ -1029,12 +1029,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                 @endif
                 <div class="flex flex-wrap items-center gap-2">
                     <h1 class="text-lg font-semibold text-gray-900">
-                        <x-task-number :task="$task" class="text-lg font-semibold text-gray-400 hover:text-indigo-700" />
+                        <x-task-number :task="$task" class="text-lg font-semibold text-gray-500 hover:text-indigo-700" />
                         · {{ $task->title }}
                     </h1>
                     <x-status-badge :status="$task->status" />
                     @if ($task->priority >= 9)
-                        <span title="{{ __('Urgent') }}">🔥</span>
+                        <span class="inline-flex items-center gap-1 text-xs font-medium text-red-700" title="{{ __('Urgent') }}"><x-icon.fire class="w-4 h-4" />{{ __('Urgent priority') }}</span>
                     @endif
                 </div>
                 @if ($task->isSubtask() && ($task->blockers->isNotEmpty() || ($canManageBlockers && $siblingOptions->isNotEmpty())))
@@ -1080,24 +1080,48 @@ new #[Layout('components.tasks-layout')] class extends Component
                         {{ __('Edit') }}
                     </x-action-button>
                 @endif
-                @if ($canDeleteTask)
-                    <x-action-button variant="danger" wire:click="softDeleteTask" wire:confirm="{{ __('Delete this task? It can be restored later from Administration.') }}">
-                        {{ __('Delete task') }}
+                @php
+                    $canMarkBillingPaid = $billingItem && $billingItem->kind->canMarkPaid() && auth()->user()->can('markPaid', $billingItem) && $billingItem->state === \App\Enums\BillingState::Active;
+                    $visibleTransitions = $pendingTransition ? collect() : collect($transitions);
+                    // One primary action: the next forward step. Everything else goes to the "More" menu.
+                    $primaryTransition = $canMarkBillingPaid ? null : collect([
+                        \App\Enums\TaskStatus::InProgress,
+                        \App\Enums\TaskStatus::OnReview,
+                        \App\Enums\TaskStatus::Completed,
+                    ])->first(fn ($s) => $visibleTransitions->contains($s));
+                    $menuTransitions = $visibleTransitions->reject(fn ($s) => $s === $primaryTransition)->values();
+                @endphp
+                @if ($primaryTransition)
+                    <x-action-button variant="primary" wire:click="selectTransition('{{ $primaryTransition->value }}')">
+                        {{ $this->transitionLabel($primaryTransition) }}
                     </x-action-button>
                 @endif
-                @if (! $pendingTransition)
-                    @foreach ($transitions as $transition)
-                        @php
-                            $isDestructive = in_array($transition, [\App\Enums\TaskStatus::Cancelled, \App\Enums\TaskStatus::Rejected], true);
-                            $isPositive = in_array($transition, [\App\Enums\TaskStatus::Completed, \App\Enums\TaskStatus::InProgress], true);
-                            $variant = $isDestructive ? 'danger' : ($isPositive ? 'primary' : 'secondary');
-                        @endphp
-                        <x-action-button :variant="$variant" wire:click="selectTransition('{{ $transition->value }}')">
-                            {{ $this->transitionLabel($transition) }}
-                        </x-action-button>
-                    @endforeach
+                @if ($menuTransitions->isNotEmpty() || $canDeleteTask)
+                    <x-dropdown align="right" width="w-56">
+                        <x-slot name="trigger">
+                            <x-action-button variant="secondary" aria-haspopup="menu">
+                                {{ $menuTransitions->isNotEmpty() ? __('Change status') : __('More') }}
+                                <svg class="w-4 h-4 shrink-0 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                            </x-action-button>
+                        </x-slot>
+                        <x-slot name="content">
+                            @foreach ($menuTransitions as $transition)
+                                <button type="button" wire:click="selectTransition('{{ $transition->value }}')" class="block w-full px-4 py-2 text-start text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100">
+                                    {{ $this->transitionLabel($transition) }}
+                                </button>
+                            @endforeach
+                            @if ($canDeleteTask)
+                                @if ($menuTransitions->isNotEmpty())
+                                    <div class="my-1 border-t border-gray-100"></div>
+                                @endif
+                                <button type="button" wire:click="softDeleteTask" wire:confirm="{{ __('Delete this task? It can be restored later from Administration.') }}" class="block w-full px-4 py-2 text-start text-sm text-red-700 hover:bg-red-50 focus:outline-none focus:bg-red-50">
+                                    {{ __('Delete task') }}
+                                </button>
+                            @endif
+                        </x-slot>
+                    </x-dropdown>
                 @endif
-                @if ($billingItem && $billingItem->kind->canMarkPaid() && auth()->user()->can('markPaid', $billingItem) && $billingItem->state === \App\Enums\BillingState::Active)
+                @if ($canMarkBillingPaid)
                     <x-action-button variant="primary" wire:click="openBillingPay">{{ __('billing.mark_paid') }}</x-action-button>
                     @if ($billingItem->kind->canSkip())
                         <x-action-button variant="ghost" wire:click="$set('billingSkipOpen', true)">{{ __('billing.skip') }}</x-action-button>
@@ -1297,7 +1321,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     <div class="flex items-center gap-1.5 py-1.5 px-1 rounded-lg hover:bg-gray-50 transition-colors">
                                         @if ($canCreateSubtask && $task->subtasks->count() > 1)
                                             <button type="button"
-                                                    class="shrink-0 inline-flex items-center justify-center size-7 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none touch-none"
+                                                    class="shrink-0 inline-flex items-center justify-center size-7 rounded text-gray-500 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none touch-none"
                                                     aria-label="{{ __('Drag to reorder') }}"
                                                     @click.stop
                                                     tabindex="-1">
@@ -1316,7 +1340,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         @endif
                                         <a href="{{ route('tasks.show', $subtask) }}" wire:navigate draggable="false"
                                            class="flex flex-1 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 leading-5">
-                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
+                                            <span class="shrink-0 text-sm tabular-nums text-gray-500">#{{ $subtask->number }}</span>
                                             <span class="flex-1 min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
                                             @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
                                                 <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
@@ -1355,15 +1379,15 @@ new #[Layout('components.tasks-layout')] class extends Component
                                            class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                 @else
                                     <input type="checkbox" disabled @checked($item->is_done)
-                                           class="mt-0.5 rounded border-gray-300 text-gray-400" />
+                                           class="mt-0.5 rounded border-gray-300 text-gray-500" />
                                 @endif
-                                <span class="flex-1 text-sm {{ $item->is_done ? 'line-through text-gray-400' : 'text-gray-800' }}">{{ $item->text }}</span>
+                                <span class="flex-1 text-sm {{ $item->is_done ? 'line-through text-gray-500' : 'text-gray-800' }}">{{ $item->text }}</span>
                                 @if ($canCreateSubtask && ! $task->isSubtask())
                                     <button type="button" wire:click="openSubtaskModalFromChecklist({{ $item->id }})"
                                             class="shrink-0 text-xs text-indigo-600 hover:text-indigo-800">{{ __('To subtask') }}</button>
                                 @endif
                                 @if ($canManageChecklist)
-                                    <button type="button" wire:click="deleteChecklistItem({{ $item->id }})" class="text-xs text-red-600 hover:text-red-800">✕</button>
+                                    <button type="button" wire:click="deleteChecklistItem({{ $item->id }})" class="p-1 rounded text-gray-500 hover:text-red-700 hover:bg-red-50" aria-label="{{ __('Delete') }}"><x-icon.x-mark /></button>
                                 @endif
                             </li>
                         @empty
@@ -1382,7 +1406,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('Comments') }}</h2>
                         @if ($task->comments->isNotEmpty())
-                            <span class="text-xs tabular-nums text-gray-400">{{ $task->comments->count() }}</span>
+                            <span class="text-xs tabular-nums text-gray-500">{{ $task->comments->count() }}</span>
                         @endif
                     </div>
                     @php
@@ -1508,7 +1532,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 @if ($task->spec_url)
                                     <a href="{{ $task->spec_url }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline">{{ __('Open') }}</a>
                                 @else
-                                    <span class="text-gray-400">—</span>
+                                    <span class="text-gray-500">—</span>
                                 @endif
                             </dd>
                         </div>
@@ -1543,7 +1567,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         @if ($task->result_url)
                                             <a href="{{ $task->result_url }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline">{{ __('Open') }}</a>
                                         @else
-                                            <span class="text-gray-400">—</span>
+                                            <span class="text-gray-500">—</span>
                                         @endif
                                     </span>
                                 @endif
@@ -1578,7 +1602,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </div>
                     @else
                         @if ($task->watchers->isEmpty())
-                            <p class="text-sm text-gray-400">{{ __('No watchers yet.') }}</p>
+                            <p class="text-sm text-gray-500">{{ __('No watchers yet.') }}</p>
                         @else
                             <ul class="space-y-2">
                                 @foreach ($task->watchers as $watcher)
@@ -1586,7 +1610,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         <span class="w-6 h-6 shrink-0 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-semibold">{{ $this->initials($watcher->name) }}</span>
                                         <span class="flex-1 min-w-0 truncate">{{ $watcher->name }}</span>
                                         @if ($canManageWatchers)
-                                            <button type="button" wire:click="removeWatcher({{ $watcher->id }})" class="w-4 h-4 shrink-0 flex items-center justify-center text-gray-400 hover:text-red-600">✕</button>
+                                            <button type="button" wire:click="removeWatcher({{ $watcher->id }})" class="p-0.5 shrink-0 rounded text-gray-500 hover:text-red-700 hover:bg-red-50" aria-label="{{ __('Delete') }}"><x-icon.x-mark /></button>
                                         @endif
                                     </li>
                                 @endforeach
@@ -1643,7 +1667,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <li class="relative pl-6 pb-4 last:pb-0 border-l-2 border-indigo-100 last:border-transparent ml-2">
                         <span class="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-indigo-400"></span>
                         <p class="text-sm text-gray-800">
-                            <span class="text-gray-400 text-xs">{{ $entry->created_at->format('d.m.Y H:i') }}</span>
+                            <span class="text-gray-500 text-xs">{{ $entry->created_at->format('d.m.Y H:i') }}</span>
                             <span class="mx-1">·</span>
                             <span class="font-medium">{{ $entry->changedBy->name }}</span>
                             <span class="text-gray-500">— {{ $presented['field'] }}</span>
@@ -1670,7 +1694,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <form wire:submit="saveSubtask" class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
                     <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
                         <h2 id="create-subtask-title" class="text-sm font-semibold text-gray-900">{{ __('Add subtask') }}</h2>
-                        <button type="button" wire:click="closeSubtaskModal" class="text-gray-400 hover:text-gray-700 text-lg leading-none" aria-label="{{ __('Cancel') }}">✕</button>
+                        <button type="button" wire:click="closeSubtaskModal" class="p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100" aria-label="{{ __('Close') }}"><x-icon.x-mark class="w-5 h-5" /></button>
                     </div>
 
                     <div class="p-5 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start max-h-[calc(100vh-10rem)] overflow-y-auto">
@@ -1841,8 +1865,8 @@ new #[Layout('components.tasks-layout')] class extends Component
         <div data-attachment-lightbox-backdrop class="absolute inset-0 bg-black/80"></div>
         <button type="button"
                 data-attachment-lightbox-close
-                class="absolute top-4 right-4 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
-                aria-label="{{ __('Close') }}">✕</button>
+                class="absolute top-4 right-4 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                aria-label="{{ __('Close') }}"><x-icon.x-mark class="w-6 h-6" /></button>
         <button type="button"
                 data-attachment-lightbox-prev
                 hidden

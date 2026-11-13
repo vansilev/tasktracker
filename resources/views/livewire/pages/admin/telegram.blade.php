@@ -150,7 +150,7 @@ new #[Layout('components.admin-layout')] class extends Component
                                 @forelse ($row['off'] as $event)
                                     <span class="mr-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800 ring-1 ring-amber-200">{{ __('notification.events.'.self::EVENTS[$event]) }}</span>
                                 @empty
-                                    <span class="text-gray-400">—</span>
+                                    <span class="text-gray-500">—</span>
                                 @endforelse
                             </td>
                             <td class="px-4 py-2.5 text-right whitespace-nowrap">

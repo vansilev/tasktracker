@@ -298,7 +298,7 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <div>
 
-                    <x-input-label :value="__('Name')" class="text-xs" />
+                    <x-input-label :value="__('Full name')" class="text-xs" />
 
                     <x-text-input wire:model="newName" class="w-full mt-1" />
 
@@ -418,7 +418,7 @@ new #[Layout('components.admin-layout')] class extends Component
 
                 <tr>
 
-                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Name') }}</th>
+                    <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Full name') }}</th>
 
                     <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Email') }}</th>
 
@@ -450,7 +450,7 @@ new #[Layout('components.admin-layout')] class extends Component
 
                                     <div>
 
-                                        <x-input-label :value="__('Name')" />
+                                        <x-input-label :value="__('Full name')" />
 
                                         <x-text-input wire:model="editName" class="w-full mt-1" />
 

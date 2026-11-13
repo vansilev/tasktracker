@@ -56,11 +56,11 @@
                             <p class="mt-1 text-xs {{ $deadline['class'] }}">{{ $deadline['text'] }}</p>
                         </article>
                     @empty
-                        <p class="px-1 py-6 text-center text-xs text-gray-400">{{ __('No tasks') }}</p>
+                        <p class="px-1 py-6 text-center text-xs text-gray-500">{{ __('No tasks') }}</p>
                     @endforelse
 
                     @if ($column['total'] > $column['tasks']->count())
-                        <p class="px-1 text-center text-xs text-gray-400">
+                        <p class="px-1 text-center text-xs text-gray-500">
                             {{ __('Showing :shown of :total', ['shown' => $column['tasks']->count(), 'total' => $column['total']]) }}
                         </p>
                     @endif

@@ -69,7 +69,7 @@ new class extends Component
         >
             <div class="w-full max-w-lg overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl" wire:click.stop>
                 <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
-                    <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg class="h-4 w-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                     <input
@@ -95,7 +95,7 @@ new class extends Component
                         </button>
                     @endif
 
-                    <p class="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">{{ __('Tasks') }}</p>
+                    <p class="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{{ __('Tasks') }}</p>
 
                     @forelse ($tasks as $task)
                         <button
@@ -104,9 +104,9 @@ new class extends Component
                             class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-indigo-50"
                             onclick="Livewire.navigate('{{ route('tasks.show', $task) }}')"
                         >
-                            <span class="shrink-0 tabular-nums text-gray-400">#{{ $task->number }}</span>
+                            <span class="shrink-0 tabular-nums text-gray-500">#{{ $task->number }}</span>
                             <span class="min-w-0 truncate font-medium text-gray-900">{{ $task->title ?: '#'.$task->number }}</span>
-                            <span class="ml-auto shrink-0 text-xs text-gray-400">{{ $task->assignee?->name }}</span>
+                            <span class="ml-auto shrink-0 text-xs text-gray-500">{{ $task->assignee?->name }}</span>
                         </button>
                     @empty
                         <p class="px-3 py-2 text-sm text-gray-500">{{ __('No matching tasks') }}</p>

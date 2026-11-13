@@ -24,7 +24,7 @@ new class extends Component
                     </a>
                 </div>
 
-                <div class="hidden sm:flex sm:items-center sm:gap-1">
+                <div class="hidden lg:flex lg:items-center lg:gap-1">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                         <svg class="w-5 h-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
@@ -65,17 +65,8 @@ new class extends Component
                 </div>
             </div>
 
-            <div class="hidden sm:flex sm:items-center sm:gap-3">
+            <div class="hidden lg:flex lg:items-center lg:gap-3">
                 <livewire:layout.notifications />
-
-                <div class="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg text-xs">
-                    @foreach (['ru' => 'RU', 'uk' => 'UA', 'en' => 'EN'] as $code => $label)
-                        <a href="{{ route('locale.switch', $code) }}"
-                           class="px-2.5 py-1 rounded-md transition-colors {{ app()->getLocale() === $code ? 'bg-white text-indigo-700 font-semibold shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
-                            {{ $label }}
-                        </a>
-                    @endforeach
-                </div>
 
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
@@ -83,8 +74,8 @@ new class extends Component
                             <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-semibold">
                                 {{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}
                             </span>
-                            <span x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name" class="max-w-[120px] truncate"></span>
-                            <svg class="fill-current h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <span x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name" class="hidden xl:inline max-w-[120px] truncate"></span>
+                            <svg class="fill-current h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                             </svg>
                         </button>
@@ -98,6 +89,19 @@ new class extends Component
                         <x-dropdown-link :href="route('profile')" wire:navigate>
                             {{ __('Profile') }}
                         </x-dropdown-link>
+                        <div class="px-4 py-2 border-t border-gray-100">
+                            <p class="text-xs text-gray-600 mb-1.5">{{ __('Language') }}</p>
+                            <div class="flex gap-1">
+                                @foreach (['ru' => 'RU', 'uk' => 'UA', 'en' => 'EN'] as $code => $label)
+                                    <a href="{{ route('locale.switch', $code) }}"
+                                       @if (app()->getLocale() === $code) aria-current="true" @endif
+                                       class="px-2.5 py-1 rounded-md text-xs transition-colors {{ app()->getLocale() === $code ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
+                                        {{ $label }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="border-t border-gray-100"></div>
                         <button wire:click="logout" class="w-full text-start">
                             <x-dropdown-link>
                                 {{ __('Log Out') }}
@@ -107,9 +111,9 @@ new class extends Component
                 </x-dropdown>
             </div>
 
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none transition-colors">
-                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+            <div class="-me-2 flex items-center lg:hidden">
+                <button @click="open = ! open" :aria-expanded="open.toString()" aria-label="{{ __('Menu') }}" class="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors">
+                    <svg class="h-6 w-6" aria-hidden="true" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -118,7 +122,7 @@ new class extends Component
         </div>
     </div>
 
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden border-t border-gray-100">
+    <div :class="{'block': open, 'hidden': ! open}" class="hidden lg:hidden border-t border-gray-100">
         <div class="pt-2 pb-3 space-y-1 px-2">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                 <svg class="w-5 h-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
@@ -166,7 +170,7 @@ new class extends Component
             <div class="flex gap-1 mb-3">
                 @foreach (['ru' => 'RU', 'uk' => 'UA', 'en' => 'EN'] as $code => $label)
                     <a href="{{ route('locale.switch', $code) }}"
-                       class="px-2.5 py-1 rounded-md text-xs {{ app()->getLocale() === $code ? 'bg-indigo-100 text-indigo-800 font-semibold' : 'text-gray-500' }}">
+                       class="px-2.5 py-1 rounded-md text-xs {{ app()->getLocale() === $code ? 'bg-indigo-100 text-indigo-800 font-semibold' : 'text-gray-600 hover:bg-gray-100' }}">
                         {{ $label }}
                     </a>
                 @endforeach
