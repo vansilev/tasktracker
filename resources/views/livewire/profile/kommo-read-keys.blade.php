@@ -231,19 +231,19 @@ new class extends Component
                     <div class="mt-3 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
                         <div>
                             <p class="text-xs font-medium text-gray-500">{{ __('api_token.cloud_name_label') }}</p>
-                            <code class="mt-1 block break-all rounded bg-white px-2 py-1.5">kommo</code>
+                            <code class="mt-1 block break-all rounded bg-surface px-2 py-1.5">kommo</code>
                         </div>
                         <div>
                             <p class="text-xs font-medium text-gray-500">{{ __('api_token.cloud_url_label') }}</p>
-                            <code class="mt-1 block break-all rounded bg-white px-2 py-1.5">{{ $this->mcpUrl() }}</code>
+                            <code class="mt-1 block break-all rounded bg-surface px-2 py-1.5">{{ $this->mcpUrl() }}</code>
                         </div>
                         <div>
                             <p class="text-xs font-medium text-gray-500">{{ __('api_token.cloud_header_name_label') }}</p>
-                            <code class="mt-1 block break-all rounded bg-white px-2 py-1.5">Authorization</code>
+                            <code class="mt-1 block break-all rounded bg-surface px-2 py-1.5">Authorization</code>
                         </div>
                         <div>
                             <p class="text-xs font-medium text-gray-500">{{ __('api_token.cloud_header_value_label') }}</p>
-                            <code class="mt-1 block break-all rounded bg-white px-2 py-1.5">{{ $this->bearerValue() }}</code>
+                            <code class="mt-1 block break-all rounded bg-surface px-2 py-1.5">{{ $this->bearerValue() }}</code>
                             <div class="mt-2" x-data="{ copied: false, text: @js($this->bearerValue()) }">
                                 <x-button size="sm"
                                     variant="secondary"

@@ -228,9 +228,9 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
                         maxWidth: '20rem',
                         maxHeight: '14rem',
                         overflowY: 'auto',
-                        background: '#fff',
-                        color: '#111827',
-                        border: '1px solid #e5e7eb',
+                        background: 'rgb(var(--c-surface))',
+                        color: 'rgb(var(--c-gray-900))',
+                        border: '1px solid rgb(var(--c-gray-200))',
                         borderRadius: '0.5rem',
                         boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
                     });

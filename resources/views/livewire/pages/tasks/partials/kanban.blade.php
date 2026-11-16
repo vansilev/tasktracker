@@ -26,7 +26,7 @@
                         <article
                             data-kanban-card="{{ $task->id }}"
                             draggable="false"
-                            class="cursor-grab select-none rounded-lg border border-gray-100 bg-white p-3 shadow-sm transition hover:border-primary-200"
+                            class="cursor-grab select-none rounded-lg border border-gray-100 bg-surface p-3 shadow-sm transition hover:border-primary-200"
                             style="touch-action:none"
                             x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
                             x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"

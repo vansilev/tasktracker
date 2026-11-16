@@ -34,7 +34,7 @@
         x-bind:aria-expanded="open.toString()"
         aria-haspopup="listbox"
         aria-controls="{{ $listId }}"
-        class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-left text-sm shadow-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
+        class="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-surface px-3 py-2 text-left text-sm shadow-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
     >
         <span class="min-w-0 truncate" x-bind:class="selected ? 'text-gray-900' : 'text-gray-500'" x-text="selectedLabel"></span>
         <svg class="h-4 w-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -45,7 +45,7 @@
     <div
         data-ui="combobox-panel"
         x-bind:class="{ 'is-open': open }"
-        class="absolute z-50 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg {{ $up ? 'bottom-full mb-1' : 'mt-1' }}"
+        class="absolute z-50 w-full overflow-hidden rounded-lg border border-gray-200 bg-surface shadow-lg {{ $up ? 'bottom-full mb-1' : 'mt-1' }}"
         role="presentation"
     >
         <div class="border-b border-gray-100 p-1.5">
@@ -57,7 +57,7 @@
                 x-on:keydown.arrow-up.prevent="move(-1)"
                 x-on:keydown.enter.prevent="chooseHighlighted()"
                 x-on:keydown.tab="close()"
-                class="w-full rounded-md border-0 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-900 ring-1 ring-gray-200 placeholder:text-gray-400 focus:bg-white focus:ring-primary-500"
+                class="w-full rounded-md border-0 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-900 ring-1 ring-gray-200 placeholder:text-gray-400 focus:bg-surface focus:ring-primary-500"
                 placeholder="{{ $searchPlaceholder }}"
                 autocomplete="off"
             >

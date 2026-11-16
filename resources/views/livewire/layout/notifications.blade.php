@@ -73,14 +73,14 @@ new class extends Component
 }; ?>
 
 <div data-ui="notifications" class="relative">
-    <x-dropdown align="right" width="w-96" contentClasses="py-1 bg-white">
+    <x-dropdown align="right" width="w-96" contentClasses="py-1 bg-surface">
         <x-slot name="trigger">
             <button type="button" class="relative inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none transition-colors" aria-label="{{ __('notification.title') }}">
                 <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                 </svg>
                 @if ($unreadCount > 0)
-                    <span data-ui="notifications-unread-count" class="absolute -top-0.5 -end-0.5 inline-flex items-center justify-center min-w-[1.125rem] h-[1.125rem] px-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+                    <span data-ui="notifications-unread-count" class="absolute -top-0.5 -end-0.5 inline-flex items-center justify-center min-w-[1.125rem] h-[1.125rem] px-1 text-xs font-bold leading-none text-white bg-alert-500 rounded-full">
                         {{ $unreadCount > 99 ? '99+' : $unreadCount }}
                     </span>
                 @endif
@@ -101,7 +101,7 @@ new class extends Component
                     <button
                         type="button"
                         wire:click="showInbox('unread')"
-                        class="rounded-md px-2.5 py-1 text-xs font-medium {{ $inbox === 'unread' ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}"
+                        class="rounded-md px-2.5 py-1 text-xs font-medium {{ $inbox === 'unread' ? 'bg-surface text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}"
                     >
                         {{ __('notification.unread') }}
                         @if ($unreadCount > 0)
@@ -111,7 +111,7 @@ new class extends Component
                     <button
                         type="button"
                         wire:click="showInbox('all')"
-                        class="rounded-md px-2.5 py-1 text-xs font-medium {{ $inbox === 'all' ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}"
+                        class="rounded-md px-2.5 py-1 text-xs font-medium {{ $inbox === 'all' ? 'bg-surface text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}"
                     >
                         {{ __('notification.all') }}
                     </button>

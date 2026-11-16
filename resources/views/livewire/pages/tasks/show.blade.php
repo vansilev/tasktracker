@@ -1035,7 +1035,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     @endif
 
     {{-- Header --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+    <div class="bg-surface rounded-xl shadow-sm border border-gray-100 p-5">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div class="min-w-0">
                 @if ($task->parent)
@@ -1074,7 +1074,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         @if ($canManageBlockers && $siblingOptions->isNotEmpty())
                             <select wire:model="newBlockerId"
                                     data-testid="waiting-select"
-                                    class="border-gray-300 rounded-lg bg-white shadow-sm text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500"
+                                    class="border-gray-300 rounded-lg bg-surface shadow-sm text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500"
                                     style="min-height:2.5rem;min-width:16rem;padding:0.5rem 0.75rem;line-height:1.25">
                                 <option value="">{{ __('Select a sibling subtask') }}</option>
                                 @foreach ($siblingOptions as $option)
@@ -1299,7 +1299,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <x-slot name="header">
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('Description') }}</h2>
                     </x-slot>
-                    <div class="prose prose-sm max-w-none text-gray-800">
+                    <div class="prose prose-sm dark:prose-invert max-w-none text-gray-800">
                         {!! $task->renderedDescription() !!}
                     </div>
                     @if ($canCreateSubtask && ! $task->isSubtask())
@@ -1498,7 +1498,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             </div>
 
             {{-- Right sidebar --}}
-            <aside class="order-first lg:order-none lg:sticky lg:top-6 self-start rounded-surface border border-gray-200 bg-white divide-y divide-gray-200" aria-label="{{ __('Meta') }}">
+            <aside class="order-first lg:order-none lg:sticky lg:top-6 self-start rounded-surface border border-gray-200 bg-surface divide-y divide-gray-200" aria-label="{{ __('Meta') }}">
                 @php $deadline = $this->deadlineMeta(); @endphp
                 <section class="p-5">
                     <h2 class="text-sm font-semibold text-gray-900 mb-4">{{ __('Meta') }}</h2>
@@ -1716,7 +1716,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         >
             <div class="fixed inset-0 bg-gray-500/75" wire:click="closeSubtaskModal"></div>
             <div class="relative mx-auto my-6 w-full max-w-5xl px-4">
-                <form wire:submit="saveSubtask" class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                <form wire:submit="saveSubtask" class="relative bg-surface rounded-xl shadow-xl border border-gray-100 overflow-hidden">
                     <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
                         <h2 id="create-subtask-title" class="text-sm font-semibold text-gray-900">{{ __('Add subtask') }}</h2>
                         <button type="button" wire:click="closeSubtaskModal" class="p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100" aria-label="{{ __('Close') }}"><x-icon.x-mark class="w-5 h-5" /></button>
@@ -1853,7 +1853,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     @if ($billingPayOpen && $billingItem)
         <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+            <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $billingItem->title(), 'amount' => $billingItem->formattedAmount()]) }}</p>
                 <x-text-input wire:model="billingPayAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
                 <div class="flex gap-2 justify-end">
@@ -1866,7 +1866,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     @if ($billingSkipOpen && $billingItem)
         <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+            <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <label class="text-sm">{{ __('billing.skip_reason') }}</label>
                 <textarea wire:model="billingSkipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
                 <div class="flex gap-2 justify-end">
@@ -1904,8 +1904,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                 aria-label="{{ __('Next') }}">›</button>
         <div class="relative z-10 flex h-full w-full flex-col items-center justify-center p-12 pointer-events-none">
             <img data-attachment-lightbox-image alt="" class="max-h-[80vh] max-w-[90vw] object-contain pointer-events-auto rounded-lg shadow-2xl">
-            <iframe data-attachment-lightbox-pdf hidden title="" class="h-[80vh] w-full max-w-5xl pointer-events-auto rounded-lg bg-white shadow-2xl"></iframe>
-            <p data-attachment-lightbox-error hidden class="max-w-md rounded-lg bg-white px-5 py-4 text-sm text-gray-800 pointer-events-auto">{{ __('Could not preview this PDF.') }}</p>
+            <iframe data-attachment-lightbox-pdf hidden title="" class="h-[80vh] w-full max-w-5xl pointer-events-auto rounded-lg bg-surface shadow-2xl"></iframe>
+            <p data-attachment-lightbox-error hidden class="max-w-md rounded-lg bg-surface px-5 py-4 text-sm text-gray-800 pointer-events-auto">{{ __('Could not preview this PDF.') }}</p>
         </div>
         <div class="absolute bottom-4 left-0 right-0 z-10 px-4 text-center text-sm text-white/80">
             <p data-attachment-lightbox-counter hidden class="mb-1 tabular-nums"></p>

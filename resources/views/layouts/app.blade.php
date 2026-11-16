@@ -12,6 +12,7 @@
         <!-- Fonts -->
 
         <!-- Scripts -->
+        @include('partials.theme-init')
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased">
@@ -20,7 +21,7 @@
             <x-telegram-banner />
 
             @if (isset($header))
-                <header class="bg-white border-b border-gray-200 shadow-sm">
+                <header class="bg-surface border-b border-gray-200 shadow-sm">
                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         {{ $header }}
                     </div>

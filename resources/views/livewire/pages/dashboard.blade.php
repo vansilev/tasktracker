@@ -206,7 +206,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
 
     {{-- KPI strip: one surface, four cells, no empty tiles. --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-px overflow-hidden rounded-surface border border-gray-200 bg-gray-200">
-        <div class="bg-white p-4">
+        <div class="bg-surface p-4">
             <a href="{{ route('tasks.index', ['tab' => 'all']) }}" wire:navigate class="group block">
                 <p class="text-display font-semibold tabular-nums text-gray-900 group-hover:text-primary-700">{{ $openByStatus['total'] }}</p>
                 <p class="text-caption text-gray-600">{{ __('Open tasks') }}</p>
@@ -223,15 +223,15 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
                 @endforeach
             </div>
         </div>
-        <a href="{{ route('tasks.index', ['tab' => 'assigned']) }}" wire:navigate class="group block bg-white p-4 hover:bg-gray-50">
+        <a href="{{ route('tasks.index', ['tab' => 'assigned']) }}" wire:navigate class="group block bg-surface p-4 hover:bg-gray-50">
             <p class="text-display font-semibold tabular-nums text-gray-900 group-hover:text-primary-700">{{ $myTasks['count'] }}</p>
             <p class="text-caption text-gray-600">{{ __('My tasks') }}</p>
         </a>
-        <a href="{{ route('tasks.index', ['tab' => 'all', 'urgentOnly' => true]) }}" wire:navigate class="group block bg-white p-4 hover:bg-gray-50">
+        <a href="{{ route('tasks.index', ['tab' => 'all', 'urgentOnly' => true]) }}" wire:navigate class="group block bg-surface p-4 hover:bg-gray-50">
             <p class="text-display font-semibold tabular-nums text-gray-900 group-hover:text-primary-700">{{ $urgent['count'] }}</p>
             <p class="text-caption text-gray-600 inline-flex items-center gap-1">{{ __('Urgent') }} <x-icon.fire class="w-3.5 h-3.5 text-accent-600" /></p>
         </a>
-        <a href="{{ route('tasks.index', ['tab' => 'all', 'overdueOnly' => true]) }}" wire:navigate class="group block bg-white p-4 hover:bg-gray-50">
+        <a href="{{ route('tasks.index', ['tab' => 'all', 'overdueOnly' => true]) }}" wire:navigate class="group block bg-surface p-4 hover:bg-gray-50">
             <p class="text-display font-semibold tabular-nums {{ $overdue['count'] > 0 ? 'text-danger-700' : 'text-gray-900' }} group-hover:text-primary-700">{{ $overdue['count'] }}</p>
             <p class="text-caption text-gray-600">{{ __('Overdue tasks') }}</p>
         </a>
@@ -337,16 +337,16 @@ new #[Layout('components.tasks-layout', ['title' => 'Dashboard'])] class extends
             <div class="inline-flex flex-wrap rounded-control bg-gray-100 p-0.5">
                 @foreach (['week' => __('Week'), 'month' => __('Month'), 'quarter' => __('Quarter'), 'custom' => __('Custom range')] as $value => $label)
                     <button type="button" wire:click="$set('period', '{{ $value }}')"
-                            class="shrink-0 whitespace-nowrap px-2.5 py-1 text-xs font-medium rounded-md transition-colors {{ $period === $value ? 'bg-white text-primary-700 ring-1 ring-gray-200' : 'text-gray-600 hover:text-gray-900' }}">
+                            class="shrink-0 whitespace-nowrap px-2.5 py-1 text-xs font-medium rounded-md transition-colors {{ $period === $value ? 'bg-surface text-primary-700 ring-1 ring-gray-200' : 'text-gray-600 hover:text-gray-900' }}">
                         {{ $label }}
                     </button>
                 @endforeach
             </div>
             <input type="date" wire:model.live="dateFrom" aria-label="{{ __('Period start') }}"
-                   class="h-8 rounded-control border-gray-300 bg-white text-xs focus:border-primary-600 focus:ring-primary-600">
+                   class="h-8 rounded-control border-gray-300 bg-surface text-xs focus:border-primary-600 focus:ring-primary-600">
             <span class="text-gray-500 text-xs">—</span>
             <input type="date" wire:model.live="dateTo" aria-label="{{ __('Period end') }}"
-                   class="h-8 rounded-control border-gray-300 bg-white text-xs focus:border-primary-600 focus:ring-primary-600">
+                   class="h-8 rounded-control border-gray-300 bg-surface text-xs focus:border-primary-600 focus:ring-primary-600">
             <span class="sr-only">
                 {{ __('Period: :from — :to', [
                     'from' => $periodFrom->timezone(config('app.timezone'))->format('d.m.Y'),

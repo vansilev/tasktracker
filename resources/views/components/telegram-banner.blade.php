@@ -35,7 +35,7 @@
                 <span class="font-medium">{{ __('Telegram is not connected.') }}</span>
                 {{ __('Reminders about deadlines, mentions and comments do not reach you.') }}
             </span>
-            <a href="{{ route('profile') }}" wire:navigate class="shrink-0 rounded-lg bg-amber-600 px-3 py-1 text-xs font-medium text-white hover:bg-amber-700">
+            <a href="{{ route('profile') }}" wire:navigate class="shrink-0 rounded-lg bg-caution-600 px-3 py-1 text-xs font-medium text-white hover:bg-caution-700">
                 {{ __('Connect Telegram') }}
             </a>
             <button type="button" x-on:click="hide()" class="shrink-0 text-xs text-amber-800 underline hover:text-amber-950">

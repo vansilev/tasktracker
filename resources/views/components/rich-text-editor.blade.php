@@ -32,7 +32,7 @@
      Livewire morph the optional banner (quote chip) between toolbar and editor.
      Toolbar + ProseMirror stay on nested wire:ignore so remorph does not rebuild TipTap. --}}
 <div {{ $attributes->merge(['class' => 'rich-text-editor']) }}>
-    <div class="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
+    <div class="overflow-hidden rounded-lg border border-gray-300 bg-surface shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
         <div
             wire:key="{{ $editorKey }}"
             wire:ignore.self
@@ -219,7 +219,7 @@
                    class="pointer-events-none absolute left-3 top-3 m-0 select-none text-sm text-gray-500">{{ $placeholder }}</p>
             @endif
             <div x-ref="editor"
-                 class="prose prose-sm max-w-none px-3 pt-2 pb-3 text-gray-800"
+                 class="prose prose-sm dark:prose-invert max-w-none px-3 pt-2 pb-3 text-gray-800"
                  style="min-height: {{ $minHeight }}"></div>
         </div>
         </div>

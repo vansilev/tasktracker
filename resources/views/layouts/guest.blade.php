@@ -10,6 +10,7 @@
         <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
 
 
+        @include('partials.theme-init')
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans text-gray-900 antialiased">
@@ -21,7 +22,7 @@
                     </a>
                 </div>
 
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-6 sm:px-6 sm:py-7">
+                <div class="bg-surface rounded-xl shadow-sm border border-gray-100 px-5 py-6 sm:px-6 sm:py-7">
                     {{ $slot }}
                 </div>
             </div>

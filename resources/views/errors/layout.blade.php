@@ -9,6 +9,7 @@
 
         <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
 
+        @include('partials.theme-init')
         @vite(['resources/css/app.css'])
     </head>
     <body class="font-sans text-gray-900 antialiased bg-gray-50">

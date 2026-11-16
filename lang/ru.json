@@ -466,5 +466,9 @@
     "Checklist item": "Пункт чек-листа",
     "Select": "Выбрать",
     "Statistics for the period": "Статистика за период",
-    "Add watcher": "Добавить наблюдателя"
+    "Add watcher": "Добавить наблюдателя",
+    "Theme": "Тема",
+    "Theme light": "Светлая",
+    "Theme dark": "Тёмная",
+    "Theme system": "Как в системе"
 }

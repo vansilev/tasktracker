@@ -198,7 +198,7 @@ new class extends Component
                 </form>
             @endif
 
-            <div class="prose prose-sm max-w-none text-gray-800">
+            <div class="prose prose-sm dark:prose-invert max-w-none text-gray-800">
                 {!! $task->renderedDescription() !!}
             </div>
 

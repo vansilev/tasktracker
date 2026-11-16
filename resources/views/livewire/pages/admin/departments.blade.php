@@ -242,7 +242,7 @@ new #[Layout('components.admin-layout')] class extends Component
                                                     @else
                                                         <ol class="space-y-1">
                                                             @foreach ($queueIds as $i => $qid)
-                                                                <li class="flex items-center justify-between gap-2 bg-white rounded-lg border border-gray-200 px-3 py-1.5">
+                                                                <li class="flex items-center justify-between gap-2 bg-surface rounded-lg border border-gray-200 px-3 py-1.5">
                                                                     <span class="text-sm text-gray-800">{{ $i + 1 }}. {{ $queueLookup[$qid]->name ?? '#'.$qid }}</span>
                                                                     <span class="flex items-center gap-1">
                                                                         <button type="button" wire:click="moveQueue({{ $i }}, -1)" @disabled($i === 0) class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-30">↑</button>

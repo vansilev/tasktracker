@@ -62,7 +62,7 @@ new #[Layout('layouts.guest')] class extends Component
         @if ($passwordLoginEnabled)
             <div class="relative my-4">
                 <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
-                <div class="relative flex justify-center text-xs"><span class="px-3 bg-white text-gray-500">{{ __('or') }}</span></div>
+                <div class="relative flex justify-center text-xs"><span class="px-3 bg-surface text-gray-500">{{ __('or') }}</span></div>
             </div>
         @endif
     @elseif ($passwordLoginEnabled)
@@ -110,7 +110,7 @@ new #[Layout('layouts.guest')] class extends Component
     <div class="mt-6 flex justify-center gap-1 p-0.5 bg-gray-100 rounded-lg text-xs w-fit mx-auto">
         @foreach (['ru' => 'RU', 'uk' => 'UA', 'en' => 'EN'] as $code => $label)
             <a href="{{ route('locale.switch', $code) }}"
-               class="px-3 py-1.5 rounded-md transition-colors {{ app()->getLocale() === $code ? 'bg-white text-primary-700 font-semibold shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
+               class="px-3 py-1.5 rounded-md transition-colors {{ app()->getLocale() === $code ? 'bg-surface text-primary-700 font-semibold shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
                 {{ $label }}
             </a>
         @endforeach
