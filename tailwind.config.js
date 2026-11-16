@@ -102,6 +102,23 @@ export default {
                 control: '6px',
                 surface: '10px',
             },
+            // Spacing: 4px grid — 1 · 2 · 3 · 4 · 6 · 8 · 12 · 16 (4–64px) between and around blocks.
+            // 0.5 · 1.5 · 2.5 (2/6/10px) only inside compact controls (badges, chips, small buttons);
+            // pl-9 / pr-7 only to clear an icon or a select arrow.
+            // Named layers, bottom to top. Use these instead of numbers.
+            zIndex: {
+                sticky: '30', // bars fixed to the viewport edge
+                dropdown: '40', // menus, comboboxes, pickers
+                modal: '50', // modal panels
+                dialog: '60', // confirmations over a modal
+                sheet: '70', // side sheet (task peek)
+                lightbox: '80', // full-screen image viewer
+                toast: '80',
+                popover: '85', // hover cards
+                menu: '90', // context menu, mention list, drag ghost
+                palette: '95', // command palette
+                drag: '100', // element being dragged
+            },
             // Surfaces are flat (border only); only floating layers cast a shadow.
             boxShadow: {
                 sm: '0 0 #0000',

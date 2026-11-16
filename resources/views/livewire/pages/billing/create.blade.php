@@ -274,7 +274,7 @@ new class extends Component
 <div>
     @if ($open)
         <div
-            class="fixed inset-0 z-50 overflow-y-auto"
+            class="fixed inset-0 z-modal overflow-y-auto"
             wire:keydown.escape.window="close"
             role="dialog"
             aria-modal="true"
@@ -291,10 +291,9 @@ new class extends Component
                     <div class="p-5 space-y-4 max-h-[calc(100vh-10rem)] overflow-y-auto">
                         <div class="flex flex-wrap gap-2">
                             @foreach (['hosting', 'domain', 'saas', 'telecom'] as $key)
-                                <button type="button" wire:click="applyPreset('{{ $key }}')"
-                                        class="px-3 py-1.5 rounded-lg text-sm border {{ $preset === $key ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }}">
+                                <x-button variant="secondary" size="sm" :pressed="$preset === $key" wire:click="applyPreset('{{ $key }}')">
                                     {{ __('billing.preset.'.$key) }}
-                                </button>
+                                </x-button>
                             @endforeach
                         </div>
 

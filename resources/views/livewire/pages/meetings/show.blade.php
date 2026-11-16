@@ -320,13 +320,19 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     {{ __('meetings.analyzing') }}
                                 </span>
                             @else
-                            <button type="button" wire:click="analyze" wire:loading.attr="disabled"
-                                @if ($meeting->analyzed_at) wire:confirm="{{ __('meetings.reanalyze_confirm') }}" @endif
-                                class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium shadow-sm disabled:opacity-60 {{ $meeting->analyzed_at ? 'border border-gray-200 bg-surface text-gray-700 hover:bg-gray-50' : 'bg-brand-600 text-white hover:bg-brand-700' }}">
+                            @if ($meeting->analyzed_at)
+                                <x-button variant="secondary" size="sm" wire:click="analyze" wire:loading.attr="disabled" wire:confirm="{{ __('meetings.reanalyze_confirm') }}">
                                 <svg wire:loading wire:target="analyze" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
                                 <svg wire:loading.remove wire:target="analyze" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                                 {{ $meeting->analyzed_at ? __('meetings.reanalyze') : __('meetings.analyze') }}
-                            </button>
+                                </x-button>
+                            @else
+                                <x-button variant="primary" size="sm" wire:click="analyze" wire:loading.attr="disabled">
+                                <svg wire:loading wire:target="analyze" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                                <svg wire:loading.remove wire:target="analyze" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                                {{ $meeting->analyzed_at ? __('meetings.reanalyze') : __('meetings.analyze') }}
+                                </x-button>
+                            @endif
                             @endif
                         </div>
                     </div>
@@ -446,10 +452,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             @endforeach
                                         </select>
                                     </label>
-                                    <button type="button" wire:click="createSelected" wire:loading.attr="disabled" @disabled(count($selected) === 0)
-                                        class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50">
+                                    <x-button variant="primary" size="sm" wire:click="createSelected" wire:loading.attr="disabled" :disabled="count($selected) === 0">
                                         {{ __('meetings.create_selected', ['count' => count($selected)]) }}
-                                    </button>
+                                    </x-button>
                                 </div>
                             </div>
                         @endif

@@ -1,11 +1,11 @@
 <div
     x-data
-    class="pointer-events-none fixed bottom-4 right-4 z-[80] flex w-[min(100%-2rem,22rem)] flex-col gap-2"
+    class="pointer-events-none fixed bottom-4 right-4 z-toast flex w-[min(100%-2rem,22rem)] flex-col gap-2"
     aria-live="polite"
 >
     <template x-for="toast in $store.toasts.items" :key="toast.id">
         <div
-            class="pointer-events-auto flex items-start gap-3 rounded-lg border border-gray-200 bg-surface px-3.5 py-3 text-sm text-gray-900 shadow-lg"
+            class="pointer-events-auto flex items-start gap-3 rounded-lg border border-gray-200 bg-surface px-4 py-3 text-sm text-gray-900 shadow-lg"
         >
             <p class="min-w-0 flex-1 leading-5" x-text="toast.message"></p>
             <template x-if="toast.undo">

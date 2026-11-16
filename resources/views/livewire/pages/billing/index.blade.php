@@ -328,7 +328,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     </div>
 
     @if ($payItemId)
-        <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-dialog bg-black/30 flex items-center justify-center p-4">
             <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $payItem?->title(), 'amount' => $payItem?->formattedAmount()]) }}</p>
                 <x-text-input wire:model="payAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
@@ -341,7 +341,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     @endif
 
     @if ($skipItemId)
-        <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-dialog bg-black/30 flex items-center justify-center p-4">
             <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <label class="text-sm">{{ __('billing.skip_reason') }}</label>
                 <textarea wire:model="skipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>

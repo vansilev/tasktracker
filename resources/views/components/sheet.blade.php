@@ -4,7 +4,7 @@
 
 <div
     data-ui="sheet"
-    class="fixed inset-0 z-[70]"
+    class="fixed inset-0 z-sheet"
     x-data="{
         width: 640,
         minWidth: 480,

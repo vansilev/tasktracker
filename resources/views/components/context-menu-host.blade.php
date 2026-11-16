@@ -2,7 +2,7 @@
     x-data="uiFloatHost('contextMenu')"
     data-ui="context-menu"
     data-ui-float="panel"
-    class="fixed z-[90]"
+    class="fixed z-menu"
     x-bind:class="{ 'is-open': $store.contextMenu.open }"
     x-bind:style="`left: ${$store.contextMenu.x}px; top: ${$store.contextMenu.y}px`"
     x-on:click.stop
@@ -94,7 +94,7 @@
                 </label>
                 <div class="mt-2 flex justify-end gap-2">
                     <button type="button" class="rounded-md px-2 py-1 text-xs text-gray-600 hover:bg-gray-50" x-on:click="$store.contextMenu.view = 'root'">{{ __('Cancel') }}</button>
-                    <button type="button" class="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-500" x-on:click="$store.contextMenu.submitComment()">{{ __('Confirm') }}</button>
+                    <x-button variant="primary" size="sm" x-on:click="$store.contextMenu.submitComment()">{{ __('Confirm') }}</x-button>
                 </div>
             </div>
         </template>

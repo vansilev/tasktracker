@@ -60,7 +60,7 @@ new class extends Component
     @if ($open)
         <div
             data-ui="command-palette"
-            class="fixed inset-0 z-[95] flex items-start justify-center bg-gray-900/40 px-4 pt-[12vh]"
+            class="fixed inset-0 z-palette flex items-start justify-center bg-gray-900/40 px-4 pt-[12vh]"
             wire:click="close"
             wire:keydown.escape.window="close"
             role="dialog"

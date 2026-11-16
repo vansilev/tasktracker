@@ -8,6 +8,8 @@
     'size' => 'md',
     'type' => 'button',
     'href' => null,
+    // Toggle buttons: true/false renders the pressed look and aria-pressed; null = plain button.
+    'pressed' => null,
 ])
 
 @php
@@ -25,7 +27,14 @@ $variants = [
     'danger' => 'border-transparent bg-alert-600 text-white hover:bg-alert-700 active:bg-alert-800 focus-visible:ring-danger-600',
 ];
 
+if ($pressed === true && $variant === 'secondary') {
+    $variants['secondary'] = 'border-primary-300 bg-primary-50 text-primary-700 hover:bg-primary-100 focus-visible:ring-primary-600';
+}
+
 $classes = $base.' '.($sizes[$size] ?? $sizes['md']).' '.($variants[$variant] ?? $variants['primary']);
+if ($pressed !== null) {
+    $attributes = $attributes->merge(['aria-pressed' => $pressed ? 'true' : 'false']);
+}
 @endphp
 
 @if ($href)
