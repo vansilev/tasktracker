@@ -1714,17 +1714,14 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 {{-- Saved Views --}}
                 <div x-data="{ svOpen: false }" class="relative">
-                    <button type="button"
-                            @click="svOpen = !svOpen"
-                            class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors
-                                {{ $activeSavedFilterId ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-surface text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                    <x-button variant="secondary" :pressed="(bool) $activeSavedFilterId" @click="svOpen = !svOpen" aria-haspopup="menu">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
                         {{ $activeSavedFilterId ? $savedFilters->firstWhere('id', $activeSavedFilterId)?->name ?? __('Views') : __('Views') }}
                         <svg class="w-3 h-3 shrink-0 transition-transform" :class="svOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
+                    </x-button>
 
                     <div x-show="svOpen" x-cloak @click.outside="svOpen = false" x-transition
-                         class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-surface shadow-lg">
+                         class="absolute right-0 z-dropdown mt-2 w-72 rounded-xl border border-gray-200 bg-surface shadow-lg">
                         <div class="max-h-64 overflow-y-auto divide-y divide-gray-100">
                             @forelse ($savedFilters as $sf)
                                 <div class="group flex items-center gap-2 px-3 py-2 hover:bg-gray-50 {{ $activeSavedFilterId === $sf->id ? 'bg-primary-50' : '' }}">
@@ -1774,11 +1771,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     </div>
                 </div>
 
-                <button type="button" wire:click="$toggle('filtersOpen')"
-
-                        class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors
-
-                            {{ $filtersOpen ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-surface text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                <x-button variant="secondary" :pressed="$filtersOpen" wire:click="$toggle('filtersOpen')">
 
                     {{ __('Filters') }}
 
@@ -1788,7 +1781,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     @endif
 
-                </button>
+                </x-button>
 
                 <div class="hidden sm:flex items-center gap-1.5">
 
@@ -2057,7 +2050,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         @if ($pendingKanbanId && $pendingKanbanStatus)
             <div
                 data-ui="kanban-comment-dialog"
-                class="fixed inset-0 z-50 overflow-y-auto"
+                class="fixed inset-0 z-modal overflow-y-auto"
                 wire:keydown.escape.window="cancelKanbanMove"
                 role="dialog"
                 aria-modal="true"
@@ -2572,7 +2565,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     @if (count($selectedIds) > 0)
         <div
             data-ui="bulk-bar"
-            class="fixed inset-x-0 bottom-0 z-[45] border-t border-gray-200 bg-surface/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur"
+            class="fixed inset-x-0 bottom-0 z-sticky border-t border-gray-200 bg-surface/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur"
         >
             <div class="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:px-6 lg:px-8">
                 <div class="flex flex-wrap items-center gap-2">

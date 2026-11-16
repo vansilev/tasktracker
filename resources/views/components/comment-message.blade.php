@@ -173,7 +173,7 @@
                                      x-show="open"
                                      x-cloak
                                      x-transition
-                                     class="fixed z-50 w-56 rounded-lg bg-surface p-1.5 shadow-lg ring-1 ring-black/10"
+                                     class="fixed z-dropdown w-56 rounded-lg bg-surface p-1.5 shadow-lg ring-1 ring-black/10"
                                      :style="style"
                                      style="display: none;">
                                     <div class="grid grid-cols-8 gap-0.5">

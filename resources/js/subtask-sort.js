@@ -149,7 +149,7 @@ export default function subtaskSort() {
                 left: `${rect.left}px`,
                 top: `${rect.top}px`,
                 width: `${rect.width}px`,
-                zIndex: '9999',
+                zIndex: '100',
                 pointerEvents: 'none',
                 margin: '0',
                 opacity: '0.95',

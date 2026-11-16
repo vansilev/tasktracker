@@ -45,7 +45,7 @@
     <div
         data-ui="combobox-panel"
         x-bind:class="{ 'is-open': open }"
-        class="absolute z-50 w-full overflow-hidden rounded-lg border border-gray-200 bg-surface shadow-lg {{ $up ? 'bottom-full mb-1' : 'mt-1' }}"
+        class="absolute z-dropdown w-full overflow-hidden rounded-lg border border-gray-200 bg-surface shadow-lg {{ $up ? 'bottom-full mb-1' : 'mt-1' }}"
         role="presentation"
     >
         <div class="border-b border-gray-100 p-1.5">

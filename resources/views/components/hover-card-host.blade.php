@@ -1,7 +1,7 @@
 <div
     x-data="uiFloatHost('hoverCard')"
     data-ui-float="panel"
-    class="pointer-events-none fixed z-[85]"
+    class="pointer-events-none fixed z-popover"
     x-bind:class="{ 'is-open': $store.hoverCard.open }"
     x-bind:style="`left: ${$store.hoverCard.x}px; top: ${$store.hoverCard.y}px`"
 >

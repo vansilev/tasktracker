@@ -1708,7 +1708,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     @if ($creatingSubtask)
         <div
-            class="fixed inset-0 z-50 overflow-y-auto"
+            class="fixed inset-0 z-modal overflow-y-auto"
             wire:keydown.escape.window="closeSubtaskModal"
             role="dialog"
             aria-modal="true"
@@ -1852,7 +1852,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     @endif
 
     @if ($billingPayOpen && $billingItem)
-        <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-dialog bg-black/30 flex items-center justify-center p-4">
             <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $billingItem->title(), 'amount' => $billingItem->formattedAmount()]) }}</p>
                 <x-text-input wire:model="billingPayAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
@@ -1865,7 +1865,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     @endif
 
     @if ($billingSkipOpen && $billingItem)
-        <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-dialog bg-black/30 flex items-center justify-center p-4">
             <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <label class="text-sm">{{ __('billing.skip_reason') }}</label>
                 <textarea wire:model="billingSkipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
@@ -1881,7 +1881,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         data-attachment-lightbox
         data-fallback-label="{{ __('Attachment') }}"
         hidden
-        class="fixed inset-0 z-[80]"
+        class="fixed inset-0 z-lightbox"
         role="dialog"
         aria-modal="true"
         aria-hidden="true"

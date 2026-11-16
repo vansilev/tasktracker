@@ -303,7 +303,7 @@ new class extends Component
 <div>
     @if ($open && $item)
         <div
-            class="fixed inset-0 z-50 overflow-y-auto"
+            class="fixed inset-0 z-modal overflow-y-auto"
             wire:keydown.escape.window="close"
             role="dialog"
             aria-modal="true"
@@ -473,7 +473,7 @@ new class extends Component
                             </div>
 
                             @if ($issues && $issueSummary)
-                                <div class="flex items-start justify-between gap-3 rounded-xl bg-amber-50 px-3.5 py-3 ring-1 ring-amber-100">
+                                <div class="flex items-start justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-100">
                                     <p class="text-sm text-amber-900">{{ __('billing.missing_prefix', ['items' => $issueSummary]) }}</p>
                                     @if ($canManage)
                                         <x-button variant="secondary" size="sm" type="button" wire:click="startEdit" class="shrink-0">{{ __('billing.fill_missing') }}</x-button>
@@ -482,7 +482,7 @@ new class extends Component
                             @endif
 
                             <div class="grid sm:grid-cols-2 gap-2.5">
-                                <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                <div class="rounded-lg bg-gray-50 px-4 py-2.5">
                                     <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.method_label') }}</div>
                                     <div class="mt-0.5 text-sm font-medium text-gray-900">
                                         {{ $item->payment_method->label() }}
@@ -499,11 +499,11 @@ new class extends Component
                                         <div class="text-xs text-gray-500">{{ __('billing.auto_renew') }}</div>
                                     @endif
                                 </div>
-                                <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                <div class="rounded-lg bg-gray-50 px-4 py-2.5">
                                     <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.kind_label') }}</div>
                                     <div class="mt-0.5 text-sm font-medium text-gray-900">{{ $frequency }}</div>
                                 </div>
-                                <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                <div class="rounded-lg bg-gray-50 px-4 py-2.5">
                                     <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.payer') }}</div>
                                     <div class="mt-0.5 text-sm font-medium text-gray-900">
                                         @if ($item->payer)
@@ -515,7 +515,7 @@ new class extends Component
                                         @endif
                                     </div>
                                 </div>
-                                <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                <div class="rounded-lg bg-gray-50 px-4 py-2.5">
                                     <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.owner') }}</div>
                                     <div class="mt-0.5 text-sm font-medium text-gray-900">
                                         @if ($item->owner)
@@ -531,13 +531,13 @@ new class extends Component
                                     @endif
                                 </div>
                                 @if ($item->account_ref)
-                                    <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                    <div class="rounded-lg bg-gray-50 px-4 py-2.5">
                                         <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.account_ref') }}</div>
                                         <div class="mt-0.5 text-sm font-medium text-gray-900 break-all">{{ $item->account_ref }}</div>
                                     </div>
                                 @endif
                                 @if ($item->vat_note)
-                                    <div class="rounded-lg bg-gray-50 px-3.5 py-2.5">
+                                    <div class="rounded-lg bg-gray-50 px-4 py-2.5">
                                         <div class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('billing.vat_note') }}</div>
                                         <div class="mt-0.5 text-sm font-medium text-gray-900">{{ $item->vat_note }}</div>
                                     </div>
@@ -549,7 +549,7 @@ new class extends Component
                             @endif
 
                             @if ($item->notes)
-                                <div class="rounded-lg border border-gray-100 bg-surface px-3.5 py-3">
+                                <div class="rounded-lg border border-gray-100 bg-surface px-4 py-3">
                                     <div class="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">{{ __('billing.notes') }}</div>
                                     <p class="text-sm text-gray-700 whitespace-pre-line">{{ $item->notes }}</p>
                                 </div>
@@ -612,7 +612,7 @@ new class extends Component
     @endif
 
     @if ($payOpen && $item)
-        <div class="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-dialog bg-black/30 flex items-center justify-center p-4">
             <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $item->title(), 'amount' => $item->formattedAmount()]) }}</p>
                 <x-text-input wire:model="payAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
@@ -625,7 +625,7 @@ new class extends Component
     @endif
 
     @if ($skipOpen && $item)
-        <div class="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-dialog bg-black/30 flex items-center justify-center p-4">
             <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <label class="text-sm">{{ __('billing.skip_reason') }}</label>
                 <textarea wire:model="skipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
@@ -638,7 +638,7 @@ new class extends Component
     @endif
 
     @if ($archiveOpen && $item)
-        <div class="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-dialog bg-black/30 flex items-center justify-center p-4">
             <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <label class="text-sm">{{ __('billing.archive_reason') }}</label>
                 <textarea wire:model="archiveReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
@@ -651,7 +651,7 @@ new class extends Component
     @endif
 
     @if ($pauseOpen && $item)
-        <div class="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-dialog bg-black/30 flex items-center justify-center p-4">
             <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <x-input-label for="f-pausedUntil" :value="__('billing.pause')" />
                 <x-text-input id="f-pausedUntil" type="date" wire:model="pausedUntil" class="mt-1 w-full" />

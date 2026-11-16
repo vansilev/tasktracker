@@ -223,7 +223,7 @@ export function createMentionSuggestion({ search, labels = {}, onPopupEl = () =>
                     popup.setAttribute('aria-label', labels.list || 'Mentions');
                     Object.assign(popup.style, {
                         position: 'fixed',
-                        zIndex: '80',
+                        zIndex: '90',
                         minWidth: '16rem',
                         maxWidth: '20rem',
                         maxHeight: '14rem',
