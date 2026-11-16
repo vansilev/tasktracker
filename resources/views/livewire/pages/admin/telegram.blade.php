@@ -109,7 +109,7 @@ new #[Layout('components.admin-layout')] class extends Component
             ['switched_off', __('Switched something off'), $switchedOff, $switchedOff > 0 ? 'text-amber-600' : 'text-gray-900'],
         ] as [$filter, $label, $value, $colour])
             <button type="button" wire:click="$set('show', '{{ $filter }}')"
-                class="rounded-xl border bg-white p-4 text-left shadow-sm transition-colors hover:bg-gray-50 {{ $show === $filter && $loop->index !== 1 ? 'border-primary-300' : 'border-gray-100' }}">
+                class="rounded-xl border bg-surface p-4 text-left shadow-sm transition-colors hover:bg-gray-50 {{ $show === $filter && $loop->index !== 1 ? 'border-primary-300' : 'border-gray-100' }}">
                 <span class="block text-xs text-gray-500">{{ $label }}</span>
                 <span class="block text-2xl font-semibold tabular-nums {{ $colour }}">{{ $value }}</span>
             </button>

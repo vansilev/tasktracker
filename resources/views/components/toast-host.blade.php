@@ -5,7 +5,7 @@
 >
     <template x-for="toast in $store.toasts.items" :key="toast.id">
         <div
-            class="pointer-events-auto flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-3.5 py-3 text-sm text-gray-900 shadow-lg"
+            class="pointer-events-auto flex items-start gap-3 rounded-lg border border-gray-200 bg-surface px-3.5 py-3 text-sm text-gray-900 shadow-lg"
         >
             <p class="min-w-0 flex-1 leading-5" x-text="toast.message"></p>
             <template x-if="toast.undo">

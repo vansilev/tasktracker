@@ -38,7 +38,7 @@
     @else
         <div @class([
             'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-            'bg-primary-600 text-white' => $mine,
+            'bg-brand-600 text-white' => $mine,
             'bg-gray-200 text-gray-700' => ! $mine,
         ])>
             {{ $initials }}
@@ -96,7 +96,7 @@
                     </div>
                 @endforeach
 
-                <div class="prose prose-sm mt-0 max-w-none break-words text-gray-800 [&_a]:break-all [&_p]:mb-1 [&_p:last-child]:mb-0 [&_pre]:max-w-full [&_table]:max-w-full">
+                <div class="prose prose-sm dark:prose-invert mt-0 max-w-none break-words text-gray-800 [&_a]:break-all [&_p]:mb-1 [&_p:last-child]:mb-0 [&_pre]:max-w-full [&_table]:max-w-full">
                     {!! $comment->renderedBody() !!}
                 </div>
 
@@ -173,7 +173,7 @@
                                      x-show="open"
                                      x-cloak
                                      x-transition
-                                     class="fixed z-50 w-56 rounded-lg bg-white p-1.5 shadow-lg ring-1 ring-black/10"
+                                     class="fixed z-50 w-56 rounded-lg bg-surface p-1.5 shadow-lg ring-1 ring-black/10"
                                      :style="style"
                                      style="display: none;">
                                     <div class="grid grid-cols-8 gap-0.5">

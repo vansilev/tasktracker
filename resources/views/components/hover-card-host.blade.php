@@ -7,7 +7,7 @@
 >
     <div
         x-ref="panel"
-        class="pointer-events-auto w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
+        class="pointer-events-auto w-72 rounded-lg border border-gray-200 bg-surface p-3 shadow-lg"
         x-on:mouseenter="$store.hoverCard.keep()"
         x-on:mouseleave="$store.hoverCard.hide()"
     >

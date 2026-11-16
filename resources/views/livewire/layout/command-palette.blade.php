@@ -67,7 +67,7 @@ new class extends Component
             aria-modal="true"
             aria-label="{{ __('Command palette') }}"
         >
-            <div class="w-full max-w-lg overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl" wire:click.stop>
+            <div class="w-full max-w-lg overflow-hidden rounded-xl border border-gray-200 bg-surface shadow-2xl" wire:click.stop>
                 <div class="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
                     <svg class="h-4 w-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/>

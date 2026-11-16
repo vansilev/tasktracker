@@ -40,7 +40,7 @@ enum TaskStatus: string
             self::InProgress, self::Rework => 'bg-info-50 text-info-700',
             self::OnReview => 'bg-warning-50 text-warning-800',
             self::Completed => 'bg-success-50 text-success-700',
-            self::Rejected, self::Cancelled => 'bg-white text-gray-600 ring-1 ring-inset ring-gray-200',
+            self::Rejected, self::Cancelled => 'bg-surface text-gray-600 ring-1 ring-inset ring-gray-200',
         };
     }
 

@@ -466,5 +466,9 @@
     "Checklist item": "Checklist item",
     "Select": "Select",
     "Statistics for the period": "Statistics for the period",
-    "Add watcher": "Add watcher"
+    "Add watcher": "Add watcher",
+    "Theme": "Theme",
+    "Theme light": "Light",
+    "Theme dark": "Dark",
+    "Theme system": "System"
 }

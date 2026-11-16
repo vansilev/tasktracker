@@ -22,7 +22,7 @@
         @if ($names) x-on:change="names = Array.from($event.target.files).map((file) => file.name)" @endif
     />
     <label for="{{ $id }}"
-           class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-control border border-gray-300 bg-white px-4 text-body font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-600 peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+           class="inline-flex h-9 cursor-pointer items-center gap-2 rounded-control border border-gray-300 bg-surface px-4 text-body font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-600 peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
         <x-icon.paper-clip class="w-4 h-4 text-gray-500" />
         {{ $label ?? __('Attach files') }}
     </label>

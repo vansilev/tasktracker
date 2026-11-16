@@ -70,7 +70,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Notifications'])] class ext
 
 <div data-ui="notifications-page" class="space-y-4">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+        <div class="inline-flex rounded-lg border border-gray-200 bg-surface p-0.5">
             <button
                 type="button"
                 wire:click="showInbox('unread')"
@@ -97,7 +97,7 @@ new #[Layout('components.tasks-layout', ['title' => 'Notifications'])] class ext
         @endif
     </div>
 
-    <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+    <div class="overflow-hidden rounded-xl border border-gray-100 bg-surface shadow-sm">
         @forelse ($notifications as $notification)
             @php
                 $data = $notification->data ?? [];

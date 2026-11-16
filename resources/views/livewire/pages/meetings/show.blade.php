@@ -278,7 +278,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             </p>
         </div>
         <div class="flex shrink-0 flex-wrap gap-2">
-            <a href="{{ $meeting->firefliesUrl() }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+            <a href="{{ $meeting->firefliesUrl() }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-surface px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>
                 {{ __('meetings.open_fireflies') }}
             </a>
@@ -298,7 +298,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             <div class="flex gap-1 rounded-lg bg-gray-100 p-1 text-sm">
                 @foreach (['tasks' => __('meetings.tab_tasks').($openCount ? " · {$openCount}" : ''), 'transcript' => __('meetings.tab_transcript'), 'fireflies' => __('meetings.tab_fireflies')] as $key => $label)
                     <button type="button" wire:click="$set('tab', '{{ $key }}')"
-                        class="flex-1 rounded-md px-3 py-1.5 font-medium transition-colors {{ $tab === $key ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
+                        class="flex-1 rounded-md px-3 py-1.5 font-medium transition-colors {{ $tab === $key ? 'bg-surface text-primary-700 shadow-sm' : 'text-gray-600 hover:text-gray-900' }}">
                         {{ $label }}
                     </button>
                 @endforeach
@@ -322,7 +322,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                             @else
                             <button type="button" wire:click="analyze" wire:loading.attr="disabled"
                                 @if ($meeting->analyzed_at) wire:confirm="{{ __('meetings.reanalyze_confirm') }}" @endif
-                                class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium shadow-sm disabled:opacity-60 {{ $meeting->analyzed_at ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50' : 'bg-primary-600 text-white hover:bg-primary-700' }}">
+                                class="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium shadow-sm disabled:opacity-60 {{ $meeting->analyzed_at ? 'border border-gray-200 bg-surface text-gray-700 hover:bg-gray-50' : 'bg-brand-600 text-white hover:bg-brand-700' }}">
                                 <svg wire:loading wire:target="analyze" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
                                 <svg wire:loading.remove wire:target="analyze" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                                 {{ $meeting->analyzed_at ? __('meetings.reanalyze') : __('meetings.analyze') }}
@@ -435,7 +435,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </ul>
 
                         @if ($openCount > 0)
-                            <div class="sticky bottom-0 flex flex-col gap-3 rounded-b-xl border-t border-gray-100 bg-white/95 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+                            <div class="sticky bottom-0 flex flex-col gap-3 rounded-b-xl border-t border-gray-100 bg-surface/95 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
                                 <button type="button" wire:click="toggleAll" class="text-left text-xs font-medium text-primary-600 hover:text-primary-800">{{ __('meetings.select_all') }}</button>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <label class="flex items-center gap-1.5 text-xs text-gray-500">
@@ -447,7 +447,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         </select>
                                     </label>
                                     <button type="button" wire:click="createSelected" wire:loading.attr="disabled" @disabled(count($selected) === 0)
-                                        class="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50">
+                                        class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50">
                                         {{ __('meetings.create_selected', ['count' => count($selected)]) }}
                                     </button>
                                 </div>
@@ -466,7 +466,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                              box.scrollTo({ top: el.offsetTop - box.clientHeight / 3, behavior: 'smooth' });
                              el.classList.add('bg-yellow-200'); setTimeout(() => el.classList.remove('bg-yellow-200'), 3000);
                          }, 50)">
-                        <div class="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-2.5">
+                        <div class="sticky top-0 z-10 border-b border-gray-100 bg-surface px-4 py-2.5">
                             <input type="search" x-model="q" placeholder="{{ __('meetings.search') }}" class="w-full rounded-md border-gray-200 text-sm focus:border-primary-300 focus:ring-primary-200">
                         </div>
                         <div x-ref="box" class="relative max-h-[70vh] space-y-3 overflow-y-auto px-4 py-3" data-ui="meeting-transcript">

@@ -108,7 +108,7 @@ new class extends Component
                     @endif
 
                     <p>{{ __('notification.telegram_or_send_code') }}</p>
-                    <code class="block break-all rounded bg-white px-2 py-1 border border-gray-200 text-xs">/start {{ $linkCode }}</code>
+                    <code class="block break-all rounded bg-surface px-2 py-1 border border-gray-200 text-xs">/start {{ $linkCode }}</code>
                     <p class="text-xs text-gray-500">{{ __('notification.telegram_code_ttl') }}</p>
                 </div>
             @endif

@@ -1,9 +1,27 @@
 /* Self-hosted Inter (Latin + Cyrillic), replaces Figtree from fonts.bunny.net. */
 @import '@fontsource-variable/inter';
+@import './theme-tokens.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    /* Form controls from @tailwindcss/forms hard-code a white background. */
+    .dark input:not([type]), .dark [type='text'], .dark [type='email'], .dark [type='url'], .dark [type='password'],
+    .dark [type='number'], .dark [type='date'], .dark [type='datetime-local'], .dark [type='time'], .dark [type='search'],
+    .dark [type='tel'], .dark textarea, .dark select {
+        background-color: rgb(var(--c-surface));
+        border-color: rgb(var(--c-gray-300));
+        color: rgb(var(--c-gray-900));
+    }
+
+    /* Checkboxes keep their text-* colour (it paints the checked state). */
+    .dark [type='checkbox']:not(:checked), .dark [type='radio']:not(:checked) {
+        background-color: rgb(var(--c-surface));
+        border-color: rgb(var(--c-gray-400));
+    }
+}
 
 [x-cloak] {
     display: none !important;

@@ -1,6 +1,6 @@
 @props(['padding' => 'p-5'])
 
-<div {{ $attributes->merge(['class' => 'bg-white rounded-surface border border-gray-200 '.$padding]) }}>
+<div {{ $attributes->merge(['class' => 'bg-surface rounded-surface border border-gray-200 '.$padding]) }}>
     @if (isset($header) || isset($actions) || isset($title))
         <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-4 pb-4 border-b border-gray-100">
             <div class="min-w-0">

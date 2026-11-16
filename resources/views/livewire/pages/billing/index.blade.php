@@ -215,7 +215,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             <p class="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">{{ session('billing_error') }}</p>
         @endif
 
-        <div class="bg-white rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-700 flex flex-wrap gap-3">
+        <div class="bg-surface rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-700 flex flex-wrap gap-3">
             @forelse ($totals as $currency => $sum)
                 <span class="font-medium">{{ number_format($sum, 2, ',', ' ') }} {{ $currency }}</span>
             @empty
@@ -241,9 +241,9 @@ new #[Layout('components.tasks-layout')] class extends Component
             @endforeach
         </nav>
 
-        <x-text-input wire:model.live.debounce.300ms="search" type="search" class="w-full bg-white" aria-label="{{ __('billing.search') }}" placeholder="{{ __('billing.search') }}" />
+        <x-text-input wire:model.live.debounce.300ms="search" type="search" class="w-full bg-surface" aria-label="{{ __('billing.search') }}" placeholder="{{ __('billing.search') }}" />
 
-        <div class="bg-white rounded-surface border border-gray-200 overflow-hidden">
+        <div class="bg-surface rounded-surface border border-gray-200 overflow-hidden">
             @if ($items->isEmpty())
                 <x-empty-state>
                     {{ __('billing.empty') }}
@@ -329,7 +329,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     @if ($payItemId)
         <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+            <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $payItem?->title(), 'amount' => $payItem?->formattedAmount()]) }}</p>
                 <x-text-input wire:model="payAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
                 <div class="flex gap-2 justify-end">
@@ -342,7 +342,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     @if ($skipItemId)
         <div class="fixed inset-0 z-40 bg-black/30 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+            <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <label class="text-sm">{{ __('billing.skip_reason') }}</label>
                 <textarea wire:model="skipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
                 <div class="flex gap-2 justify-end">

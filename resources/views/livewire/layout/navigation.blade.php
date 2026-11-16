@@ -13,7 +13,7 @@ new class extends Component
     }
 }; ?>
 
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-200 shadow-sm">
+<nav x-data="{ open: false }" class="bg-surface border-b border-gray-200 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-14">
             <div class="flex items-center gap-6">
@@ -101,6 +101,18 @@ new class extends Component
                                 @endforeach
                             </div>
                         </div>
+                        <div class="px-4 py-2 border-t border-gray-100">
+                            <p class="text-xs text-gray-600 mb-1.5">{{ __('Theme') }}</p>
+                            <div class="flex gap-1" x-data="{ mode: window.uiTheme?.get() ?? 'system' }" role="group" aria-label="{{ __('Theme') }}">
+                                @foreach (['light' => __('Theme light'), 'dark' => __('Theme dark'), 'system' => __('Theme system')] as $themeKey => $themeLabel)
+                                    <button type="button"
+                                            x-on:click.stop="mode = '{{ $themeKey }}'; window.uiTheme?.set('{{ $themeKey }}')"
+                                            x-bind:aria-pressed="(mode === '{{ $themeKey }}').toString()"
+                                            x-bind:class="mode === '{{ $themeKey }}' ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
+                                            class="px-2.5 py-1 rounded-md text-xs transition-colors">{{ $themeLabel }}</button>
+                                @endforeach
+                            </div>
+                        </div>
                         <div class="border-t border-gray-100"></div>
                         <button wire:click="logout" class="w-full text-start">
                             <x-dropdown-link>
@@ -174,6 +186,18 @@ new class extends Component
                         {{ $label }}
                     </a>
                 @endforeach
+            </div>
+            <div class="mb-3">
+                <p class="text-xs text-gray-600 mb-1.5">{{ __('Theme') }}</p>
+                <div class="flex gap-1" x-data="{ mode: window.uiTheme?.get() ?? 'system' }" role="group" aria-label="{{ __('Theme') }}">
+                    @foreach (['light' => __('Theme light'), 'dark' => __('Theme dark'), 'system' => __('Theme system')] as $themeKey => $themeLabel)
+                        <button type="button"
+                                x-on:click.stop="mode = '{{ $themeKey }}'; window.uiTheme?.set('{{ $themeKey }}')"
+                                x-bind:aria-pressed="(mode === '{{ $themeKey }}').toString()"
+                                x-bind:class="mode === '{{ $themeKey }}' ? 'bg-primary-50 text-primary-700 font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'"
+                                class="px-2.5 py-1 rounded-md text-xs transition-colors">{{ $themeLabel }}</button>
+                    @endforeach
+                </div>
             </div>
             <div class="font-medium text-base text-gray-800">{{ auth()->user()->name }}</div>
             <div class="font-medium text-sm text-gray-500">{{ auth()->user()->email }}</div>

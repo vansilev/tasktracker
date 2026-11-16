@@ -10,7 +10,7 @@
 >
     <div
         x-ref="panel"
-        class="w-64 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+        class="w-64 overflow-hidden rounded-lg border border-gray-200 bg-surface py-1 shadow-lg"
         role="menu"
     >
         <template x-if="$store.contextMenu.view === 'root'">
@@ -94,7 +94,7 @@
                 </label>
                 <div class="mt-2 flex justify-end gap-2">
                     <button type="button" class="rounded-md px-2 py-1 text-xs text-gray-600 hover:bg-gray-50" x-on:click="$store.contextMenu.view = 'root'">{{ __('Cancel') }}</button>
-                    <button type="button" class="rounded-md bg-primary-600 px-2 py-1 text-xs font-medium text-white hover:bg-primary-500" x-on:click="$store.contextMenu.submitComment()">{{ __('Confirm') }}</button>
+                    <button type="button" class="rounded-md bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-500" x-on:click="$store.contextMenu.submitComment()">{{ __('Confirm') }}</button>
                 </div>
             </div>
         </template>

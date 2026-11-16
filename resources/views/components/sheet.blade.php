@@ -85,7 +85,7 @@
     ></button>
 
     <div
-        class="absolute inset-x-0 bottom-0 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-[min(100%,40rem)] md:rounded-none md:border-l md:border-gray-200"
+        class="absolute inset-x-0 bottom-0 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl bg-surface shadow-2xl md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-[min(100%,40rem)] md:rounded-none md:border-l md:border-gray-200"
         x-bind:style="panelStyle()"
         x-on:click.stop
     >

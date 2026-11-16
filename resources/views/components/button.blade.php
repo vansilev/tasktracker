@@ -19,10 +19,10 @@ $sizes = [
 ];
 
 $variants = [
-    'primary' => 'border-transparent bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 focus-visible:ring-primary-600',
-    'secondary' => 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 focus-visible:ring-primary-600',
+    'primary' => 'border-transparent bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 focus-visible:ring-primary-600',
+    'secondary' => 'border-gray-300 bg-surface text-gray-700 hover:bg-gray-50 hover:text-gray-900 focus-visible:ring-primary-600',
     'ghost' => 'border-transparent bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-primary-600',
-    'danger' => 'border-transparent bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-800 focus-visible:ring-danger-600',
+    'danger' => 'border-transparent bg-alert-600 text-white hover:bg-alert-700 active:bg-alert-800 focus-visible:ring-danger-600',
 ];
 
 $classes = $base.' '.($sizes[$size] ?? $sizes['md']).' '.($variants[$variant] ?? $variants['primary']);

@@ -1665,7 +1665,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     {{ $label }}
                     @if ($key === 'action' && $actionCount > 0)
-                        <span data-ui="action-count" class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary-600 px-1.5 text-xs font-semibold text-white">{{ $actionCount }}</span>
+                        <span data-ui="action-count" class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs font-semibold text-white">{{ $actionCount }}</span>
                     @endif
 
                 </button>
@@ -1683,7 +1683,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 {{ __('Create task') }}
 
-                <x-kbd class="hidden sm:inline-flex border-primary-400/40 bg-primary-500 text-white">C</x-kbd>
+                <x-kbd class="hidden sm:inline-flex !border-white/30 !bg-brand-500 !text-white">C</x-kbd>
 
             </x-button>
 
@@ -1693,7 +1693,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
 
 
-    <div class="rounded-surface border border-gray-200 bg-white p-4 space-y-4">
+    <div class="rounded-surface border border-gray-200 bg-surface p-4 space-y-4">
 
         <div class="flex flex-col lg:flex-row lg:items-center gap-3">
 
@@ -1717,14 +1717,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <button type="button"
                             @click="svOpen = !svOpen"
                             class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors
-                                {{ $activeSavedFilterId ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                                {{ $activeSavedFilterId ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-surface text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
                         {{ $activeSavedFilterId ? $savedFilters->firstWhere('id', $activeSavedFilterId)?->name ?? __('Views') : __('Views') }}
                         <svg class="w-3 h-3 shrink-0 transition-transform" :class="svOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
 
                     <div x-show="svOpen" x-cloak @click.outside="svOpen = false" x-transition
-                         class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-lg">
+                         class="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-surface shadow-lg">
                         <div class="max-h-64 overflow-y-auto divide-y divide-gray-100">
                             @forelse ($savedFilters as $sf)
                                 <div class="group flex items-center gap-2 px-3 py-2 hover:bg-gray-50 {{ $activeSavedFilterId === $sf->id ? 'bg-primary-50' : '' }}">
@@ -1778,13 +1778,13 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                         class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-lg transition-colors
 
-                            {{ $filtersOpen ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
+                            {{ $filtersOpen ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-surface text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50' }}">
 
                     {{ __('Filters') }}
 
                     @if ($activeFilterCount > 0)
 
-                        <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-semibold rounded-full bg-primary-600 text-white">{{ $activeFilterCount }}</span>
+                        <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-semibold rounded-full bg-brand-600 text-white">{{ $activeFilterCount }}</span>
 
                     @endif
 
@@ -1803,7 +1803,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                     <button type="button" wire:click="toggleSortDir"
 
-                            class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
+                            class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-300 bg-surface text-gray-600 hover:bg-gray-50 transition-colors"
 
                             title="{{ $sortDir === 'asc' ? __('Ascending') : __('Descending') }}">
 
@@ -1821,7 +1821,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
                 </div>
 
-                <div class="hidden sm:inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+                <div class="hidden sm:inline-flex rounded-lg border border-gray-200 bg-surface p-0.5">
                     <button
                         type="button"
                         wire:click="setLayout('list')"
@@ -1863,7 +1863,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 <option value="deadline">{{ __('Deadline') }}</option>
                                 <option value="created_at">{{ __('Created at') }}</option>
                             </select>
-                            <button type="button" wire:click="toggleSortDir" class="inline-flex h-9 w-9 items-center justify-center rounded-control border border-gray-300 bg-white text-gray-600" aria-label="{{ $sortDir === 'asc' ? __('Ascending') : __('Descending') }}">
+                            <button type="button" wire:click="toggleSortDir" class="inline-flex h-9 w-9 items-center justify-center rounded-control border border-gray-300 bg-surface text-gray-600" aria-label="{{ $sortDir === 'asc' ? __('Ascending') : __('Descending') }}">
                                 <svg class="w-4 h-4 {{ $sortDir === 'asc' ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </button>
                         </div>
@@ -2065,7 +2065,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             >
                 <div class="fixed inset-0 bg-gray-900/50" wire:click="cancelKanbanMove"></div>
                 <div class="relative mx-auto mt-[18vh] w-full max-w-md px-4">
-                    <form wire:submit="confirmKanbanMove" class="relative rounded-xl border border-gray-100 bg-white p-5 shadow-xl">
+                    <form wire:submit="confirmKanbanMove" class="relative rounded-xl border border-gray-100 bg-surface p-5 shadow-xl">
                         <h2 id="kanban-comment-title" class="text-base font-semibold text-gray-900">
                             {{ __('Comment required') }}
                         </h2>
@@ -2107,7 +2107,7 @@ new #[Layout('components.tasks-layout')] class extends Component
             </div>
         @endif
     @else
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-surface rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 
         @if ($tasks->isEmpty())
 
@@ -2155,7 +2155,7 @@ new #[Layout('components.tasks-layout')] class extends Component
 
             <div class="relative" @if ($tab === 'action') data-ui="action-queue" @endif>
 
-            <div wire:loading.class.remove="hidden" wire:loading.class="flex" wire:target="tab,status,departmentId,categoryId,assigneeId,initiatorId,urgentOnly,overdueOnly,sortBy,sortDir" class="absolute inset-0 z-10 hidden bg-white/90">
+            <div wire:loading.class.remove="hidden" wire:loading.class="flex" wire:target="tab,status,departmentId,categoryId,assigneeId,initiatorId,urgentOnly,overdueOnly,sortBy,sortDir" class="absolute inset-0 z-10 hidden bg-surface/90">
                 <x-skeleton class="w-full" />
             </div>
 
@@ -2226,7 +2226,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </tbody>
                         @endif
                         <tbody class="divide-y divide-gray-50" x-data="{ open: false }">
-                            <tr class="cursor-pointer transition-colors group {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-primary-50 hover:bg-primary-50' : 'odd:bg-white even:bg-gray-50/50 hover:bg-gray-50' }}"
+                            <tr class="cursor-pointer transition-colors group {{ (int) $peek === (int) $task->number || $this->isSelected($task->id) ? 'bg-primary-50 hover:bg-primary-50' : 'odd:bg-surface even:bg-gray-50/50 hover:bg-gray-50' }}"
                                 x-on:click="if (window.getSelection()?.toString() || window.uiContext?.suppressClick) return; $wire.openPeek({{ $task->number }})"
                                 x-on:contextmenu.prevent="window.uiContext.show($event, {{ $rowMenu }})"
                                 x-on:touchstart="window.uiContext.touchStart($event, {{ $rowMenu }})"
@@ -2572,7 +2572,7 @@ new #[Layout('components.tasks-layout')] class extends Component
     @if (count($selectedIds) > 0)
         <div
             data-ui="bulk-bar"
-            class="fixed inset-x-0 bottom-0 z-[45] border-t border-gray-200 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur"
+            class="fixed inset-x-0 bottom-0 z-[45] border-t border-gray-200 bg-surface/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur"
         >
             <div class="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:px-6 lg:px-8">
                 <div class="flex flex-wrap items-center gap-2">

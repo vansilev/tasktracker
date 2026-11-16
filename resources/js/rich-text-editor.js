@@ -1,12 +1,48 @@
-import { Editor, Node, mergeAttributes } from '@tiptap/core';
-import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
-import Mention from '@tiptap/extension-mention';
-import Underline from '@tiptap/extension-underline';
-import Blockquote from '@tiptap/extension-blockquote';
-import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
-import { NodeSelection, Plugin, TextSelection } from '@tiptap/pm/state';
+// TipTap is loaded on demand (code-split): pages without an editor never download it.
+let Editor;
+let Node;
+let mergeAttributes;
+let StarterKit;
+let Image;
+let Link;
+let Mention;
+let Underline;
+let Blockquote;
+let Table;
+let TableCell;
+let TableHeader;
+let TableRow;
+let NodeSelection;
+let Plugin;
+let TextSelection;
+let tiptapLoading = null;
+
+export function loadTiptap() {
+    tiptapLoading ??= Promise.all([
+        import('@tiptap/core'),
+        import('@tiptap/starter-kit'),
+        import('@tiptap/extension-image'),
+        import('@tiptap/extension-link'),
+        import('@tiptap/extension-mention'),
+        import('@tiptap/extension-underline'),
+        import('@tiptap/extension-blockquote'),
+        import('@tiptap/extension-table'),
+        import('@tiptap/pm/state'),
+    ]).then(([core, starterKit, image, link, mention, underline, blockquote, table, pmState]) => {
+        ({ Editor, Node, mergeAttributes } = core);
+        StarterKit = starterKit.default;
+        Image = image.default;
+        Link = link.default;
+        Mention = mention.default;
+        Underline = underline.default;
+        Blockquote = blockquote.default;
+        ({ Table, TableCell, TableHeader, TableRow } = table);
+        ({ NodeSelection, Plugin, TextSelection } = pmState);
+    });
+
+    return tiptapLoading;
+}
+
 import { createMentionSuggestion } from './mention-suggestion';
 
 /**
@@ -414,7 +450,12 @@ export default function richTextEditor(config = {}) {
         tornDown: false,
         quoteListenerOff: null,
 
-        init() {
+        async init() {
+            await loadTiptap();
+            if (this.tornDown) {
+                return;
+            }
+
             const initial = this.$wire?.get?.(this.property) ?? '';
             this.lastSynced = initial;
 

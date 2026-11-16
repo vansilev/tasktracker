@@ -35,8 +35,14 @@ const accent = {
     900: '#423307',
 };
 
+// Families that switch with the theme read RGB triplets from resources/css/theme-tokens.css.
+const steps = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+const themed = (name) => Object.fromEntries(steps.map((step) => [step, `rgb(var(--c-${name}-${step}) / <alpha-value>)`]));
+
 /** @type {import('tailwindcss').Config} */
 export default {
+    darkMode: 'class',
+
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',
@@ -51,13 +57,29 @@ export default {
                 sans: ['"Inter Variable"', 'Inter', ...defaultTheme.fontFamily.sans],
             },
             colors: {
-                primary,
+                // Theme-aware: light tints turn dark and text shades turn light under html.dark.
+                gray: themed('gray'),
+                primary: themed('primary'),
+                // Legacy name still used by an unmerged view; follows primary in both themes.
+                indigo: themed('primary'),
+                accent: themed('accent'),
+                green: themed('green'),
+                red: themed('red'),
+                amber: themed('amber'),
+                blue: themed('blue'),
+                purple: themed('purple'),
+                orange: themed('orange'),
+                yellow: themed('yellow'),
+                rose: themed('rose'),
+                success: themed('green'),
+                warning: themed('amber'),
+                danger: themed('red'),
+                info: themed('blue'),
+                surface: 'rgb(var(--c-surface) / <alpha-value>)',
+                // Fixed in both themes: solid fills that carry white text.
                 brand: primary,
-                accent,
-                success: colors.green,
-                warning: colors.amber,
-                danger: colors.red,
-                info: colors.blue,
+                alert: colors.red,
+                caution: colors.amber,
             },
             // Type scale: caption 12 · body-sm 13 · body 14 · title-sm 16 · title 20 · display 24.
             fontSize: {

@@ -154,7 +154,7 @@ export default function subtaskSort() {
                 margin: '0',
                 opacity: '0.95',
                 boxShadow: '0 10px 25px rgba(15, 23, 42, 0.18)',
-                background: '#fff',
+                background: 'rgb(var(--c-surface))',
                 borderRadius: '8px',
                 listStyle: 'none',
             });

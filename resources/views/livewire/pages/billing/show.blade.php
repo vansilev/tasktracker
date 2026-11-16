@@ -311,7 +311,7 @@ new class extends Component
         >
             <div class="fixed inset-0 bg-gray-500/75" wire:click="close"></div>
             <div class="relative mx-auto my-6 w-full max-w-2xl px-4">
-                <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
+                <div class="relative bg-surface rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
                     <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100">
                         <div class="min-w-0">
                             <h2 id="billing-show-title" class="text-base font-semibold text-gray-900 truncate">{{ $item->vendor }}</h2>
@@ -549,7 +549,7 @@ new class extends Component
                             @endif
 
                             @if ($item->notes)
-                                <div class="rounded-lg border border-gray-100 bg-white px-3.5 py-3">
+                                <div class="rounded-lg border border-gray-100 bg-surface px-3.5 py-3">
                                     <div class="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">{{ __('billing.notes') }}</div>
                                     <p class="text-sm text-gray-700 whitespace-pre-line">{{ $item->notes }}</p>
                                 </div>
@@ -590,7 +590,7 @@ new class extends Component
                     </div>
 
                     @if (! $editing)
-                        <div class="border-t border-gray-100 px-5 py-3 flex flex-wrap items-center gap-2 bg-white">
+                        <div class="border-t border-gray-100 px-5 py-3 flex flex-wrap items-center gap-2 bg-surface">
                             @if ($item->kind->canMarkPaid() && $canPay && $item->state === \App\Enums\BillingState::Active)
                                 <x-button type="button" size="sm" variant="primary" wire:click="openPay">{{ __('billing.mark_paid') }}</x-button>
                                 @if ($item->kind->canSkip())
@@ -613,7 +613,7 @@ new class extends Component
 
     @if ($payOpen && $item)
         <div class="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+            <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $item->title(), 'amount' => $item->formattedAmount()]) }}</p>
                 <x-text-input wire:model="payAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
                 <div class="flex gap-2 justify-end">
@@ -626,7 +626,7 @@ new class extends Component
 
     @if ($skipOpen && $item)
         <div class="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+            <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <label class="text-sm">{{ __('billing.skip_reason') }}</label>
                 <textarea wire:model="skipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
                 <div class="flex gap-2 justify-end">
@@ -639,7 +639,7 @@ new class extends Component
 
     @if ($archiveOpen && $item)
         <div class="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+            <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <label class="text-sm">{{ __('billing.archive_reason') }}</label>
                 <textarea wire:model="archiveReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
                 <div class="flex gap-2 justify-end">
@@ -652,7 +652,7 @@ new class extends Component
 
     @if ($pauseOpen && $item)
         <div class="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl p-5 w-full max-w-sm space-y-3">
+            <div class="bg-surface rounded-xl p-5 w-full max-w-sm space-y-3">
                 <x-input-label for="f-pausedUntil" :value="__('billing.pause')" />
                 <x-text-input id="f-pausedUntil" type="date" wire:model="pausedUntil" class="mt-1 w-full" />
                 <div class="flex gap-2 justify-end">
