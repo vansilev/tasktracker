@@ -16,5 +16,7 @@ Route::middleware(['auth', 'verified', 'admin'])
         Volt::route('/settings', 'pages.admin.settings')->name('settings');
         Volt::route('/import', 'pages.admin.import')->name('import');
         Volt::route('/audit', 'pages.admin.audit')->name('audit');
+        Volt::route('/deliveries', 'pages.admin.deliveries')->name('deliveries');
+        Volt::route('/telegram', 'pages.admin.telegram')->name('telegram');
         Volt::route('/deleted-tasks', 'pages.admin.deleted-tasks')->name('deleted-tasks');
     });

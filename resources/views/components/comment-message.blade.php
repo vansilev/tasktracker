@@ -29,7 +29,7 @@
 @endphp
 
 <div
-    {{ $attributes->merge(['class' => 'flex min-w-0 max-w-full gap-2 '.($mine ? 'flex-row-reverse' : '')]) }}
+    {{ $attributes->merge(['class' => 'group/message flex min-w-0 max-w-full gap-2 '.($mine ? 'flex-row-reverse' : '')]) }}
     data-ui="message"
     @if ($mine) data-mine="true" @endif
 >
@@ -37,8 +37,8 @@
         <div class="w-7 shrink-0" aria-hidden="true"></div>
     @else
         <div @class([
-            'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold',
-            'bg-indigo-600 text-white' => $mine,
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+            'bg-primary-600 text-white' => $mine,
             'bg-gray-200 text-gray-700' => ! $mine,
         ])>
             {{ $initials }}
@@ -46,16 +46,16 @@
     @endif
 
     <div @class(['min-w-0 w-full max-w-full', 'text-right' => $mine])>
-        <div class="inline-block max-w-full text-left align-top">
+        <div class="inline-block max-w-[min(100%,40rem)] text-left align-top">
         @unless ($stacked)
-            <p @class(['mb-0.5 text-[11px] text-gray-500', 'text-right' => $mine])>
+            <p @class(['mb-0.5 text-xs text-gray-500', 'text-right' => $mine])>
                 @unless ($mine)
                     <span class="font-medium text-gray-700">{{ $name }}</span>
                     <span aria-hidden="true">·</span>
                 @endunless
                 <time datetime="{{ $comment->created_at?->toIso8601String() }}">{{ $comment->created_at?->format('d.m.Y H:i') }}</time>
                 @if ($comment->edited_at)
-                    <span class="text-gray-400">({{ __('task.edited') }})</span>
+                    <span class="text-gray-500">({{ __('task.edited') }})</span>
                 @endif
             </p>
         @endunless
@@ -73,21 +73,21 @@
                 />
                 <x-input-error :messages="$errors->get('editCommentBody')" />
                 <div class="flex gap-2">
-                    <x-primary-button type="submit">{{ __('Save') }}</x-primary-button>
-                    <x-secondary-button type="button" wire:click="$set('editingCommentId', null)">{{ __('Cancel') }}</x-secondary-button>
+                    <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
+                    <x-button variant="secondary" type="button" wire:click="$set('editingCommentId', null)">{{ __('Cancel') }}</x-button>
                 </div>
             </form>
         @else
             <div @class([
-                'min-w-0 max-w-full overflow-hidden rounded-2xl px-3 py-2 text-sm text-gray-800',
-                'rounded-br-md bg-indigo-50 ring-1 ring-indigo-100' => $mine,
-                'rounded-bl-md bg-gray-50 ring-1 ring-gray-100' => ! $mine,
+                'min-w-0 max-w-full overflow-hidden rounded-surface px-3 py-2 text-sm text-gray-800',
+                'bg-primary-50' => $mine,
+                'bg-gray-100' => ! $mine,
             ])>
                 @foreach ($quotedList as $quoted)
                     <div @class([
                         'mb-1.5 max-w-full rounded-md py-1.5 pl-2.5 pr-2',
-                        'border-l-4 border-indigo-400 bg-white/70' => $mine,
-                        'border-l-4 border-gray-300 bg-white' => ! $mine,
+                        'border-l-2 border-primary-400' => $mine,
+                        'border-l-2 border-gray-400' => ! $mine,
                     ])>
                         <p class="text-xs font-semibold leading-snug text-gray-800">{{ $quoted->author?->name }}</p>
                         @if ($quoted->quoteExcerpt() !== '')
@@ -119,7 +119,7 @@
                             @if ($canComment)
                                 <button type="button"
                                         wire:click="toggleReaction({{ $comment->id }}, '{{ $emoji }}')"
-                                        class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs leading-none {{ $reacted ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-50 text-gray-600 hover:bg-gray-100' }}">
+                                        class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs leading-none {{ $reacted ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200' : 'bg-gray-50 text-gray-600 hover:bg-gray-100' }}">
                                     <span>{{ $emoji }}</span>
                                     <span class="tabular-nums">{{ $group->count() }}</span>
                                 </button>
@@ -162,7 +162,7 @@
                                 <button type="button"
                                         x-ref="trigger"
                                         @click="togglePicker()"
-                                        class="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                        class="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-600"
                                         aria-label="{{ __('Add reaction') }}"
                                         title="{{ __('Add reaction') }}">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
@@ -190,16 +190,19 @@
                     @endif
 
                     @if ($canComment || $comment->canBeEditedBy(auth()->user()))
-                        @if ($canComment)
-                            <button type="button"
-                                    wire:click="quoteComment({{ $comment->id }})"
-                                    @mousedown.prevent
-                                    class="text-xs text-indigo-600 hover:text-indigo-800">{{ __('Quote') }}</button>
-                        @endif
-                        @if ($comment->canBeEditedBy(auth()->user()))
-                            <button type="button" wire:click="startEditComment({{ $comment->id }})" class="text-xs text-indigo-600 hover:text-indigo-800">{{ __('Edit') }}</button>
-                            <button type="button" wire:click="deleteComment({{ $comment->id }})" wire:confirm="{{ __('Delete this comment?') }}" class="text-xs text-red-600 hover:text-red-800">{{ __('Delete') }}</button>
-                        @endif
+                        {{-- Shown on hover/focus where a pointer can hover; always shown on touch screens. --}}
+                        <span class="inline-flex items-center gap-0.5 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/message:opacity-100 [@media(hover:hover)]:group-focus-within/message:opacity-100">
+                            @if ($canComment)
+                                <button type="button"
+                                        wire:click="quoteComment({{ $comment->id }})"
+                                        @mousedown.prevent
+                                        class="rounded px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900">{{ __('Quote') }}</button>
+                            @endif
+                            @if ($comment->canBeEditedBy(auth()->user()))
+                                <button type="button" wire:click="startEditComment({{ $comment->id }})" class="rounded px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900">{{ __('Edit') }}</button>
+                                <button type="button" wire:click="deleteComment({{ $comment->id }})" wire:confirm="{{ __('Delete this comment?') }}" class="rounded px-1.5 py-0.5 text-xs text-gray-600 hover:bg-danger-50 hover:text-danger-700">{{ __('Delete') }}</button>
+                            @endif
+                        </span>
                     @endif
                 </div>
             @endif

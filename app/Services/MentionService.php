@@ -91,6 +91,28 @@ class MentionService
     }
 
     /**
+     * "@words" typed by hand that match nobody: the author meant to call someone and did not.
+     * Mentions picked from the list are chips with an id and never end up here.
+     *
+     * @return list<string>
+     */
+    public function unresolvedMentions(string $body): array
+    {
+        $tokens = $this->extractMentionTokens($this->stripMentionSpans($body));
+
+        if ($tokens === []) {
+            return [];
+        }
+
+        $users = User::query()->where('is_active', true)->get(['id', 'name', 'email']);
+
+        return array_values(array_filter(
+            $tokens,
+            fn (string $token) => ! $users->contains(fn (User $user) => $this->userMatchesAnyToken($user, [$token])),
+        ));
+    }
+
+    /**
      * TipTap mention chips: <span data-type="mention" data-id="12" data-label="Максим Гольдт">
      *
      * @return list<int>

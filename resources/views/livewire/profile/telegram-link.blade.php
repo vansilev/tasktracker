@@ -68,9 +68,9 @@ new class extends Component
             </p>
 
             <div class="flex items-center gap-3" wire:key="telegram-linked-actions">
-                <x-danger-button wire:key="telegram-unlink-button" wire:click="unlink" wire:confirm="{{ __('notification.telegram_unlink_confirm') }}">
+                <x-button variant="danger" type="submit" wire:key="telegram-unlink-button" wire:click="unlink" wire:confirm="{{ __('notification.telegram_unlink_confirm') }}">
                     {{ __('notification.telegram_unlink') }}
-                </x-danger-button>
+                </x-button>
 
                 <x-action-message class="me-3" on="telegram-unlinked">
                     {{ __('Saved.') }}
@@ -82,15 +82,15 @@ new class extends Component
             </p>
 
             <div class="flex flex-wrap items-center gap-3" wire:key="telegram-unlinked-actions">
-                <x-primary-button wire:key="telegram-generate-link-button" type="button" wire:click="generateLink">
+                <x-button variant="primary" wire:key="telegram-generate-link-button" type="button" wire:click="generateLink">
                     {{ __('notification.telegram_generate_link') }}
-                </x-primary-button>
+                </x-button>
 
                 @if ($linkCode)
                     <button
                         type="button"
                         wire:click="refreshStatus"
-                        class="text-sm text-indigo-600 hover:text-indigo-800"
+                        class="text-sm text-primary-600 hover:text-primary-800"
                     >
                         {{ __('notification.telegram_check_link') }}
                     </button>
@@ -101,7 +101,7 @@ new class extends Component
                 <div class="rounded-md bg-gray-50 p-3 text-sm text-gray-700 space-y-2">
                     @if ($deepLinkUrl)
                         <p>
-                            <a href="{{ $deepLinkUrl }}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 font-medium">
+                            <a href="{{ $deepLinkUrl }}" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:text-primary-800 font-medium">
                                 {{ __('notification.telegram_open_bot') }}
                             </a>
                         </p>

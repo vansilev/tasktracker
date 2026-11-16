@@ -113,13 +113,18 @@ new class extends Component
     public function updatedKind(): void
     {
         $kind = BillingKind::tryFrom($this->kind);
+        if ($kind === null) {
+            $this->kind = BillingKind::Subscription->value;
+
+            return;
+        }
         if ($kind === BillingKind::AdBudget) {
             $this->periodMonths = 1;
         }
-        if ($kind && ! $kind->requiresDueDate()) {
+        if (! $kind->requiresDueDate()) {
             $this->nextDueOn = '';
         }
-        if ($kind && ! $kind->requiresPeriodMonths()) {
+        if (! $kind->requiresPeriodMonths()) {
             $this->periodMonths = 1;
         }
     }
@@ -194,7 +199,7 @@ new class extends Component
             'product' => $this->product,
             'description' => $this->description,
             'category' => $this->category,
-            'kind' => BillingKind::from($this->kind),
+            'kind' => $this->currentKind(),
             'period_months' => $this->periodMonths,
             'amount' => $this->invoice ? null : $this->amount,
             'currency' => $this->currency,
@@ -230,8 +235,8 @@ new class extends Component
             ],
             3 => [
                 'kind' => ['required', Rule::enum(BillingKind::class)],
-                'periodMonths' => [BillingKind::from($this->kind)->requiresPeriodMonths() ? 'required' : 'nullable', Rule::in([1, 12])],
-                'nextDueOn' => [BillingKind::from($this->kind)->requiresDueDate() ? 'required' : 'nullable', 'date'],
+                'periodMonths' => [$this->currentKind()->requiresPeriodMonths() ? 'required' : 'nullable', Rule::in([1, 12])],
+                'nextDueOn' => [$this->currentKind()->requiresDueDate() ? 'required' : 'nullable', 'date'],
                 'dueDayOfMonth' => ['nullable', 'integer', 'min:1', 'max:31'],
                 'dueDayRule' => ['nullable', Rule::enum(BillingDueDayRule::class)],
             ],
@@ -246,7 +251,8 @@ new class extends Component
 
     public function with(): array
     {
-        $period = BillingKind::from($this->kind)->requiresPeriodMonths() ? $this->periodMonths : null;
+        $kind = $this->currentKind();
+        $period = $kind->requiresPeriodMonths() ? $this->periodMonths : null;
 
         return [
             'people' => app(BillingBot::class)->peopleQuery()->get(['id', 'name']),
@@ -254,9 +260,14 @@ new class extends Component
             'kinds' => BillingKind::cases(),
             'categories' => BillingCategory::cases(),
             'methods' => BillingPaymentMethod::cases(),
-            'kindRequiresPeriod' => BillingKind::from($this->kind)->requiresPeriodMonths(),
-            'kindRequiresDue' => BillingKind::from($this->kind)->requiresDueDate(),
+            'kindRequiresPeriod' => $kind->requiresPeriodMonths(),
+            'kindRequiresDue' => $kind->requiresDueDate(),
         ];
+    }
+
+    private function currentKind(): BillingKind
+    {
+        return BillingKind::tryFrom($this->kind) ?? BillingKind::Subscription;
     }
 }; ?>
 
@@ -274,14 +285,14 @@ new class extends Component
                 <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
                     <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
                         <h2 id="billing-create-title" class="text-sm font-semibold text-gray-900">{{ __('billing.create') }}</h2>
-                        <button type="button" wire:click="close" class="text-gray-400 hover:text-gray-700 text-lg leading-none" aria-label="{{ __('Cancel') }}">✕</button>
+                        <button type="button" wire:click="close" class="p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100" aria-label="{{ __('Close') }}"><x-icon.x-mark class="w-5 h-5" /></button>
                     </div>
 
                     <div class="p-5 space-y-4 max-h-[calc(100vh-10rem)] overflow-y-auto">
                         <div class="flex flex-wrap gap-2">
                             @foreach (['hosting', 'domain', 'saas', 'telecom'] as $key)
                                 <button type="button" wire:click="applyPreset('{{ $key }}')"
-                                        class="px-3 py-1.5 rounded-lg text-sm border {{ $preset === $key ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }}">
+                                        class="px-3 py-1.5 rounded-lg text-sm border {{ $preset === $key ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50' }}">
                                     {{ __('billing.preset.'.$key) }}
                                 </button>
                             @endforeach
@@ -289,45 +300,45 @@ new class extends Component
 
                         <div class="flex flex-wrap gap-2 text-xs font-medium">
                             @for ($i = 1; $i <= 4; $i++)
-                                <span class="px-2 py-1 rounded {{ $step === $i ? 'bg-indigo-50 text-indigo-700' : 'text-gray-400' }}">{{ $i }}. {{ __('billing.step.'.$i) }}</span>
+                                <span class="px-2 py-1 rounded {{ $step === $i ? 'bg-primary-50 text-primary-700' : 'text-gray-500' }}">{{ $i }}. {{ __('billing.step.'.$i) }}</span>
                             @endfor
                         </div>
 
                         @if ($step === 1)
-                            <div class="space-y-4">
+                            <div wire:key="billing-create-step-1" class="space-y-4">
                                 <div>
-                                    <x-input-label :value="__('billing.vendor')" />
-                                    <x-text-input wire:model="vendor" class="mt-1 w-full" />
+                                    <x-input-label for="f-vendor" :value="__('billing.vendor')" />
+                                    <x-text-input id="f-vendor" wire:model="vendor" class="mt-1 w-full" />
                                     <x-input-error :messages="$errors->get('vendor')" class="mt-1" />
                                 </div>
                                 <div>
-                                    <x-input-label :value="__('billing.product')" />
-                                    <x-text-input wire:model="product" class="mt-1 w-full" />
+                                    <x-input-label for="f-product" :value="__('billing.product')" />
+                                    <x-text-input id="f-product" wire:model="product" class="mt-1 w-full" />
                                     <x-input-error :messages="$errors->get('product')" class="mt-1" />
                                 </div>
                                 <div>
-                                    <x-input-label :value="__('billing.category_label')" />
-                                    <select wire:model="category" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                    <x-input-label for="f-category" :value="__('billing.category_label')" />
+                                    <select id="f-category" wire:model="category" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                         @foreach ($categories as $cat)
                                             <option value="{{ $cat->value }}">{{ $cat->label() }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div>
-                                    <x-input-label :value="__('billing.description')" />
-                                    <x-text-input wire:model="description" class="mt-1 w-full" />
+                                    <x-input-label for="f-description" :value="__('billing.description')" />
+                                    <x-text-input id="f-description" wire:model="description" class="mt-1 w-full" />
                                 </div>
                             </div>
                         @elseif ($step === 2)
-                            <div class="space-y-4">
+                            <div wire:key="billing-create-step-2" class="space-y-4">
                                 <label class="flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="checkbox" wire:model.live="invoice" class="rounded border-gray-300 text-indigo-600" />
+                                    <input type="checkbox" wire:model.live="invoice" class="rounded border-gray-300 text-primary-600" />
                                     {{ __('billing.invoice_toggle') }}
                                 </label>
                                 @unless ($invoice)
                                     <div>
-                                        <x-input-label :value="__('billing.amount')" />
-                                        <x-text-input wire:model.live="amount" class="mt-1 w-full" />
+                                        <x-input-label for="f-amount" :value="__('billing.amount')" />
+                                        <x-text-input id="f-amount" wire:model.live="amount" class="mt-1 w-full" />
                                         <x-input-error :messages="$errors->get('amount')" class="mt-1" />
                                         @if ($amountHint)
                                             <p class="mt-1 text-xs text-gray-500">{{ $amountHint }}</p>
@@ -335,8 +346,8 @@ new class extends Component
                                     </div>
                                 @endunless
                                 <div>
-                                    <x-input-label :value="__('billing.currency')" />
-                                    <select wire:model.live="currency" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                    <x-input-label for="f-currency" :value="__('billing.currency')" />
+                                    <select id="f-currency" wire:model.live="currency" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                         <option value="UAH">UAH</option>
                                         <option value="USD">USD</option>
                                         <option value="EUR">EUR</option>
@@ -344,10 +355,10 @@ new class extends Component
                                 </div>
                             </div>
                         @elseif ($step === 3)
-                            <div class="space-y-4">
+                            <div wire:key="billing-create-step-3" class="space-y-4">
                                 <div>
-                                    <x-input-label :value="__('billing.kind_label')" />
-                                    <select wire:model.live="kind" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                    <x-input-label for="f-kind" :value="__('billing.kind_label')" />
+                                    <select id="f-kind" wire:key="billing-create-kind" wire:model.live="kind" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                         @foreach ($kinds as $option)
                                             <option value="{{ $option->value }}">{{ $option->label() }}</option>
                                         @endforeach
@@ -355,8 +366,8 @@ new class extends Component
                                 </div>
                                 @if ($kindRequiresPeriod)
                                     <div>
-                                        <x-input-label :value="__('billing.period')" />
-                                        <select wire:model.live="periodMonths" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                        <x-input-label for="f-periodMonths" :value="__('billing.period')" />
+                                        <select id="f-periodMonths" wire:model.live="periodMonths" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                             <option value="1">{{ __('billing.every_month') }}</option>
                                             <option value="12">{{ __('billing.every_year') }}</option>
                                         </select>
@@ -364,18 +375,18 @@ new class extends Component
                                 @endif
                                 @if ($kindRequiresDue)
                                     <div>
-                                        <x-input-label :value="__('billing.next_due')" />
-                                        <x-text-input type="date" wire:model="nextDueOn" class="mt-1 w-full" />
+                                        <x-input-label for="f-nextDueOn" :value="__('billing.next_due')" />
+                                        <x-text-input id="f-nextDueOn" type="date" wire:model="nextDueOn" class="mt-1 w-full" />
                                         <x-input-error :messages="$errors->get('nextDueOn')" class="mt-1" />
                                     </div>
                                     <div class="grid grid-cols-2 gap-3">
                                         <div>
-                                            <x-input-label :value="__('billing.due_day')" />
-                                            <x-text-input wire:model="dueDayOfMonth" class="mt-1 w-full" placeholder="10" />
+                                            <x-input-label for="f-dueDayOfMonth" :value="__('billing.due_day')" />
+                                            <x-text-input id="f-dueDayOfMonth" wire:model="dueDayOfMonth" class="mt-1 w-full" placeholder="10" />
                                         </div>
                                         <div>
-                                            <x-input-label :value="__('billing.due_rule')" />
-                                            <select wire:model="dueDayRule" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                            <x-input-label for="f-dueDayRule" :value="__('billing.due_rule')" />
+                                            <select id="f-dueDayRule" wire:model="dueDayRule" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                                 <option value="">{{ __('billing.not_specified') }}</option>
                                                 <option value="on">{{ __('billing.due_on') }}</option>
                                                 <option value="until">{{ __('billing.due_until') }}</option>
@@ -385,10 +396,10 @@ new class extends Component
                                 @endif
                             </div>
                         @else
-                            <div class="space-y-4">
+                            <div wire:key="billing-create-step-4" class="space-y-4">
                                 <div>
-                                    <x-input-label :value="__('billing.method_label')" />
-                                    <select wire:model.live="paymentMethod" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                    <x-input-label for="f-paymentMethod" :value="__('billing.method_label')" />
+                                    <select id="f-paymentMethod" wire:key="billing-create-method" wire:model.live="paymentMethod" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                         @foreach ($methods as $method)
                                             <option value="{{ $method->value }}">{{ $method->label() }}</option>
                                         @endforeach
@@ -396,15 +407,15 @@ new class extends Component
                                 </div>
                                 @if ($paymentMethod === 'card')
                                     <div>
-                                        <x-input-label :value="__('billing.card_digits')" />
-                                        <x-text-input wire:model="cardLast4" class="mt-1 w-full" maxlength="4" />
+                                        <x-input-label for="f-cardLast4" :value="__('billing.card_digits')" />
+                                        <x-text-input id="f-cardLast4" wire:model="cardLast4" class="mt-1 w-full" maxlength="4" />
                                         <p class="mt-1 text-xs text-amber-700">{{ __('billing.issue.card_last4') }}</p>
                                         <x-input-error :messages="$errors->get('cardLast4')" class="mt-1" />
                                     </div>
                                 @endif
                                 <div>
-                                    <x-input-label :value="__('billing.payer')" />
-                                    <select wire:model="payerUserId" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                    <x-input-label for="f-payerUserId" :value="__('billing.payer')" />
+                                    <select id="f-payerUserId" wire:model="payerUserId" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                         <option value="">{{ __('billing.not_specified') }}</option>
                                         @foreach ($people as $person)
                                             <option value="{{ $person->id }}">{{ $person->name }}</option>
@@ -413,8 +424,8 @@ new class extends Component
                                     <p class="mt-1 text-xs text-gray-500">{{ __('billing.payer_help') }}</p>
                                 </div>
                                 <div>
-                                    <x-input-label :value="__('billing.owner')" />
-                                    <select wire:model="ownerUserId" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
+                                    <x-input-label for="f-ownerUserId" :value="__('billing.owner')" />
+                                    <select id="f-ownerUserId" wire:model="ownerUserId" class="mt-1 w-full border-gray-300 rounded-lg text-sm">
                                         <option value="">{{ __('billing.not_specified') }}</option>
                                         @foreach ($people as $person)
                                             <option value="{{ $person->id }}">{{ $person->name }}</option>
@@ -422,33 +433,33 @@ new class extends Component
                                     </select>
                                     <p class="mt-1 text-xs text-gray-500">{{ __('billing.owner_help') }}</p>
                                 </div>
-                                <button type="button" class="text-sm text-indigo-700" wire:click="$toggle('extraOpen')">{{ __('billing.extra') }}</button>
+                                <button type="button" class="text-sm text-primary-700" wire:click="$toggle('extraOpen')">{{ __('billing.extra') }}</button>
                                 @if ($extraOpen)
                                     <div class="space-y-3 border-t border-gray-100 pt-3">
                                         <div>
-                                            <x-input-label :value="__('billing.portal_url')" />
-                                            <x-text-input wire:model="portalUrl" class="mt-1 w-full" />
+                                            <x-input-label for="f-portalUrl" :value="__('billing.portal_url')" />
+                                            <x-text-input id="f-portalUrl" wire:model="portalUrl" class="mt-1 w-full" />
                                         </div>
                                         <div>
-                                            <x-input-label :value="__('billing.account_ref')" />
-                                            <x-text-input wire:model="accountRef" class="mt-1 w-full" />
+                                            <x-input-label for="f-accountRef" :value="__('billing.account_ref')" />
+                                            <x-text-input id="f-accountRef" wire:model="accountRef" class="mt-1 w-full" />
                                         </div>
                                         @if ($paymentMethod === 'card')
                                             <div>
-                                                <x-input-label :value="__('billing.card_label')" />
-                                                <x-text-input wire:model="cardLabel" class="mt-1 w-full" />
+                                                <x-input-label for="f-cardLabel" :value="__('billing.card_label')" />
+                                                <x-text-input id="f-cardLabel" wire:model="cardLabel" class="mt-1 w-full" />
                                             </div>
                                         @endif
                                         <div>
-                                            <x-input-label :value="__('billing.vat_note')" />
-                                            <x-text-input wire:model="vatNote" class="mt-1 w-full" />
+                                            <x-input-label for="f-vatNote" :value="__('billing.vat_note')" />
+                                            <x-text-input id="f-vatNote" wire:model="vatNote" class="mt-1 w-full" />
                                         </div>
                                         <div>
-                                            <x-input-label :value="__('billing.notes')" />
-                                            <textarea wire:model="notes" class="mt-1 w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
+                                            <x-input-label for="f-notes" :value="__('billing.notes')" />
+                                            <textarea id="f-notes" wire:model="notes" class="mt-1 w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
                                         </div>
                                         <label class="flex items-center gap-2 text-sm text-gray-700">
-                                            <input type="checkbox" wire:model="autoRenew" class="rounded border-gray-300 text-indigo-600" />
+                                            <input type="checkbox" wire:model="autoRenew" class="rounded border-gray-300 text-primary-600" />
                                             {{ __('billing.auto_renew') }}
                                         </label>
                                     </div>
@@ -458,13 +469,13 @@ new class extends Component
                     </div>
 
                     <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50">
-                        <x-action-button variant="ghost" wire:click="prevStep" :disabled="$step === 1">{{ __('billing.back') }}</x-action-button>
+                        <x-button type="button" size="sm" variant="ghost" wire:click="prevStep" :disabled="$step === 1">{{ __('billing.back') }}</x-button>
                         <div class="flex gap-2">
-                            <x-action-button variant="ghost" wire:click="close">{{ __('Cancel') }}</x-action-button>
+                            <x-button type="button" size="sm" variant="ghost" wire:click="close">{{ __('Cancel') }}</x-button>
                             @if ($step < 4)
-                                <x-action-button variant="primary" wire:click="nextStep">{{ __('billing.next') }}</x-action-button>
+                                <x-button type="button" size="sm" variant="primary" wire:click="nextStep">{{ __('billing.next') }}</x-button>
                             @else
-                                <x-action-button variant="primary" wire:click="save">{{ __('billing.save') }}</x-action-button>
+                                <x-button type="button" size="sm" variant="primary" wire:click="save">{{ __('billing.save') }}</x-button>
                             @endif
                         </div>
                     </div>

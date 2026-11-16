@@ -13,14 +13,14 @@
                     type="button"
                     x-on:click="$store.toasts.undo(toast)"
                     data-ui="toast-undo"
-                    class="shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+                    class="shrink-0 rounded-md px-1.5 py-0.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
                 >
                     {{ __('Undo') }}
                 </button>
             </template>
             <button
                 type="button"
-                class="shrink-0 rounded-md p-0.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                class="shrink-0 rounded-md p-0.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                 x-on:click="$store.toasts.dismiss(toast.id)"
                 aria-label="{{ __('Close') }}"
             >

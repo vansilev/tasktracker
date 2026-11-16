@@ -28,3 +28,7 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+/public/videos
+
+# Design audit screenshots contain real employee data
+/docs/design-audit/

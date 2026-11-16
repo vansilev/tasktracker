@@ -32,7 +32,7 @@
                 return width;
             }
 
-            return width + '; border-left-color:#4f46e5; border-left-width:3px';
+            return width + '; border-left-color:#1F3A8A; border-left-width:3px';
         },
         startResize(event) {
             if (! window.matchMedia('(min-width: 768px)').matches) {

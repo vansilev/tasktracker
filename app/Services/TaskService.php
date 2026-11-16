@@ -13,7 +13,7 @@ use App\Models\TaskChecklistItem;
 use App\Models\TaskComment;
 use App\Models\TaskCommentReaction;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Support\Deadline;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -102,7 +102,7 @@ class TaskService
                 'description' => '',
                 'priority' => (int) $data['priority'],
                 'status' => TaskStatus::New,
-                'deadline' => $data['deadline'] ?? null,
+                'deadline' => Deadline::normalize($data['deadline'] ?? null),
                 'spec_url' => $data['spec_url'] ?? null,
                 'result_url' => $data['result_url'] ?? null,
             ]);
@@ -210,7 +210,7 @@ class TaskService
                 'description' => $description,
                 'priority' => (int) ($data['priority'] ?? $parent->priority),
                 'assignee_id' => $assigneeId,
-                'deadline' => $data['deadline'] ?? null,
+                'deadline' => Deadline::normalize($data['deadline'] ?? null),
                 'spec_url' => $data['spec_url'] ?? null,
                 'parent_id' => $parent->id,
             ],
@@ -474,33 +474,20 @@ class TaskService
             }
 
             if (array_key_exists('deadline', $data)) {
-                $newRaw = $data['deadline'];
+                // A deadline is a date: it always lands on the end of that day (see App\Support\Deadline).
+                $savedDeadline = Deadline::normalize($data['deadline']);
+                $old = $task->deadline?->toDateTimeString();
+                $new = $savedDeadline?->toDateTimeString();
+                $sameDay = $task->deadline !== null
+                    && $savedDeadline !== null
+                    && $task->deadline->toDateString() === $savedDeadline->toDateString();
 
-                if ($newRaw === '' || $newRaw === null) {
-                    if ($task->deadline !== null) {
-                        $old = $task->deadline->toDateTimeString();
-                        $updates['deadline'] = null;
-                        $auditOld['deadline'] = $old;
-                        $auditNew['deadline'] = null;
-                        $this->workflow->logHistory($task, 'deadline', $old, null, $user);
-                    }
-                } elseif (
-                    $task->deadline !== null
-                    && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $newRaw)
-                    && $task->deadline->toDateString() === Carbon::parse($newRaw)->toDateString()
-                ) {
-                    // Same calendar date — preserve existing time, no history.
-                } else {
-                    $savedDeadline = Carbon::parse($newRaw);
-                    $old = $task->deadline?->toDateTimeString();
-                    $new = $savedDeadline->toDateTimeString();
-
-                    if ($old !== $new) {
-                        $updates['deadline'] = $savedDeadline;
-                        $auditOld['deadline'] = $old;
-                        $auditNew['deadline'] = $new;
-                        $this->workflow->logHistory($task, 'deadline', $old, $new, $user);
-                    }
+                // Same calendar date — nothing changed for the user; a legacy time of day stays until the date moves.
+                if ($old !== $new && ! $sameDay) {
+                    $updates['deadline'] = $savedDeadline;
+                    $auditOld['deadline'] = $old;
+                    $auditNew['deadline'] = $new;
+                    $this->workflow->logHistory($task, 'deadline', $old, $new, $user);
                 }
             }
 

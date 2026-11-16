@@ -90,10 +90,17 @@ class TaskController extends Controller
         $data = $request->validate([
             'status' => ['required', 'string'],
             'comment' => ['nullable', 'string'],
+            'postponed_until' => ['nullable', 'string'],
         ]);
 
         return response()->json([
-            'data' => $api->transition($request->user(), $number, $data['status'], $data['comment'] ?? null),
+            'data' => $api->transition(
+                $request->user(),
+                $number,
+                $data['status'],
+                $data['comment'] ?? null,
+                $data['postponed_until'] ?? null,
+            ),
         ]);
     }
 }

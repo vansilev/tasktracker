@@ -126,6 +126,11 @@ class User extends Authenticatable implements HasLocalePreference
             ->when($email !== '', fn ($q) => $q->where('email', '!=', $email));
     }
 
+    public function kommoReadKeys(): HasMany
+    {
+        return $this->hasMany(KommoReadKey::class);
+    }
+
     public function preferredLocale(): string
     {
         return $this->locale ?: (string) config('app.locale');

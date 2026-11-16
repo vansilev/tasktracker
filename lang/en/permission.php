@@ -14,4 +14,6 @@ return [
     'manage_department' => 'Manage department settings',
     'view_billing' => 'View billing',
     'manage_billing' => 'Manage billing',
+    'kommo_read' => 'Connect Kommo to Cursor (read-only)',
+    'view_meetings' => 'Open the Meetings tab (only meetings the person has access to)',
 ];

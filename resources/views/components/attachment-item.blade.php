@@ -19,26 +19,27 @@
                 <img
                     src="{{ $href }}"
                     alt="{{ $attachment->filename }}"
-                    class="max-h-36 max-w-full rounded-lg border border-gray-200 object-contain bg-gray-50 group-hover:border-indigo-300 transition-colors"
+                    class="max-h-36 max-w-full rounded-lg border border-gray-200 object-contain bg-gray-50 group-hover:border-primary-300 transition-colors"
                     loading="lazy"
                 />
-                <span class="mt-1 block text-xs text-indigo-600 group-hover:text-indigo-800 truncate">{{ $attachment->filename }}</span>
+                <span class="mt-1 block text-xs text-primary-600 group-hover:text-primary-800 truncate">{{ $attachment->filename }}</span>
             </a>
         @else
-            <a href="{{ $href }}" @if ($previewKind) data-attachment-preview="{{ $previewKind }}" @endif class="text-indigo-600 hover:text-indigo-800 hover:underline truncate block">
+            <a href="{{ $href }}" @if ($previewKind) data-attachment-preview="{{ $previewKind }}" @endif class="text-primary-600 hover:text-primary-800 hover:underline truncate block">
                 {{ $attachment->filename }}
             </a>
         @endif
     </div>
     <div class="flex items-center gap-1.5 shrink-0 pt-0.5">
-        <span class="text-gray-400 text-xs">{{ number_format($attachment->size / 1024, 1) }} KB</span>
+        <span class="text-gray-500 text-xs">{{ number_format($attachment->size / 1024, 1) }} KB</span>
         @can('deleteAttachment', [$task, $attachment])
             <button
                 type="button"
                 wire:click="deleteAttachment({{ $attachment->id }})"
                 wire:confirm="{{ __('Delete this attachment?') }}"
-                class="text-xs text-red-600 hover:text-red-800"
-            >✕</button>
+                class="p-1 rounded text-gray-500 hover:text-red-700 hover:bg-red-50"
+                aria-label="{{ __('Delete') }}"
+            ><x-icon.x-mark /></button>
         @endcan
     </div>
 </li>

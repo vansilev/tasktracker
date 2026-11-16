@@ -15,25 +15,25 @@
     >
         <template x-if="$store.contextMenu.view === 'root'">
             <div>
-                <button type="button" class="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-indigo-50" x-on:click="$store.contextMenu.openTask()">
+                <button type="button" class="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-primary-50" x-on:click="$store.contextMenu.openTask()">
                     {{ __('Open') }}
                 </button>
-                <button type="button" class="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-indigo-50" x-on:click="$store.contextMenu.copyLink()">
+                <button type="button" class="flex w-full items-center px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-primary-50" x-on:click="$store.contextMenu.copyLink()">
                     {{ __('Copy link') }}
                 </button>
                 <template x-if="$store.contextMenu.payload?.transitions?.length">
                     <div>
                         <div class="my-1 border-t border-gray-100"></div>
-                        <button type="button" class="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-indigo-50" x-on:click="$store.contextMenu.view = 'status'">
+                        <button type="button" class="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-primary-50" x-on:click="$store.contextMenu.view = 'status'">
                             <span>{{ __('Change status') }}</span>
-                            <span class="text-gray-400">›</span>
+                            <span class="text-gray-500">›</span>
                         </button>
                     </div>
                 </template>
                 <template x-if="$store.contextMenu.payload?.canAssign && $store.contextMenu.payload?.assignees?.length">
-                    <button type="button" class="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-indigo-50" x-on:click="$store.contextMenu.view = 'assign'">
+                    <button type="button" class="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-primary-50" x-on:click="$store.contextMenu.view = 'assign'">
                         <span>{{ __('Assign') }}</span>
-                        <span class="text-gray-400">›</span>
+                        <span class="text-gray-500">›</span>
                     </button>
                 </template>
             </div>
@@ -47,7 +47,7 @@
                 <template x-for="item in ($store.contextMenu.payload?.transitions || [])" :key="item.value">
                     <button
                         type="button"
-                        class="flex w-full items-center px-3 py-1.5 text-left text-sm hover:bg-indigo-50"
+                        class="flex w-full items-center px-3 py-1.5 text-left text-sm hover:bg-primary-50"
                         x-bind:class="item.destructive ? 'text-red-700' : 'text-gray-900'"
                         x-on:click="$store.contextMenu.pickStatus(item)"
                         x-text="item.label"
@@ -65,8 +65,8 @@
                     <template x-for="person in ($store.contextMenu.payload?.assignees || [])" :key="person.id">
                         <button
                             type="button"
-                            class="flex w-full items-center px-3 py-1.5 text-left text-sm hover:bg-indigo-50"
-                            x-bind:class="Number(person.id) === Number($store.contextMenu.payload.assigneeId) ? 'text-indigo-700 font-medium' : 'text-gray-900'"
+                            class="flex w-full items-center px-3 py-1.5 text-left text-sm hover:bg-primary-50"
+                            x-bind:class="Number(person.id) === Number($store.contextMenu.payload.assigneeId) ? 'text-primary-700 font-medium' : 'text-gray-900'"
                             x-on:click="$store.contextMenu.pickAssignee(person)"
                             x-text="person.name"
                         ></button>
@@ -86,9 +86,15 @@
                     x-on:keydown.enter.meta.prevent="$store.contextMenu.submitComment()"
                     x-on:keydown.enter.ctrl.prevent="$store.contextMenu.submitComment()"
                 ></textarea>
+                <label class="mt-2 block text-xs text-gray-600" x-show="$store.contextMenu.commentTarget?.needsDate" data-ui="postponed-until">
+                    {{ __('Return date') }}
+                    <input type="date" class="mt-1 block w-full rounded-md border-gray-200 text-sm"
+                        min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}"
+                        x-model="$store.contextMenu.postponedUntil">
+                </label>
                 <div class="mt-2 flex justify-end gap-2">
                     <button type="button" class="rounded-md px-2 py-1 text-xs text-gray-600 hover:bg-gray-50" x-on:click="$store.contextMenu.view = 'root'">{{ __('Cancel') }}</button>
-                    <button type="button" class="rounded-md bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500" x-on:click="$store.contextMenu.submitComment()">{{ __('Confirm') }}</button>
+                    <button type="button" class="rounded-md bg-primary-600 px-2 py-1 text-xs font-medium text-white hover:bg-primary-500" x-on:click="$store.contextMenu.submitComment()">{{ __('Confirm') }}</button>
                 </div>
             </div>
         </template>

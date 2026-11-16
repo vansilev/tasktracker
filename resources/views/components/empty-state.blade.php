@@ -2,7 +2,7 @@
 
 <div {{ $attributes->merge(['class' => 'flex flex-col items-center justify-center text-center py-12 px-4']) }}>
     @isset($icon)
-        <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-gray-400 ring-1 ring-gray-100">
+        <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-gray-500 ring-1 ring-gray-100">
             {{ $icon }}
         </div>
     @endisset

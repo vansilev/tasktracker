@@ -17,6 +17,8 @@ enum Permission: string
     case ManageDepartment = 'manage_department';
     case ViewBilling = 'view_billing';
     case ManageBilling = 'manage_billing';
+    case KommoRead = 'kommo_read';
+    case ViewMeetings = 'view_meetings';
 
     public function label(): string
     {
@@ -34,6 +36,8 @@ enum Permission: string
             self::ManageDepartment => __('permission.manage_department'),
             self::ViewBilling => __('permission.view_billing'),
             self::ManageBilling => __('permission.manage_billing'),
+            self::KommoRead => __('permission.kommo_read'),
+            self::ViewMeetings => __('permission.view_meetings'),
         };
     }
 

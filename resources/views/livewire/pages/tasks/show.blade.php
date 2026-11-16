@@ -96,11 +96,16 @@ new #[Layout('components.tasks-layout')] class extends Component
 
     public string $transitionComment = '';
 
+    public string $postponedUntil = '';
+
     public ?string $transitionError = null;
 
     public bool $editingWatchers = false;
 
     public array $watcherIds = [];
+
+    /** Combobox buffer: picking a person adds them to $watcherIds. */
+    public ?int $watcherToAdd = null;
 
     public ?int $editingCommentId = null;
 
@@ -305,6 +310,20 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->editingWatchers = false;
     }
 
+    public function updatedWatcherToAdd($value): void
+    {
+        $id = (int) $value;
+        if ($id > 0 && ! in_array($id, array_map('intval', $this->watcherIds), true)) {
+            $this->watcherIds[] = (string) $id;
+        }
+        $this->watcherToAdd = null;
+    }
+
+    public function removeWatcherId(int $id): void
+    {
+        $this->watcherIds = array_values(array_filter($this->watcherIds, fn ($w) => (int) $w !== $id));
+    }
+
     public function cancelEditWatchers(): void
     {
         $this->editingWatchers = false;
@@ -335,6 +354,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         if (TaskStatus::requiresComment($target, $this->task->status)) {
             $this->pendingTransition = $status;
             $this->transitionComment = '';
+            $this->postponedUntil = '';
 
             return;
         }
@@ -346,17 +366,22 @@ new #[Layout('components.tasks-layout')] class extends Component
     {
         $this->validate([
             'transitionComment' => ['required', 'string', new PlainTextLength(min: 1, max: 20000)],
+            'postponedUntil' => $this->pendingTransition === TaskStatus::Postponed->value
+                ? ['required', 'date_format:Y-m-d', 'after:today']
+                : ['nullable'],
         ], [], [
             'transitionComment' => __('Transition comment'),
+            'postponedUntil' => __('Return date'),
         ]);
 
-        $this->performTransition($this->pendingTransition, $this->transitionComment);
+        $this->performTransition($this->pendingTransition, $this->transitionComment, $this->postponedUntil);
     }
 
     public function cancelTransition(): void
     {
         $this->pendingTransition = null;
         $this->transitionComment = '';
+        $this->postponedUntil = '';
         $this->transitionError = null;
     }
 
@@ -366,7 +391,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         $this->task->refresh();
     }
 
-    private function performTransition(?string $status, ?string $comment = null): void
+    private function performTransition(?string $status, ?string $comment = null, ?string $postponedUntil = null): void
     {
         if ($status === null) {
             return;
@@ -378,10 +403,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                 auth()->user(),
                 TaskStatus::from($status),
                 $comment,
+                postponedUntil: $postponedUntil,
             );
 
             $this->pendingTransition = null;
             $this->transitionComment = '';
+            $this->postponedUntil = '';
             $this->transitionError = null;
             $this->js(app(TaskWorkflowService::class)->undoToastScript(
                 __('Status changed to :status', ['status' => TaskStatus::from($status)->label()]),
@@ -435,6 +462,14 @@ new #[Layout('components.tasks-layout')] class extends Component
             $this->commentBody,
             quotedCommentIds: $this->quotedIdsForNewComment(),
         );
+
+        // The comment is saved either way; the author just learns that nobody was called.
+        $unresolved = app(\App\Services\MentionService::class)->unresolvedMentions($this->commentBody);
+        if ($unresolved !== []) {
+            $this->js('window.uiToast('.json_encode(__('Nobody was notified for :names: no such person. Pick the name from the list after typing @.', [
+                'names' => implode(', ', array_map(fn (string $token) => '@'.$token, array_slice($unresolved, 0, 3))),
+            ])).')');
+        }
 
         foreach ($this->commentFiles as $file) {
             $attachments->store($this->task, auth()->user(), $file, $comment->id);
@@ -983,49 +1018,20 @@ new #[Layout('components.tasks-layout')] class extends Component
     /** @return array{text: string, class: string} */
     public function deadlineMeta(): array
     {
-        if ($this->task->deadline === null) {
-            return ['text' => '—', 'class' => 'text-gray-700'];
-        }
-
-        $deadline = $this->task->deadline->timezone(config('app.timezone'));
-        $formatted = $deadline->format('d.m.Y');
-
-        if (! $this->task->status->isOpen()) {
-            return ['text' => $formatted, 'class' => 'text-gray-700'];
-        }
-
-        $now = now()->timezone(config('app.timezone'));
-
-        if ($deadline->isPast()) {
-            $days = (int) $deadline->diffInDays($now);
-
-            return [
-                'text' => __(':date (overdue :count days)', ['date' => $formatted, 'count' => $days]),
-                'class' => 'text-red-600 font-medium',
-            ];
-        }
-
-        if ((int) $now->diffInDays($deadline) <= 3) {
-            return [
-                'text' => $deadline->diffForHumans(),
-                'class' => 'text-amber-600 font-medium',
-            ];
-        }
-
-        return ['text' => $formatted, 'class' => 'text-gray-700'];
+        return \App\Support\Deadline::meta($this->task);
     }
 }; ?>
 
 <div class="space-y-4" x-data="attachmentLightbox">
     <div class="flex items-center justify-between gap-4">
-        <a href="{{ route('tasks.index') }}" wire:navigate class="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+        <a href="{{ route('tasks.index') }}" wire:navigate class="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-800 transition-colors">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             {{ __('Back to tasks') }}
         </a>
     </div>
 
     @if (session('status'))
-        <div class="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 text-sm">{{ session('status') }}</div>
+        <div class="rounded-xl bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm">{{ session('status') }}</div>
     @endif
 
     {{-- Header --}}
@@ -1034,18 +1040,18 @@ new #[Layout('components.tasks-layout')] class extends Component
             <div class="min-w-0">
                 @if ($task->parent)
                     <a href="{{ route('tasks.show', $task->parent) }}" wire:navigate
-                       class="mb-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                       class="mb-1 inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-800">
                         {{ __('Part of #:number · :title', ['number' => $task->parent->number, 'title' => $task->parent->title]) }}
                     </a>
                 @endif
                 <div class="flex flex-wrap items-center gap-2">
                     <h1 class="text-lg font-semibold text-gray-900">
-                        <x-task-number :task="$task" class="text-lg font-semibold text-gray-400 hover:text-indigo-700" />
+                        <x-task-number :task="$task" class="text-lg font-semibold text-gray-500 hover:text-primary-700" />
                         · {{ $task->title }}
                     </h1>
                     <x-status-badge :status="$task->status" />
                     @if ($task->priority >= 9)
-                        <span title="{{ __('Urgent') }}">🔥</span>
+                        <span class="inline-flex items-center gap-1 text-xs font-medium text-accent-700" title="{{ __('Urgent') }}"><x-icon.fire class="w-4 h-4 text-accent-600" />{{ __('Urgent priority') }}</span>
                     @endif
                 </div>
                 @if ($task->isSubtask() && ($task->blockers->isNotEmpty() || ($canManageBlockers && $siblingOptions->isNotEmpty())))
@@ -1068,14 +1074,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                         @if ($canManageBlockers && $siblingOptions->isNotEmpty())
                             <select wire:model="newBlockerId"
                                     data-testid="waiting-select"
-                                    class="border-gray-300 rounded-lg bg-white shadow-sm text-sm text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                                    class="border-gray-300 rounded-lg bg-white shadow-sm text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500"
                                     style="min-height:2.5rem;min-width:16rem;padding:0.5rem 0.75rem;line-height:1.25">
                                 <option value="">{{ __('Select a sibling subtask') }}</option>
                                 @foreach ($siblingOptions as $option)
                                     <option value="{{ $option->id }}">#{{ $option->number }} · {{ $option->title }}</option>
                                 @endforeach
                             </select>
-                            <button type="button" wire:click="addBlocker" data-testid="waiting-add" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">{{ __('Add blocker') }}</button>
+                            <button type="button" wire:click="addBlocker" data-testid="waiting-add" class="text-sm font-medium text-primary-600 hover:text-primary-800">{{ __('Add blocker') }}</button>
                             <x-input-error :messages="$errors->get('newBlockerId')" class="w-full" />
                         @endif
                     </div>
@@ -1086,32 +1092,56 @@ new #[Layout('components.tasks-layout')] class extends Component
             </div>
             <div class="flex flex-wrap items-center gap-1.5 shrink-0">
                 @if ($canUpdate && ! $editing)
-                    <x-action-button variant="ghost" wire:click="$set('editing', true)">
+                    <x-button type="button" size="sm" variant="ghost" wire:click="$set('editing', true)">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                         {{ __('Edit') }}
-                    </x-action-button>
+                    </x-button>
                 @endif
-                @if ($canDeleteTask)
-                    <x-action-button variant="danger" wire:click="softDeleteTask" wire:confirm="{{ __('Delete this task? It can be restored later from Administration.') }}">
-                        {{ __('Delete task') }}
-                    </x-action-button>
+                @php
+                    $canMarkBillingPaid = $billingItem && $billingItem->kind->canMarkPaid() && auth()->user()->can('markPaid', $billingItem) && $billingItem->state === \App\Enums\BillingState::Active;
+                    $visibleTransitions = $pendingTransition ? collect() : collect($transitions);
+                    // One primary action: the next forward step. Everything else goes to the "More" menu.
+                    $primaryTransition = $canMarkBillingPaid ? null : collect([
+                        \App\Enums\TaskStatus::InProgress,
+                        \App\Enums\TaskStatus::OnReview,
+                        \App\Enums\TaskStatus::Completed,
+                    ])->first(fn ($s) => $visibleTransitions->contains($s));
+                    $menuTransitions = $visibleTransitions->reject(fn ($s) => $s === $primaryTransition)->values();
+                @endphp
+                @if ($primaryTransition)
+                    <x-button type="button" size="sm" variant="primary" wire:click="selectTransition('{{ $primaryTransition->value }}')">
+                        {{ $this->transitionLabel($primaryTransition) }}
+                    </x-button>
                 @endif
-                @if (! $pendingTransition)
-                    @foreach ($transitions as $transition)
-                        @php
-                            $isDestructive = in_array($transition, [\App\Enums\TaskStatus::Cancelled, \App\Enums\TaskStatus::Rejected], true);
-                            $isPositive = in_array($transition, [\App\Enums\TaskStatus::Completed, \App\Enums\TaskStatus::InProgress], true);
-                            $variant = $isDestructive ? 'danger' : ($isPositive ? 'primary' : 'secondary');
-                        @endphp
-                        <x-action-button :variant="$variant" wire:click="selectTransition('{{ $transition->value }}')">
-                            {{ $this->transitionLabel($transition) }}
-                        </x-action-button>
-                    @endforeach
+                @if ($menuTransitions->isNotEmpty() || $canDeleteTask)
+                    <x-dropdown align="right" width="w-56">
+                        <x-slot name="trigger">
+                            <x-button type="button" size="sm" variant="secondary" aria-haspopup="menu">
+                                {{ $menuTransitions->isNotEmpty() ? __('Change status') : __('More') }}
+                                <svg class="w-4 h-4 shrink-0 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                            </x-button>
+                        </x-slot>
+                        <x-slot name="content">
+                            @foreach ($menuTransitions as $transition)
+                                <button type="button" wire:click="selectTransition('{{ $transition->value }}')" class="block w-full px-4 py-2 text-start text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100">
+                                    {{ $this->transitionLabel($transition) }}
+                                </button>
+                            @endforeach
+                            @if ($canDeleteTask)
+                                @if ($menuTransitions->isNotEmpty())
+                                    <div class="my-1 border-t border-gray-100"></div>
+                                @endif
+                                <button type="button" wire:click="softDeleteTask" wire:confirm="{{ __('Delete this task? It can be restored later from Administration.') }}" class="block w-full px-4 py-2 text-start text-sm text-red-700 hover:bg-red-50 focus:outline-none focus:bg-red-50">
+                                    {{ __('Delete task') }}
+                                </button>
+                            @endif
+                        </x-slot>
+                    </x-dropdown>
                 @endif
-                @if ($billingItem && $billingItem->kind->canMarkPaid() && auth()->user()->can('markPaid', $billingItem) && $billingItem->state === \App\Enums\BillingState::Active)
-                    <x-action-button variant="primary" wire:click="openBillingPay">{{ __('billing.mark_paid') }}</x-action-button>
+                @if ($canMarkBillingPaid)
+                    <x-button type="button" size="sm" variant="primary" wire:click="openBillingPay">{{ __('billing.mark_paid') }}</x-button>
                     @if ($billingItem->kind->canSkip())
-                        <x-action-button variant="ghost" wire:click="$set('billingSkipOpen', true)">{{ __('billing.skip') }}</x-action-button>
+                        <x-button type="button" size="sm" variant="ghost" wire:click="$set('billingSkipOpen', true)">{{ __('billing.skip') }}</x-button>
                     @endif
                 @endif
             </div>
@@ -1125,7 +1155,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         <p class="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">{{ session('billing_error') }}</p>
     @endif
     @if ($billingItem)
-        <div class="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-sm text-indigo-900">
+        <div class="rounded-xl bg-primary-50 border border-primary-100 px-4 py-3 text-sm text-primary-900">
             {{ $billingItem->title() }} · {{ $billingItem->formattedAmount() }}
             @if (auth()->user()->hasPermission(\App\Enums\Permission::ViewBilling) || auth()->user()->hasPermission(\App\Enums\Permission::ManageBilling))
                 · <a href="{{ route('billing.show', $billingItem) }}" wire:navigate class="underline">{{ __('billing.open_billing') }}</a>
@@ -1152,13 +1182,21 @@ new #[Layout('components.tasks-layout')] class extends Component
                     :aria-label="__('Transition comment')"
                 />
                 <x-input-error :messages="$errors->get('transitionComment')" class="mt-1" />
+                @if ($pendingTransition === \App\Enums\TaskStatus::Postponed->value)
+                    <div data-ui="postponed-until">
+                        <x-input-label for="postponedUntil" :value="__('Return date')" class="text-xs" />
+                        <x-text-input wire:model="postponedUntil" id="postponedUntil" type="date" min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}" class="mt-1 text-sm" required />
+                        <p class="mt-1 text-xs text-amber-900/70">{{ __('From this day the task is back in deadline reminders.') }}</p>
+                        <x-input-error :messages="$errors->get('postponedUntil')" class="mt-1" />
+                    </div>
+                @endif
                 <div class="flex flex-wrap gap-2">
-                    <x-action-button variant="primary" type="submit">
+                    <x-button size="sm" variant="primary" type="submit">
                         {{ __('task.confirm_transition') }}: {{ $this->transitionLabel(\App\Enums\TaskStatus::from($pendingTransition)) }}
-                    </x-action-button>
-                    <x-action-button variant="secondary" type="button" wire:click="cancelTransition">
+                    </x-button>
+                    <x-button size="sm" variant="secondary" type="button" wire:click="cancelTransition">
                         {{ __('task.cancel_transition') }}
-                    </x-action-button>
+                    </x-button>
                 </div>
             </form>
         </div>
@@ -1171,8 +1209,8 @@ new #[Layout('components.tasks-layout')] class extends Component
             </x-slot>
             <form wire:submit="saveEdit" class="space-y-4 max-w-3xl">
                 <div>
-                    <x-input-label :value="__('Title')" />
-                    <x-text-input wire:model="editTitle" class="mt-1 w-full" maxlength="120" />
+                    <x-input-label for="f-editTitle" :value="__('Title')" />
+                    <x-text-input id="f-editTitle" wire:model="editTitle" class="mt-1 w-full" maxlength="120" />
                 </div>
                 <div>
                     <x-input-label :value="__('Description')" />
@@ -1190,29 +1228,29 @@ new #[Layout('components.tasks-layout')] class extends Component
                 </div>
                 @if ($canChangePriority)
                 <div>
-                    <x-input-label :value="__('Priority')" />
-                    <input type="range" wire:model.live="editPriority" min="1" max="10" class="mt-2 w-full accent-indigo-600" />
-                    <x-priority-bar :priority="$editPriority" class="mt-2" size="lg" />
+                    <x-input-label for="f-editPriority" :value="__('Priority')" />
+                    <input id="f-editPriority" type="range" wire:model.live="editPriority" min="1" max="10" class="mt-2 w-full accent-primary-600" />
+                    <x-priority-bar :priority="$editPriority" class="mt-2" size="lg" mode="scale" />
                 </div>
                 @endif
                 <div>
-                    <x-input-label :value="__('Deadline')" />
-                    <x-text-input type="date" wire:model="editDeadline" class="mt-1 w-full" />
+                    <x-input-label for="f-editDeadline" :value="__('Deadline')" />
+                    <x-text-input id="f-editDeadline" type="date" wire:model="editDeadline" class="mt-1 w-full" />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <x-input-label :value="__('Spec URL')" />
-                        <x-text-input wire:model="editSpecUrl" class="mt-1 w-full" />
+                        <x-input-label for="f-editSpecUrl" :value="__('Spec URL')" />
+                        <x-text-input id="f-editSpecUrl" wire:model="editSpecUrl" class="mt-1 w-full" />
                     </div>
                     <div>
-                        <x-input-label :value="__('Result URL')" />
-                        <x-text-input wire:model="editResultUrl" class="mt-1 w-full" />
+                        <x-input-label for="f-editResultUrl" :value="__('Result URL')" />
+                        <x-text-input id="f-editResultUrl" wire:model="editResultUrl" class="mt-1 w-full" />
                     </div>
                 </div>
                 @if ($canAssign)
                     <div>
-                        <x-input-label :value="__('Department')" />
-                        <x-combobox
+                        <x-input-label for="f-editAssigneeDepartmentId" :value="__('Department')" />
+                        <x-combobox id="f-editAssigneeDepartmentId"
                             class="mt-1"
                             wire:model.live="editAssigneeDepartmentId"
                             :options="$departments->map(fn ($dept) => ['value' => $dept->id, 'label' => $dept->name])->all()"
@@ -1220,8 +1258,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                         />
                     </div>
                     <div>
-                        <x-input-label :value="__('Assignee')" />
-                        <x-combobox
+                        <x-input-label for="f-editAssigneeId" :value="__('Assignee')" />
+                        <x-combobox id="f-editAssigneeId"
                             class="mt-1"
                             wire:key="edit-assignee-{{ $editAssigneeDepartmentId }}"
                             wire:model="editAssigneeId"
@@ -1248,8 +1286,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @endif
                 @endif
                 <div class="flex gap-3">
-                    <x-primary-button>{{ __('Save') }}</x-primary-button>
-                    <x-secondary-button type="button" wire:click="$set('editing', false)">{{ __('Cancel') }}</x-secondary-button>
+                    <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
+                    <x-button variant="secondary" type="button" wire:click="$set('editing', false)">{{ __('Cancel') }}</x-button>
                 </div>
             </form>
         </x-card>
@@ -1266,7 +1304,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     </div>
                     @if ($canCreateSubtask && ! $task->isSubtask())
                         <div class="mt-4 pt-4 border-t border-gray-100">
-                            <x-secondary-button type="button" wire:click="openSubtaskModal">{{ __('Add subtask') }}</x-secondary-button>
+                            <x-button variant="secondary" type="button" wire:click="openSubtaskModal">{{ __('Add subtask') }}</x-button>
                         </div>
                     @endif
                 </x-card>
@@ -1283,7 +1321,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @endif
                     @if ($subtaskTotal > 0)
                         <div class="mb-4 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: {{ $subtaskProgressPercent }}%"></div>
+                            <div class="h-full bg-primary-500 rounded-full transition-all" style="width: {{ $subtaskProgressPercent }}%"></div>
                         </div>
                     @endif
                     @if ($task->subtasks->isEmpty())
@@ -1300,7 +1338,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     <div class="flex items-center gap-1.5 py-1.5 px-1 rounded-lg hover:bg-gray-50 transition-colors">
                                         @if ($canCreateSubtask && $task->subtasks->count() > 1)
                                             <button type="button"
-                                                    class="shrink-0 inline-flex items-center justify-center size-7 rounded text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none touch-none"
+                                                    class="shrink-0 inline-flex items-center justify-center size-7 rounded text-gray-500 hover:text-gray-600 cursor-grab active:cursor-grabbing leading-none touch-none"
                                                     aria-label="{{ __('Drag to reorder') }}"
                                                     @click.stop
                                                     tabindex="-1">
@@ -1319,8 +1357,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                                         @endif
                                         <a href="{{ route('tasks.show', $subtask) }}" wire:navigate draggable="false"
                                            class="flex flex-1 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 leading-5">
-                                            <span class="shrink-0 text-sm tabular-nums text-gray-400">#{{ $subtask->number }}</span>
-                                            <span class="flex-1 min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
+                                            <span class="shrink-0 text-sm tabular-nums text-gray-500">#{{ $subtask->number }}</span>
+                                            <span class="flex-1 min-w-[10rem] sm:min-w-0 text-sm text-gray-800 truncate">{{ $subtask->title }}</span>
                                             @if (($waitingOn = $subtask->waitingOnLabel()) !== '')
                                                 <x-waiting-chip>{{ $waitingOn }}</x-waiting-chip>
                                             @endif
@@ -1347,26 +1385,26 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @endif
                     @if ($checklistTotal > 0)
                         <div class="mb-4 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: {{ round(($checklistDone / $checklistTotal) * 100) }}%"></div>
+                            <div class="h-full bg-primary-500 rounded-full transition-all" style="width: {{ round(($checklistDone / $checklistTotal) * 100) }}%"></div>
                         </div>
                     @endif
                     <ul class="space-y-1.5">
                         @forelse ($task->checklistItems as $item)
                             <li class="flex items-start gap-2 p-1.5 rounded-lg hover:bg-gray-50 transition-colors">
                                 @if ($canToggleChecklist)
-                                    <input type="checkbox" wire:click="toggleChecklist({{ $item->id }})" @checked($item->is_done)
-                                           class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <input type="checkbox" wire:click="toggleChecklist({{ $item->id }})" @checked($item->is_done) aria-label="{{ $item->text ?? $item->title ?? __('Checklist item') }}"
+                                           class="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                                 @else
-                                    <input type="checkbox" disabled @checked($item->is_done)
-                                           class="mt-0.5 rounded border-gray-300 text-gray-400" />
+                                    <input type="checkbox" disabled @checked($item->is_done) aria-label="{{ $item->text ?? $item->title ?? __('Checklist item') }}"
+                                           class="mt-0.5 rounded border-gray-300 text-gray-500" />
                                 @endif
-                                <span class="flex-1 text-sm {{ $item->is_done ? 'line-through text-gray-400' : 'text-gray-800' }}">{{ $item->text }}</span>
+                                <span class="flex-1 text-sm {{ $item->is_done ? 'line-through text-gray-500' : 'text-gray-800' }}">{{ $item->text }}</span>
                                 @if ($canCreateSubtask && ! $task->isSubtask())
                                     <button type="button" wire:click="openSubtaskModalFromChecklist({{ $item->id }})"
-                                            class="shrink-0 text-xs text-indigo-600 hover:text-indigo-800">{{ __('To subtask') }}</button>
+                                            class="shrink-0 text-xs text-primary-600 hover:text-primary-800">{{ __('To subtask') }}</button>
                                 @endif
                                 @if ($canManageChecklist)
-                                    <button type="button" wire:click="deleteChecklistItem({{ $item->id }})" class="text-xs text-red-600 hover:text-red-800">✕</button>
+                                    <button type="button" wire:click="deleteChecklistItem({{ $item->id }})" class="p-1 rounded text-gray-500 hover:text-red-700 hover:bg-red-50" aria-label="{{ __('Delete') }}"><x-icon.x-mark /></button>
                                 @endif
                             </li>
                         @empty
@@ -1376,7 +1414,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @if ($canManageChecklist)
                     <div class="mt-3 flex gap-2">
                         <x-text-input wire:model="newChecklistItem" class="flex-1" placeholder="{{ __('Add checklist item') }}" wire:keydown.enter="addChecklistItem" />
-                        <x-secondary-button type="button" wire:click="addChecklistItem">{{ __('Add') }}</x-secondary-button>
+                        <x-button variant="secondary" type="button" wire:click="addChecklistItem">{{ __('Add') }}</x-button>
                     </div>
                     @endif
                 </x-card>
@@ -1385,7 +1423,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('Comments') }}</h2>
                         @if ($task->comments->isNotEmpty())
-                            <span class="text-xs tabular-nums text-gray-400">{{ $task->comments->count() }}</span>
+                            <span class="text-xs tabular-nums text-gray-500">{{ $task->comments->count() }}</span>
                         @endif
                     </div>
                     @php
@@ -1449,8 +1487,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </ul>
                         @endif
                         <div class="flex flex-wrap items-end gap-2">
-                            <input type="file" wire:model="commentFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="text-sm flex-1 min-w-[12rem]" />
-                            <x-primary-button class="self-end">{{ __('Send') }}</x-primary-button>
+                            <x-file-input wire:model="commentFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" :names="false" class="flex-1 min-w-[12rem]" />
+                            <x-button variant="primary" type="submit" class="self-end">{{ __('Send') }}</x-button>
                         </div>
                         <x-input-error :messages="$errors->get('commentFiles.*')" class="mt-1" />
                         <x-input-error :messages="$errors->get('pastedCommentFile')" class="mt-1" />
@@ -1460,12 +1498,10 @@ new #[Layout('components.tasks-layout')] class extends Component
             </div>
 
             {{-- Right sidebar --}}
-            <aside class="space-y-4 lg:sticky lg:top-6 self-start">
+            <aside class="order-first lg:order-none lg:sticky lg:top-6 self-start rounded-surface border border-gray-200 bg-white divide-y divide-gray-200" aria-label="{{ __('Meta') }}">
                 @php $deadline = $this->deadlineMeta(); @endphp
-                <x-card>
-                    <x-slot name="header">
-                        <h2 class="text-sm font-semibold text-gray-900">{{ __('Meta') }}</h2>
-                    </x-slot>
+                <section class="p-5">
+                    <h2 class="text-sm font-semibold text-gray-900 mb-4">{{ __('Meta') }}</h2>
                     <dl class="space-y-3">
                         <div>
                             <dt class="text-xs text-gray-500">{{ __('Status') }}</dt>
@@ -1473,7 +1509,7 @@ new #[Layout('components.tasks-layout')] class extends Component
                         </div>
                         <div>
                             <dt class="text-xs text-gray-500">{{ __('Priority') }}</dt>
-                            <dd class="mt-0.5"><x-priority-bar :priority="$task->priority" /></dd>
+                            <dd class="mt-0.5"><x-priority-bar :priority="$task->priority" mode="value" /></dd>
                         </div>
                         <div>
                             <dt class="text-xs text-gray-500">{{ __('Assignee') }}</dt>
@@ -1495,6 +1531,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <dt class="text-xs text-gray-500">{{ __('Deadline') }}</dt>
                             <dd class="text-sm {{ $deadline['class'] }}">{{ $deadline['text'] }}</dd>
                         </div>
+                        @if ($task->status === \App\Enums\TaskStatus::Postponed)
+                            <div data-ui="postponed-until-value">
+                                <dt class="text-xs text-gray-500">{{ __('Return date') }}</dt>
+                                <dd class="text-sm text-gray-700">{{ $task->postponed_until?->format('d.m.Y') ?? __('not set') }}</dd>
+                            </div>
+                        @endif
                         <div>
                             <dt class="text-xs text-gray-500">{{ __('Created at') }}</dt>
                             <dd class="text-sm text-gray-700">{{ $task->created_at->timezone(config('app.timezone'))->format('d.m.Y H:i') }}</dd>
@@ -1503,9 +1545,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                             <dt class="text-xs text-gray-500">{{ __('Spec URL') }}</dt>
                             <dd class="text-sm">
                                 @if ($task->spec_url)
-                                    <a href="{{ $task->spec_url }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline">{{ __('Open') }}</a>
+                                    <a href="{{ $task->spec_url }}" target="_blank" class="text-primary-600 hover:text-primary-800 hover:underline">{{ __('Open') }}</a>
                                 @else
-                                    <span class="text-gray-400">—</span>
+                                    <span class="text-gray-500">—</span>
                                 @endif
                             </dd>
                         </div>
@@ -1521,16 +1563,16 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             placeholder="https://"
                                         />
                                         <div class="flex items-center gap-2">
-                                            <x-secondary-button type="submit" class="!text-xs !py-1">
+                                            <x-button variant="secondary" type="submit" class="!text-xs !py-1">
                                                 {{ __('Save') }}
-                                            </x-secondary-button>
+                                            </x-button>
                                             @if ($task->result_url)
-                                                <a href="{{ $task->result_url }}" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline">
+                                                <a href="{{ $task->result_url }}" target="_blank" class="text-xs text-primary-600 hover:text-primary-800 hover:underline">
                                                     {{ __('Open') }}
                                                 </a>
                                             @endif
                                             @if ($resultUrlSaved)
-                                                <span class="text-xs text-emerald-600">{{ $resultUrlSaved }}</span>
+                                                <span class="text-xs text-green-600">{{ $resultUrlSaved }}</span>
                                             @endif
                                         </div>
                                         <x-input-error :messages="$errors->get('resultUrl')" class="mt-1" />
@@ -1538,69 +1580,79 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 @else
                                     <span class="text-sm">
                                         @if ($task->result_url)
-                                            <a href="{{ $task->result_url }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 hover:underline">{{ __('Open') }}</a>
+                                            <a href="{{ $task->result_url }}" target="_blank" class="text-primary-600 hover:text-primary-800 hover:underline">{{ __('Open') }}</a>
                                         @else
-                                            <span class="text-gray-400">—</span>
+                                            <span class="text-gray-500">—</span>
                                         @endif
                                     </span>
                                 @endif
                             </dd>
                         </div>
                     </dl>
-                </x-card>
+                </section>
 
-                <x-card>
-                    <x-slot name="header">
+                <section class="p-5">
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <h2 class="text-sm font-semibold text-gray-900">{{ __('Watchers') }}</h2>
-                    </x-slot>
-                    @if ($canManageWatchers && ! $editingWatchers)
-                        <x-slot name="actions">
-                            <x-action-button variant="ghost" wire:click="startEditWatchers">
+                        @if ($canManageWatchers && ! $editingWatchers)
+                            <x-button type="button" size="sm" variant="ghost" class="-me-2" wire:click="startEditWatchers">
                                 {{ __('Manage watchers') }}
-                            </x-action-button>
-                        </x-slot>
-                    @endif
+                            </x-button>
+                        @endif
+                    </div>
                     @if ($editingWatchers)
                         <div class="space-y-3">
-                            <select wire:model="watcherIds" multiple
-                                    class="w-full border-gray-300 rounded-lg shadow-sm h-32 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                @foreach ($allUsers as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                @endforeach
-                            </select>
+                            @php
+                                $watcherIdsInt = array_map('intval', $watcherIds);
+                                $chosenWatchers = $allUsers->whereIn('id', $watcherIdsInt);
+                            @endphp
+                            @if ($chosenWatchers->isNotEmpty())
+                                <ul class="flex flex-wrap gap-1.5">
+                                    @foreach ($chosenWatchers as $w)
+                                        <li class="inline-flex items-center gap-1 rounded-control bg-gray-100 py-0.5 ps-2 pe-1 text-body-sm text-gray-800">
+                                            {{ $w->name }}
+                                            <button type="button" wire:click="removeWatcherId({{ $w->id }})" class="rounded p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-900" aria-label="{{ __('Delete') }}: {{ $w->name }}"><x-icon.x-mark class="w-3.5 h-3.5" /></button>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                            <x-combobox
+                                wire:key="show-watcher-picker-{{ count($watcherIds) }}"
+                                wire:model.live="watcherToAdd"
+                                :options="$allUsers->reject(fn ($u) => in_array($u->id, $watcherIdsInt, true))->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])->values()->all()"
+                                :placeholder="__('Add watcher')"
+                            />
                             <div class="flex gap-2">
-                                <x-primary-button type="button" wire:click="saveWatchers">{{ __('Save') }}</x-primary-button>
-                                <x-secondary-button type="button" wire:click="cancelEditWatchers">{{ __('Cancel') }}</x-secondary-button>
+                                <x-button variant="primary" type="button" wire:click="saveWatchers">{{ __('Save') }}</x-button>
+                                <x-button variant="secondary" type="button" wire:click="cancelEditWatchers">{{ __('Cancel') }}</x-button>
                             </div>
                         </div>
                     @else
                         @if ($task->watchers->isEmpty())
-                            <p class="text-sm text-gray-400">{{ __('No watchers yet.') }}</p>
+                            <p class="text-sm text-gray-500">{{ __('No watchers yet.') }}</p>
                         @else
                             <ul class="space-y-2">
                                 @foreach ($task->watchers as $watcher)
                                     <li class="flex items-center gap-2 text-sm text-gray-700">
-                                        <span class="w-6 h-6 shrink-0 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-semibold">{{ $this->initials($watcher->name) }}</span>
+                                        <span class="w-6 h-6 shrink-0 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">{{ $this->initials($watcher->name) }}</span>
                                         <span class="flex-1 min-w-0 truncate">{{ $watcher->name }}</span>
                                         @if ($canManageWatchers)
-                                            <button type="button" wire:click="removeWatcher({{ $watcher->id }})" class="w-4 h-4 shrink-0 flex items-center justify-center text-gray-400 hover:text-red-600">✕</button>
+                                            <button type="button" wire:click="removeWatcher({{ $watcher->id }})" class="p-0.5 shrink-0 rounded text-gray-500 hover:text-red-700 hover:bg-red-50" aria-label="{{ __('Delete') }}"><x-icon.x-mark /></button>
                                         @endif
                                     </li>
                                 @endforeach
                             </ul>
                         @endif
                     @endif
-                </x-card>
+                </section>
 
-                <x-card
+                <section
                     x-data="clipboardImagePaste($wire, 'pastedTaskFile')"
                     @paste="handlePaste($event)"
                     tabindex="0"
-                    class="outline-none focus:ring-2 focus:ring-indigo-200"
+                    class="p-5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-200"
                 >
-                    <x-slot name="header">
-                        <h2 class="text-sm font-semibold text-gray-900">{{ __('Attachments') }}</h2>
-                    </x-slot>
+                    <h2 class="text-sm font-semibold text-gray-900 mb-3">{{ __('Attachments') }}</h2>
                     <ul class="space-y-2 mb-3">
                         @forelse ($task->attachments->whereNull('comment_id') as $attachment)
                             <x-attachment-item :attachment="$attachment" :task="$task" />
@@ -1611,14 +1663,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @if ($canUploadAttachment)
                         <p class="text-xs text-gray-500 mb-2">{{ __('Paste image hint') }}</p>
                         <form wire:submit="uploadAttachment" class="flex flex-col gap-2">
-                            <input type="file" wire:model="uploadFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="text-xs w-full" />
-                            <x-secondary-button type="submit" wire:loading.attr="disabled" class="self-start">{{ __('Upload') }}</x-secondary-button>
+                            <x-file-input wire:model="uploadFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
+                            <x-button variant="secondary" type="submit" wire:loading.attr="disabled" class="self-start">{{ __('Upload') }}</x-button>
                         </form>
                         <x-input-error :messages="$errors->get('uploadFiles')" class="mt-1" />
                         <x-input-error :messages="$errors->get('uploadFiles.*')" class="mt-1" />
                         <x-input-error :messages="$errors->get('pastedTaskFile')" class="mt-1" />
                     @endif
-                </x-card>
+                </section>
             </aside>
         </div>
     @endif
@@ -1637,10 +1689,10 @@ new #[Layout('components.tasks-layout')] class extends Component
             <ul class="space-y-0 pt-4">
                 @forelse ($presentedHistories as $presented)
                     @php $entry = $presented['entry']; @endphp
-                    <li class="relative pl-6 pb-4 last:pb-0 border-l-2 border-indigo-100 last:border-transparent ml-2">
-                        <span class="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-indigo-400"></span>
+                    <li class="relative pl-6 pb-4 last:pb-0 border-l-2 border-primary-100 last:border-transparent ml-2">
+                        <span class="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-primary-400"></span>
                         <p class="text-sm text-gray-800">
-                            <span class="text-gray-400 text-xs">{{ $entry->created_at->format('d.m.Y H:i') }}</span>
+                            <span class="text-gray-500 text-xs">{{ $entry->created_at->format('d.m.Y H:i') }}</span>
                             <span class="mx-1">·</span>
                             <span class="font-medium">{{ $entry->changedBy->name }}</span>
                             <span class="text-gray-500">— {{ $presented['field'] }}</span>
@@ -1667,14 +1719,14 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <form wire:submit="saveSubtask" class="relative bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
                     <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
                         <h2 id="create-subtask-title" class="text-sm font-semibold text-gray-900">{{ __('Add subtask') }}</h2>
-                        <button type="button" wire:click="closeSubtaskModal" class="text-gray-400 hover:text-gray-700 text-lg leading-none" aria-label="{{ __('Cancel') }}">✕</button>
+                        <button type="button" wire:click="closeSubtaskModal" class="p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100" aria-label="{{ __('Close') }}"><x-icon.x-mark class="w-5 h-5" /></button>
                     </div>
 
                     <div class="p-5 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start max-h-[calc(100vh-10rem)] overflow-y-auto">
                         <div class="space-y-4 min-w-0">
                             <div>
-                                <x-input-label :value="__('Title')" class="text-xs text-gray-500 font-medium" />
-                                <x-text-input wire:model="subtaskTitle" class="mt-1 w-full rounded-lg text-sm" maxlength="120" />
+                                <x-input-label for="f-subtaskTitle" :value="__('Title')" class="text-xs text-gray-500 font-medium" />
+                                <x-text-input id="f-subtaskTitle" wire:model="subtaskTitle" class="mt-1 w-full rounded-lg text-sm" maxlength="120" />
                                 <x-input-error :messages="$errors->get('subtaskTitle')" class="mt-1" />
                             </div>
 
@@ -1695,17 +1747,17 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </div>
 
                             <div>
-                                <x-input-label :value="__('Checklist')" class="text-xs text-gray-500 font-medium" />
-                                <textarea wire:model="subtaskChecklistText" rows="4"
-                                          class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                <x-input-label for="f-subtaskChecklistText" :value="__('Checklist')" class="text-xs text-gray-500 font-medium" />
+                                <textarea id="f-subtaskChecklistText" wire:model="subtaskChecklistText" rows="4"
+                                          class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-primary-500 focus:ring-primary-500"
                                           placeholder="{{ __('One item per line') }}"></textarea>
                             </div>
                         </div>
 
                         <div class="space-y-4">
                             <div>
-                                <x-input-label :value="__('Department')" class="text-xs text-gray-500 font-medium" />
-                                <x-combobox
+                                <x-input-label for="f-subtaskDepartmentId" :value="__('Department')" class="text-xs text-gray-500 font-medium" />
+                                <x-combobox id="f-subtaskDepartmentId"
                                     class="mt-1"
                                     wire:model.live="subtaskDepartmentId"
                                     :disabled="count($subtaskDepartments) === 1"
@@ -1716,8 +1768,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </div>
 
                             <div>
-                                <x-input-label :value="__('Assignee')" class="text-xs text-gray-500 font-medium" />
-                                <x-combobox
+                                <x-input-label for="f-subtaskAssigneeId" :value="__('Assignee')" class="text-xs text-gray-500 font-medium" />
+                                <x-combobox id="f-subtaskAssigneeId"
                                     class="mt-1"
                                     wire:key="subtask-assignee-{{ $subtaskDepartmentId }}"
                                     wire:model="subtaskAssigneeId"
@@ -1729,8 +1781,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </div>
 
                             <div>
-                                <x-input-label :value="__('Category')" class="text-xs text-gray-500 font-medium" />
-                                <select wire:model="subtaskCategoryId" class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <x-input-label for="f-subtaskCategoryId" :value="__('Category')" class="text-xs text-gray-500 font-medium" />
+                                <select id="f-subtaskCategoryId" wire:model="subtaskCategoryId" class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm focus:border-primary-500 focus:ring-primary-500">
                                     <option value="">{{ __('— Select —') }}</option>
                                     @foreach ($subtaskCategories as $cat)
                                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
@@ -1740,22 +1792,22 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </div>
 
                             <div>
-                                <x-input-label :value="__('Priority')" class="text-xs text-gray-500 font-medium" />
+                                <x-input-label for="f-subtaskPriority" :value="__('Priority')" class="text-xs text-gray-500 font-medium" />
                                 <div class="mt-1 flex items-center gap-2">
-                                    <input type="range" wire:model.live="subtaskPriority" min="1" max="10" class="flex-1 accent-indigo-600" />
-                                    <x-priority-bar :priority="$subtaskPriority" size="sm" />
+                                    <input id="f-subtaskPriority" type="range" wire:model.live="subtaskPriority" min="1" max="10" class="flex-1 accent-primary-600" />
+                                    <x-priority-bar :priority="$subtaskPriority" size="sm" mode="scale" />
                                     <span class="text-sm font-medium text-gray-700 w-5 text-center tabular-nums">{{ $subtaskPriority }}</span>
                                 </div>
                             </div>
 
                             <div>
-                                <x-input-label :value="__('Deadline')" class="text-xs text-gray-500 font-medium" />
-                                <x-text-input type="date" wire:model="subtaskDeadline" class="mt-1 w-full rounded-lg text-sm" />
+                                <x-input-label for="f-subtaskDeadline" :value="__('Deadline')" class="text-xs text-gray-500 font-medium" />
+                                <x-text-input id="f-subtaskDeadline" type="date" wire:model="subtaskDeadline" class="mt-1 w-full rounded-lg text-sm" />
                             </div>
 
                             <div>
-                                <x-input-label :value="__('Spec URL')" class="text-xs text-gray-500 font-medium" />
-                                <x-text-input wire:model="subtaskSpecUrl" type="url" class="mt-1 w-full rounded-lg text-sm" placeholder="https://" />
+                                <x-input-label for="f-subtaskSpecUrl" :value="__('Spec URL')" class="text-xs text-gray-500 font-medium" />
+                                <x-text-input id="f-subtaskSpecUrl" wire:model="subtaskSpecUrl" type="url" class="mt-1 w-full rounded-lg text-sm" placeholder="https://" />
                                 <x-input-error :messages="$errors->get('subtaskSpecUrl')" class="mt-1" />
                             </div>
 
@@ -1763,11 +1815,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                                 x-data="clipboardImagePaste($wire, 'pastedSubtaskFile')"
                                 @paste="handlePaste($event)"
                                 tabindex="0"
-                                class="outline-none focus:ring-2 focus:ring-indigo-200 rounded-lg"
+                                class="outline-none focus:ring-2 focus:ring-primary-200 rounded-lg"
                             >
-                                <x-input-label :value="__('Attachments')" class="text-xs text-gray-500 font-medium" />
+                                <p class="text-xs text-gray-500 font-medium">{{ __('Attachments') }}</p>
                                 <p class="mt-1 text-xs text-gray-500">{{ __('Paste image hint') }}</p>
-                                <input type="file" wire:model="subtaskUploadFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="mt-1 text-sm w-full" />
+                                <x-file-input id="f-subtaskUploadFiles" wire:model="subtaskUploadFiles" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" :names="false" class="mt-2" />
                                 @if (count($subtaskUploadFiles) > 0)
                                     <ul class="mt-1 text-xs text-gray-600 space-y-0.5">
                                         @foreach ($subtaskUploadFiles as $file)
@@ -1779,9 +1831,9 @@ new #[Layout('components.tasks-layout')] class extends Component
                             </div>
 
                             <div>
-                                <x-input-label :value="__('Watchers')" class="text-xs text-gray-500 font-medium" />
-                                <select wire:model="subtaskWatcherIds" multiple
-                                        class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm h-28 focus:border-indigo-500 focus:ring-indigo-500">
+                                <x-input-label for="f-subtaskWatcherIds" :value="__('Watchers')" class="text-xs text-gray-500 font-medium" />
+                                <select id="f-subtaskWatcherIds" wire:model="subtaskWatcherIds" multiple
+                                        class="mt-1 w-full text-sm border-gray-300 rounded-lg shadow-sm h-28 focus:border-primary-500 focus:ring-primary-500">
                                     @foreach ($allUsers as $u)
                                         <option value="{{ $u->id }}">{{ $u->name }}</option>
                                     @endforeach
@@ -1791,8 +1843,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                     </div>
 
                     <div class="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50">
-                        <x-secondary-button type="button" wire:click="closeSubtaskModal">{{ __('Cancel') }}</x-secondary-button>
-                        <x-primary-button wire:loading.attr="disabled">{{ __('Save') }}</x-primary-button>
+                        <x-button variant="secondary" type="button" wire:click="closeSubtaskModal">{{ __('Cancel') }}</x-button>
+                        <x-button variant="primary" type="submit" wire:loading.attr="disabled">{{ __('Save') }}</x-button>
                     </div>
                 </form>
             </div>
@@ -1805,8 +1857,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $billingItem->title(), 'amount' => $billingItem->formattedAmount()]) }}</p>
                 <x-text-input wire:model="billingPayAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
                 <div class="flex gap-2 justify-end">
-                    <x-action-button variant="ghost" wire:click="$set('billingPayOpen', false)">{{ __('Cancel') }}</x-action-button>
-                    <x-action-button variant="primary" wire:click="confirmBillingPay">{{ __('billing.yes') }}</x-action-button>
+                    <x-button type="button" size="sm" variant="ghost" wire:click="$set('billingPayOpen', false)">{{ __('Cancel') }}</x-button>
+                    <x-button type="button" size="sm" variant="primary" wire:click="confirmBillingPay">{{ __('billing.yes') }}</x-button>
                 </div>
             </div>
         </div>
@@ -1818,8 +1870,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <label class="text-sm">{{ __('billing.skip_reason') }}</label>
                 <textarea wire:model="billingSkipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
                 <div class="flex gap-2 justify-end">
-                    <x-action-button variant="ghost" wire:click="$set('billingSkipOpen', false)">{{ __('Cancel') }}</x-action-button>
-                    <x-action-button variant="danger" wire:click="confirmBillingSkip">{{ __('billing.skip') }}</x-action-button>
+                    <x-button type="button" size="sm" variant="ghost" wire:click="$set('billingSkipOpen', false)">{{ __('Cancel') }}</x-button>
+                    <x-button type="button" size="sm" variant="danger" wire:click="confirmBillingSkip">{{ __('billing.skip') }}</x-button>
                 </div>
             </div>
         </div>
@@ -1838,8 +1890,8 @@ new #[Layout('components.tasks-layout')] class extends Component
         <div data-attachment-lightbox-backdrop class="absolute inset-0 bg-black/80"></div>
         <button type="button"
                 data-attachment-lightbox-close
-                class="absolute top-4 right-4 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
-                aria-label="{{ __('Close') }}">✕</button>
+                class="absolute top-4 right-4 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                aria-label="{{ __('Close') }}"><x-icon.x-mark class="w-6 h-6" /></button>
         <button type="button"
                 data-attachment-lightbox-prev
                 hidden
@@ -1858,7 +1910,7 @@ new #[Layout('components.tasks-layout')] class extends Component
         <div class="absolute bottom-4 left-0 right-0 z-10 px-4 text-center text-sm text-white/80">
             <p data-attachment-lightbox-counter hidden class="mb-1 tabular-nums"></p>
             <p data-attachment-lightbox-name hidden class="truncate"></p>
-            <a data-attachment-lightbox-download hidden href="#" class="mt-1 inline-block text-indigo-200 hover:text-white underline">{{ __('Download') }}</a>
+            <a data-attachment-lightbox-download hidden href="#" class="mt-1 inline-block text-primary-200 hover:text-white underline">{{ __('Download') }}</a>
         </div>
     </div>
 </div>

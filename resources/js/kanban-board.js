@@ -27,10 +27,10 @@ function columnAt(x, y) {
 
 function highlight(column) {
     if (overColumn && overColumn !== column) {
-        overColumn.classList.remove('ring-2', 'ring-indigo-400');
+        overColumn.classList.remove('ring-2', 'ring-primary-400');
     }
     overColumn = column || null;
-    overColumn?.classList.add('ring-2', 'ring-indigo-400');
+    overColumn?.classList.add('ring-2', 'ring-primary-400');
 }
 
 function clearGhost() {

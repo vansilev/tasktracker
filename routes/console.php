@@ -9,4 +9,10 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('tasks:send-reminders')->everyThirtyMinutes();
+// Checks the clock itself: runs once, on a working morning, when reminders are switched on.
+Schedule::command('tasks:send-morning-reminders')->everyFiveMinutes()->withoutOverlapping(10);
+// Same pattern: waits for the digest time on a working day, then serves each recipient once.
+Schedule::command('tasks:send-digest')->everyFiveMinutes()->withoutOverlapping(10);
+// A mention must arrive within a minute. The lock expires in 5 minutes, so a killed run cannot stop the rest of the day.
+Schedule::command('tasks:send-comment-notices')->everyMinute()->withoutOverlapping(5);
 Schedule::command('billing:send-reminders')->dailyAt('09:00');

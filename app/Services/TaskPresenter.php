@@ -92,6 +92,7 @@ class TaskPresenter
             'completed_at' => optional($task->completed_at)?->toIso8601String(),
             'closed_by' => $this->user($task->closedBy),
             'review_due_at' => optional($task->review_due_at)?->toIso8601String(),
+            'postponed_until' => $task->postponed_until?->toDateString(),
             'watchers' => $task->watchers->map(fn (User $user) => $this->user($user))->values()->all(),
             'checklist_items' => $task->checklistItems
                 ->map(fn (TaskChecklistItem $item) => [

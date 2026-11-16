@@ -45,4 +45,17 @@ return [
         'group_tag_assignee_on_comment' => env('TELEGRAM_GROUP_TAG_ASSIGNEE_ON_COMMENT', true),
     ],
 
+    // Meetings tab (task 456): transcripts come from Fireflies, tasks are drafted by OpenAI.
+    'fireflies' => [
+        'api_key' => env('FIREFLIES_API_KEY'),
+        'url' => env('FIREFLIES_API_URL', 'https://api.fireflies.ai/graphql'),
+    ],
+
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'url' => env('OPENAI_API_URL', 'https://api.openai.com/v1'),
+        'meeting_model' => env('OPENAI_MEETING_MODEL', 'gpt-5.4'),
+        'meeting_reasoning' => env('OPENAI_MEETING_REASONING', 'medium'),
+    ],
+
 ];

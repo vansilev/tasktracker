@@ -1,3 +1,2 @@
-<button {{ $attributes->merge(['type' => 'submit', 'class' => 'inline-flex items-center justify-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150']) }}>
-    {{ $slot }}
-</button>
+{{-- Deprecated: use <x-button variant="primary" type="submit">. Kept for unmerged branches. --}}
+<x-button variant="primary" :attributes="$attributes->merge(['type' => 'submit'])">{{ $slot }}</x-button>

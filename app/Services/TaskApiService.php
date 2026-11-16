@@ -154,7 +154,7 @@ class TaskApiService
     /**
      * @return array<string, mixed>
      */
-    public function transition(User $user, int $number, string $status, ?string $comment = null): array
+    public function transition(User $user, int $number, string $status, ?string $comment = null, ?string $postponedUntil = null): array
     {
         $to = TaskStatus::tryFrom($status);
         if ($to === null) {
@@ -166,7 +166,7 @@ class TaskApiService
         $task = $this->query->findByNumber($user, $number);
 
         try {
-            $this->workflow->transition($task, $user, $to, $comment, ContentSource::PlainText);
+            $this->workflow->transition($task, $user, $to, $comment, ContentSource::PlainText, $postponedUntil);
         } catch (InvalidArgumentException $e) {
             throw ValidationException::withMessages([
                 'status' => [$e->getMessage()],

@@ -289,6 +289,7 @@ class AuditLogPresenter
             'department_id' => $this->resolveEntityName($stringValue, $context['departments']),
             'category_id' => $this->resolveEntityName($stringValue, $context['categories']),
             'deadline' => $this->formatDeadline($stringValue),
+            'postponed_until' => $this->formatDeadline($stringValue),
             'description' => $this->truncate(
                 app(HtmlContentService::class)->toPlainText($stringValue),
                 60,
@@ -319,13 +320,7 @@ class AuditLogPresenter
     private function formatDeadline(string $value): string
     {
         try {
-            $date = Carbon::parse($value);
-
-            if ($date->format('H:i:s') === '00:00:00') {
-                return $date->format('d.m.Y');
-            }
-
-            return $date->format('d.m.Y H:i');
+            return \App\Support\Deadline::format($value);
         } catch (\Throwable) {
             return $value;
         }

@@ -53,4 +53,44 @@ return [
     */
     'attachment_max_kb' => (int) env('ATTACHMENT_MAX_KB', 10240),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Personal access tokens a user may keep at once
+    |--------------------------------------------------------------------------
+    */
+    'api_token_limit' => 10,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Read-only Kommo MCP (kommo-read.tcsavant.com)
+    |--------------------------------------------------------------------------
+    */
+    'kommo_read_mcp_url' => env('KOMMO_READ_MCP_URL', 'https://kommo-read.tcsavant.com/mcp'),
+    'kommo_read_key_limit' => 5,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Telegram reminders (task 448) — defaults, editable in admin settings
+    |--------------------------------------------------------------------------
+    | Times are Europe/Kyiv, HH:MM. Work days are ISO weekdays (1 = Monday).
+    | "Work days" counters skip weekends only; public holidays are not tracked.
+    */
+    'reminder_enabled' => false,
+    'reminder_comment_notices' => true,
+    'reminder_threshold_days' => [3, 1, 0],
+    'reminder_morning_time' => '09:30',
+    'reminder_digest_time' => '10:00',
+    'reminder_work_start' => '09:00',
+    'reminder_work_end' => '19:00',
+    'reminder_work_days' => [1, 2, 3, 4, 5],
+    'reminder_escalation_after_days' => 3,
+    'reminder_escalation_repeat_days' => 7,
+    'reminder_stale_work_days' => 5,
+    'reminder_mention_repeat_work_days' => 1,
+    'reminder_mention_digest_work_days' => 2,
+    'reminder_digest_recipient_ids' => [],
+    'reminder_excluded_user_ids' => [],
+    'reminder_no_escalation_head_ids' => [],
+    'reminder_pilot_user_ids' => [],
+
 ];

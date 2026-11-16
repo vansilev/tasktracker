@@ -129,18 +129,18 @@ new #[Layout('components.admin-layout')] class extends Component
 
         <div class="flex flex-col sm:flex-row gap-4">
             <div class="flex items-start gap-3 sm:w-48 shrink-0">
-                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold {{ $storedRelativePath ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600' }}">1</span>
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold {{ $storedRelativePath ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600' }}">1</span>
                 <div>
                     <p class="text-sm font-semibold text-gray-900">{{ __('Excel file (.xlsx)') }}</p>
                 </div>
             </div>
             <div class="flex-1 space-y-3">
-                <input
+                <x-file-input
                     id="importFile"
-                    type="file"
                     wire:model="importFile"
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    class="block w-full text-sm text-gray-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    :label="__('Choose Excel file')"
+                    :names="false"
                 />
                 <div wire:loading wire:target="importFile" class="text-xs text-gray-500">
                     {{ __('Uploading…') }}
@@ -156,21 +156,21 @@ new #[Layout('components.admin-layout')] class extends Component
     <x-card padding="p-4">
         <div class="flex flex-col sm:flex-row gap-4">
             <div class="flex items-start gap-3 sm:w-48 shrink-0">
-                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold {{ $dryRunCompleted ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600' }}">2</span>
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold {{ $dryRunCompleted ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600' }}">2</span>
                 <div>
                     <p class="text-sm font-semibold text-gray-900">{{ __('Check (dry-run)') }}</p>
                     <p class="text-xs text-gray-500">{{ __('Dry-run report') }}</p>
                 </div>
             </div>
             <div class="flex-1">
-                <x-action-button variant="primary" size="md" type="button"
+                <x-button variant="primary" size="md" type="button"
                                  wire:click="dryRun"
                                  wire:loading.attr="disabled"
                                  wire:target="dryRun"
                                  :disabled="! $storedRelativePath">
                     <span wire:loading.remove wire:target="dryRun">{{ __('Check (dry-run)') }}</span>
                     <span wire:loading wire:target="dryRun">{{ __('Checking…') }}</span>
-                </x-action-button>
+                </x-button>
             </div>
         </div>
     </x-card>
@@ -185,14 +185,14 @@ new #[Layout('components.admin-layout')] class extends Component
                 </div>
             </div>
             <div class="flex-1">
-                <x-action-button variant="primary" size="md" type="button"
+                <x-button variant="primary" size="md" type="button"
                                  wire:click="import"
                                  wire:loading.attr="disabled"
                                  wire:target="import"
                                  :disabled="! $dryRunCompleted || $importCompleted">
                     <span wire:loading.remove wire:target="import">{{ __('Import') }}</span>
                     <span wire:loading wire:target="import">{{ __('Importing…') }}</span>
-                </x-action-button>
+                </x-button>
             </div>
         </div>
     </x-card>
@@ -234,9 +234,9 @@ new #[Layout('components.admin-layout')] class extends Component
                     <table class="min-w-full divide-y divide-gray-100 text-sm">
                         <thead class="bg-gray-50/80">
                             <tr>
-                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">#</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">№</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Action') }}</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">#</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">№</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Action') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">

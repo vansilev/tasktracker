@@ -17,6 +17,8 @@ new class extends Component
 
     public string $comment = '';
 
+    public string $postponedUntil = '';
+
     public function with(): array
     {
         $task = $this->task();
@@ -49,6 +51,7 @@ new class extends Component
         if (TaskStatus::requiresComment($target, $task->status)) {
             $this->pendingStatus = $status;
             $this->comment = '';
+            $this->postponedUntil = '';
 
             return;
         }
@@ -62,14 +65,18 @@ new class extends Component
         abort_unless($task && $this->pendingStatus, 404);
         $this->validate([
             'comment' => 'required|string|min:1|max:20000',
-        ]);
-        $this->runTransition($task, TaskStatus::from($this->pendingStatus), $this->comment);
+            'postponedUntil' => $this->pendingStatus === TaskStatus::Postponed->value
+                ? 'required|date_format:Y-m-d|after:today'
+                : 'nullable',
+        ], [], ['postponedUntil' => __('Return date')]);
+        $this->runTransition($task, TaskStatus::from($this->pendingStatus), $this->comment, $this->postponedUntil);
     }
 
     public function cancelTransition(): void
     {
         $this->pendingStatus = null;
         $this->comment = '';
+        $this->postponedUntil = '';
     }
 
     #[On('task-peek-updated')]
@@ -77,9 +84,10 @@ new class extends Component
     {
         $this->pendingStatus = null;
         $this->comment = '';
+        $this->postponedUntil = '';
     }
 
-    private function runTransition(Task $task, TaskStatus $to, ?string $comment = null): void
+    private function runTransition(Task $task, TaskStatus $to, ?string $comment = null, ?string $postponedUntil = null): void
     {
         try {
             $undo = app(TaskWorkflowService::class)->transition(
@@ -88,9 +96,11 @@ new class extends Component
                 $to,
                 $comment,
                 ContentSource::PlainText,
+                $postponedUntil,
             );
             $this->pendingStatus = null;
             $this->comment = '';
+            $this->postponedUntil = '';
             $this->js(app(TaskWorkflowService::class)->undoToastScript(
                 __('Status changed to :status', ['status' => $to->label()]),
                 auth()->user(),
@@ -127,7 +137,7 @@ new class extends Component
         <div class="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-3">
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                    <x-task-number :task="$task" class="text-base font-semibold text-gray-400 hover:text-indigo-700" />
+                    <x-task-number :task="$task" class="text-base font-semibold text-gray-500 hover:text-primary-700" />
                     <h2 class="truncate text-base font-semibold text-gray-900">{{ $task->title }}</h2>
                     <x-status-badge :status="$task->status" />
                 </div>
@@ -142,10 +152,10 @@ new class extends Component
                 </p>
             </div>
             <div class="flex shrink-0 items-center gap-1">
-                <a href="{{ route('tasks.show', $task) }}" wire:navigate class="rounded-md px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50">
+                <a href="{{ route('tasks.show', $task) }}" wire:navigate class="rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50">
                     {{ __('Open full page') }}
                 </a>
-                <button type="button" wire:click="$dispatch('task-close-peek')" class="rounded-md p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700" aria-label="{{ __('Close') }}">
+                <button type="button" wire:click="$dispatch('task-close-peek')" class="rounded-md p-1.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700" aria-label="{{ __('Close') }}">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -160,12 +170,12 @@ new class extends Component
                         @php
                             $isDestructive = in_array($transition, [TaskStatus::Cancelled, TaskStatus::Rejected], true);
                         @endphp
-                        <x-action-button
+                        <x-button type="button" size="sm"
                             :variant="$isDestructive ? 'danger' : 'secondary'"
                             wire:click="selectTransition('{{ $transition->value }}')"
                         >
                             {{ $task->status === TaskStatus::Completed && $transition === TaskStatus::InProgress ? __('task.reopen') : $transition->label() }}
-                        </x-action-button>
+                        </x-button>
                     @endforeach
                 </div>
             @endif
@@ -174,9 +184,16 @@ new class extends Component
                 <form wire:submit="confirmTransition" class="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <p class="text-xs font-medium text-amber-900">{{ __('Add a comment for this status change') }}</p>
                     <textarea wire:model="comment" rows="3" class="w-full rounded-md border-gray-200 text-sm" required></textarea>
+                    @if ($pendingStatus === \App\Enums\TaskStatus::Postponed->value)
+                        <label class="block text-xs text-amber-900" data-ui="postponed-until">
+                            {{ __('Return date') }}
+                            <input type="date" wire:model="postponedUntil" min="{{ now()->timezone(config('app.timezone'))->addDay()->format('Y-m-d') }}" class="mt-1 block rounded-md border-gray-200 text-sm" required>
+                        </label>
+                        <x-input-error :messages="$errors->get('postponedUntil')" />
+                    @endif
                     <div class="flex gap-2">
-                        <x-action-button variant="primary" type="submit">{{ __('Confirm') }}</x-action-button>
-                        <x-action-button variant="ghost" type="button" wire:click="cancelTransition">{{ __('Cancel') }}</x-action-button>
+                        <x-button size="sm" variant="primary" type="submit">{{ __('Confirm') }}</x-button>
+                        <x-button size="sm" variant="ghost" type="button" wire:click="cancelTransition">{{ __('Cancel') }}</x-button>
                     </div>
                 </form>
             @endif
@@ -187,12 +204,12 @@ new class extends Component
 
             @if ($task->subtasks->isNotEmpty())
                 <div>
-                    <p class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">{{ __('Subtasks') }}</p>
+                    <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('Subtasks') }}</p>
                     <ul class="space-y-1">
                         @foreach ($task->subtasks as $subtask)
                             <li>
                                 <button type="button" class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-50" wire:click="$dispatch('task-open-peek', { number: {{ $subtask->number }} })">
-                                    <span class="tabular-nums text-gray-400">#{{ $subtask->number }}</span>
+                                    <span class="tabular-nums text-gray-500">#{{ $subtask->number }}</span>
                                     <span class="min-w-0 truncate">{{ $subtask->title }}</span>
                                     <x-status-badge :status="$subtask->status" class="ml-auto shrink-0" />
                                 </button>
@@ -203,7 +220,7 @@ new class extends Component
             @endif
 
             <div>
-                <p class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">{{ __('Comments') }}</p>
+                <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500">{{ __('Comments') }}</p>
                 @php
                     $thread = $comments->sortBy('created_at')->values();
                 @endphp

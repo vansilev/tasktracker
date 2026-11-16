@@ -201,9 +201,9 @@ new #[Layout('components.tasks-layout')] class extends Component
             {{ __('billing.create') }}
         </button>
         <x-slot name="headerActions">
-            <x-action-button variant="primary" size="md" type="button" onclick="document.getElementById('billing-open-create')?.click()">
+            <x-button variant="primary" size="md" type="button" onclick="document.getElementById('billing-open-create')?.click()">
                 {{ __('billing.create') }}
-            </x-action-button>
+            </x-button>
         </x-slot>
     @endif
 
@@ -235,25 +235,23 @@ new #[Layout('components.tasks-layout')] class extends Component
         <nav class="flex items-center gap-1 overflow-x-auto">
             @foreach (['overdue', 'soon', 'active', 'on_demand', 'lifetime', 'paused', 'archived'] as $key)
                 <button type="button" wire:click="$set('tab', '{{ $key }}')"
-                        class="shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium {{ $tab === $key ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50' }}">
+                        class="shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium {{ $tab === $key ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50' }}">
                     {{ __('billing.tab.'.$key) }}
                 </button>
             @endforeach
         </nav>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <x-text-input wire:model.live.debounce.300ms="search" class="w-full rounded-lg" placeholder="{{ __('billing.search') }}" />
-        </div>
+        <x-text-input wire:model.live.debounce.300ms="search" type="search" class="w-full bg-white" aria-label="{{ __('billing.search') }}" placeholder="{{ __('billing.search') }}" />
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="bg-white rounded-surface border border-gray-200 overflow-hidden">
             @if ($items->isEmpty())
                 <x-empty-state>
                     {{ __('billing.empty') }}
                     @if ($canManage)
                         <x-slot name="action">
-                            <x-action-button variant="primary" type="button" wire:click="openCreate">
+                            <x-button size="sm" variant="primary" type="button" wire:click="openCreate">
                                 {{ __('billing.create') }}
-                            </x-action-button>
+                            </x-button>
                         </x-slot>
                     @endif
                 </x-empty-state>
@@ -262,12 +260,12 @@ new #[Layout('components.tasks-layout')] class extends Component
                     <table class="min-w-full divide-y divide-gray-100 text-sm">
                         <thead class="bg-gray-50/80">
                             <tr>
-                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase text-gray-500">{{ __('billing.vendor') }}</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase text-gray-500">{{ __('billing.amount') }}</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase text-gray-500">{{ __('billing.next_due') }}</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase text-gray-500">{{ __('billing.method_label') }}</th>
-                                <th class="px-4 py-2.5 text-left text-xs font-medium uppercase text-gray-500">{{ __('billing.payer') }}</th>
-                                <th></th>
+                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('billing.vendor') }}</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('billing.amount') }}</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('billing.next_due') }}</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('billing.method_label') }}</th>
+                                <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('billing.payer') }}</th>
+                                <th class="relative"><span class="sr-only">{{ __('Actions') }}</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50">
@@ -276,16 +274,13 @@ new #[Layout('components.tasks-layout')] class extends Component
                                     $due = $meta->dueMeta($item);
                                     $issues = $item->issues();
                                 @endphp
-                                <tr class="hover:bg-gray-50 cursor-pointer" wire:click="openShow({{ $item->id }})" role="button">
+                                {{-- The whole row opens the item through the stretched title button; row actions sit above it. --}}
+                                <tr class="relative hover:bg-gray-50 focus-within:bg-gray-50">
                                     <td class="px-4 py-2.5">
-                                        <div class="font-medium text-gray-900">{{ $item->title() }}</div>
-                                        <div class="text-xs text-gray-500">{{ $item->category->label() }} · {{ __('billing.kind_short.'.$item->kind->value) }}</div>
+                                        <button type="button" wire:click="openShow({{ $item->id }})" class="text-left font-medium text-gray-900 hover:text-primary-700 focus:outline-none before:absolute before:inset-0 before:content-[''] focus-visible:underline">{{ $item->title() }}</button>
+                                        <div class="text-xs text-gray-600">{{ $item->category->label() }} · {{ __('billing.kind_short.'.$item->kind->value) }}</div>
                                         @if ($issues)
-                                            <div class="mt-1 flex flex-wrap gap-1">
-                                                @foreach ($issues as $issue)
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 ring-1 ring-amber-200">{{ $issue['label'] }}</span>
-                                                @endforeach
-                                            </div>
+                                            <div class="mt-1 text-xs text-warning-800">{{ __('billing.missing_prefix', ['items' => collect($issues)->map(fn ($i) => __('billing.issue_short.'.$i['key']))->implode(', ')]) }}</div>
                                         @endif
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">{{ $item->formattedAmount() }}</td>
@@ -302,11 +297,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                                             <div>{{ $item->owner->name }}</div>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-2.5 whitespace-nowrap" wire:click.stop>
+                                    <td class="relative z-10 px-4 py-2.5 whitespace-nowrap text-right">
                                         @if ($item->kind->canMarkPaid() && auth()->user()->can('markPaid', $item))
-                                            <x-action-button variant="secondary" size="sm" wire:click.stop="openPay({{ $item->id }})">{{ __('billing.mark_paid') }}</x-action-button>
+                                            <x-button type="button" variant="secondary" size="sm" wire:click.stop="openPay({{ $item->id }})">{{ __('billing.mark_paid') }}</x-button>
                                             @if ($item->kind->canSkip())
-                                                <x-action-button variant="ghost" size="sm" wire:click.stop="openSkip({{ $item->id }})">{{ __('billing.skip') }}</x-action-button>
+                                                <x-button type="button" variant="ghost" size="sm" wire:click.stop="openSkip({{ $item->id }})">{{ __('billing.skip') }}</x-button>
                                             @endif
                                         @endif
                                     </td>
@@ -319,11 +314,11 @@ new #[Layout('components.tasks-layout')] class extends Component
                     @foreach ($items as $item)
                         @php $due = $meta->dueMeta($item); $issues = $item->issues(); @endphp
                         <button type="button" wire:click="openShow({{ $item->id }})" class="block w-full text-left p-4">
-                            <div class="font-medium">{{ $item->title() }}</div>
+                            <div class="font-medium text-gray-900">{{ $item->title() }}</div>
                             <div class="text-sm {{ $due['class'] }}">{{ $item->formattedAmount() }} · {{ $due['text'] }}</div>
-                            @foreach ($issues as $issue)
-                                <div class="mt-1 text-xs text-amber-800 bg-amber-50 rounded px-2 py-1">{{ $issue['label'] }}</div>
-                            @endforeach
+                            @if ($issues)
+                                <div class="mt-1 text-xs text-warning-800">{{ __('billing.missing_prefix', ['items' => collect($issues)->map(fn ($i) => __('billing.issue_short.'.$i['key']))->implode(', ')]) }}</div>
+                            @endif
                         </button>
                     @endforeach
                 </div>
@@ -338,8 +333,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <p class="text-sm">{{ __('billing.paid_confirm', ['title' => $payItem?->title(), 'amount' => $payItem?->formattedAmount()]) }}</p>
                 <x-text-input wire:model="payAmount" class="w-full" placeholder="{{ __('billing.other_amount') }}" />
                 <div class="flex gap-2 justify-end">
-                    <x-action-button variant="ghost" wire:click="$set('payItemId', null)">{{ __('Cancel') }}</x-action-button>
-                    <x-action-button variant="primary" wire:click="confirmPay">{{ __('billing.yes') }}</x-action-button>
+                    <x-button type="button" size="sm" variant="ghost" wire:click="$set('payItemId', null)">{{ __('Cancel') }}</x-button>
+                    <x-button type="button" size="sm" variant="primary" wire:click="confirmPay">{{ __('billing.yes') }}</x-button>
                 </div>
             </div>
         </div>
@@ -351,8 +346,8 @@ new #[Layout('components.tasks-layout')] class extends Component
                 <label class="text-sm">{{ __('billing.skip_reason') }}</label>
                 <textarea wire:model="skipReason" class="w-full border-gray-300 rounded-lg text-sm" rows="3"></textarea>
                 <div class="flex gap-2 justify-end">
-                    <x-action-button variant="ghost" wire:click="$set('skipItemId', null)">{{ __('Cancel') }}</x-action-button>
-                    <x-action-button variant="danger" wire:click="confirmSkip">{{ __('billing.skip') }}</x-action-button>
+                    <x-button type="button" size="sm" variant="ghost" wire:click="$set('skipItemId', null)">{{ __('Cancel') }}</x-button>
+                    <x-button type="button" size="sm" variant="danger" wire:click="confirmSkip">{{ __('billing.skip') }}</x-button>
                 </div>
             </div>
         </div>

@@ -175,7 +175,7 @@ new #[Layout('components.admin-layout')] class extends Component
             <div class="flex-1 min-w-[200px]">
                 <x-text-input wire:model="name" class="w-full" placeholder="{{ __('Department name') }}" />
             </div>
-            <x-primary-button>{{ __('Add') }}</x-primary-button>
+            <x-button variant="primary" type="submit">{{ __('Add') }}</x-button>
         </form>
         <x-input-error :messages="$errors->get('name')" class="mt-2" />
     </x-card>
@@ -187,11 +187,11 @@ new #[Layout('components.admin-layout')] class extends Component
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50/80">
                     <tr>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Name') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Head') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Employees') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Status') }}</th>
-                        <th class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Actions') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Name') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Head') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Employees') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Status') }}</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-medium text-gray-600">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -203,12 +203,12 @@ new #[Layout('components.admin-layout')] class extends Component
                                     <form wire:submit="saveEdit" class="space-y-4">
                                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                                             <div>
-                                                <x-input-label :value="__('Name')" class="text-xs" />
-                                                <x-text-input wire:model="editName" class="w-full mt-1" />
+                                                <x-input-label for="f-editName" :value="__('Name')" class="text-xs" />
+                                                <x-text-input id="f-editName" wire:model="editName" class="w-full mt-1" />
                                             </div>
                                             <div>
-                                                <x-input-label :value="__('Head')" class="text-xs" />
-                                                <select wire:model="headUserId" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                <x-input-label for="f-headUserId" :value="__('Head')" class="text-xs" />
+                                                <select id="f-headUserId" wire:model="headUserId" class="w-full mt-1 border-gray-300 rounded-lg shadow-sm text-sm focus:border-primary-500 focus:ring-primary-500">
                                                     <option value="">{{ __('— Not set —') }}</option>
                                                     @foreach ($editingDepartmentUsers as $user)
                                                         <option value="{{ $user->id }}">{{ $user->name }}</option>
@@ -216,12 +216,12 @@ new #[Layout('components.admin-layout')] class extends Component
                                                 </select>
                                             </div>
                                             <div class="flex items-center gap-2 pt-5">
-                                                <input type="checkbox" wire:model.live="autoAssign" id="autoAssign" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                                <input type="checkbox" wire:model.live="autoAssign" id="autoAssign" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
                                                 <label for="autoAssign" class="text-xs text-gray-600">{{ __('Auto-assign') }}</label>
                                             </div>
                                             <div class="flex gap-2">
-                                                <x-primary-button>{{ __('Save') }}</x-primary-button>
-                                                <x-secondary-button type="button" wire:click="cancelEdit">{{ __('Cancel') }}</x-secondary-button>
+                                                <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
+                                                <x-button variant="secondary" type="button" wire:click="cancelEdit">{{ __('Cancel') }}</x-button>
                                             </div>
                                         </div>
 
@@ -247,7 +247,7 @@ new #[Layout('components.admin-layout')] class extends Component
                                                                     <span class="flex items-center gap-1">
                                                                         <button type="button" wire:click="moveQueue({{ $i }}, -1)" @disabled($i === 0) class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-30">↑</button>
                                                                         <button type="button" wire:click="moveQueue({{ $i }}, 1)" @disabled($i === count($queueIds) - 1) class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-30">↓</button>
-                                                                        <x-action-button variant="danger" size="sm" type="button" wire:click="removeFromQueue({{ $qid }})">✕</x-action-button>
+                                                                        <x-button variant="danger" size="sm" type="button" wire:click="removeFromQueue({{ $qid }})" aria-label="{{ __('Delete') }}"><x-icon.x-mark /></x-button>
                                                                     </span>
                                                                 </li>
                                                             @endforeach
@@ -262,9 +262,9 @@ new #[Layout('components.admin-layout')] class extends Component
                                                     @else
                                                         <div class="flex flex-wrap gap-2">
                                                             @foreach ($available as $u)
-                                                                <x-action-button variant="ghost" size="sm" type="button" wire:click="addToQueue({{ $u->id }})">
+                                                                <x-button variant="ghost" size="sm" type="button" wire:click="addToQueue({{ $u->id }})">
                                                                     + {{ $u->name }}
-                                                                </x-action-button>
+                                                                </x-button>
                                                             @endforeach
                                                         </div>
                                                     @endif
@@ -294,10 +294,10 @@ new #[Layout('components.admin-layout')] class extends Component
                                 <td class="px-4 py-2.5 text-right">
                                     <div class="inline-flex flex-wrap justify-end gap-1">
                                         @if ($department->is_active)
-                                            <x-action-button variant="ghost" size="sm" wire:click="startEdit({{ $department->id }})">{{ __('Edit') }}</x-action-button>
-                                            <x-action-button variant="danger" size="sm" wire:click="archive({{ $department->id }})" wire:confirm="{{ __('Archive this department?') }}">{{ __('Archive') }}</x-action-button>
+                                            <x-button type="button" variant="ghost" size="sm" wire:click="startEdit({{ $department->id }})">{{ __('Edit') }}</x-button>
+                                            <x-button type="button" variant="danger" size="sm" wire:click="archive({{ $department->id }})" wire:confirm="{{ __('Archive this department?') }}">{{ __('Archive') }}</x-button>
                                         @else
-                                            <x-action-button variant="ghost" size="sm" wire:click="restore({{ $department->id }})">{{ __('Restore') }}</x-action-button>
+                                            <x-button type="button" variant="ghost" size="sm" wire:click="restore({{ $department->id }})">{{ __('Restore') }}</x-button>
                                         @endif
                                     </div>
                                 </td>

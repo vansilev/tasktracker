@@ -15,7 +15,7 @@
 
     // Split out rather than appended per button so no two conflicting Tailwind
     // utilities (px-*, text-*) ever land on the same element.
-    $buttonBase = 'inline-flex h-8 min-w-[2rem] items-center justify-center gap-1 rounded-md border border-transparent leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 aria-pressed:border-indigo-200 aria-pressed:bg-indigo-50 aria-pressed:text-indigo-700 disabled:pointer-events-none disabled:opacity-40';
+    $buttonBase = 'inline-flex h-8 min-w-[2rem] items-center justify-center gap-1 rounded-md border border-transparent leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 aria-pressed:border-primary-200 aria-pressed:bg-primary-50 aria-pressed:text-primary-700 disabled:pointer-events-none disabled:opacity-40';
     $neutral = 'text-gray-600 hover:bg-gray-100 hover:text-gray-900';
 
     $btn = $buttonBase.' '.$neutral.' px-1.5 text-sm';
@@ -32,7 +32,7 @@
      Livewire morph the optional banner (quote chip) between toolbar and editor.
      Toolbar + ProseMirror stay on nested wire:ignore so remorph does not rebuild TipTap. --}}
 <div {{ $attributes->merge(['class' => 'rich-text-editor']) }}>
-    <div class="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
+    <div class="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500">
         <div
             wire:key="{{ $editorKey }}"
             wire:ignore.self
@@ -187,8 +187,8 @@
         <div x-show="inTable" x-cloak
              role="toolbar"
              aria-label="{{ __('editor.table') }}"
-             class="flex flex-wrap items-center gap-0.5 border-b border-gray-200 bg-indigo-50/60 px-1.5 py-1 text-xs">
-            <span class="px-1 text-[11px] font-medium uppercase tracking-wide text-indigo-700">{{ __('editor.table') }}</span>
+             class="flex flex-wrap items-center gap-0.5 border-b border-gray-200 bg-primary-50/60 px-1.5 py-1 text-xs">
+            <span class="px-1 text-xs font-medium uppercase tracking-wide text-primary-700">{{ __('editor.table') }}</span>
             <button type="button" class="{{ $btnWide }}"
                     title="{{ __('editor.row_add') }}"
                     @mousedown.prevent @click="run((c) => c.addRowAfter())">+ {{ __('editor.row_add') }}</button>
@@ -216,7 +216,7 @@
         <div wire:ignore class="rte-surface relative">
             @if ($placeholder !== '')
                 <p x-show="isEmpty" x-cloak
-                   class="pointer-events-none absolute left-3 top-3 m-0 select-none text-sm text-gray-400">{{ $placeholder }}</p>
+                   class="pointer-events-none absolute left-3 top-3 m-0 select-none text-sm text-gray-500">{{ $placeholder }}</p>
             @endif
             <div x-ref="editor"
                  class="prose prose-sm max-w-none px-3 pt-2 pb-3 text-gray-800"

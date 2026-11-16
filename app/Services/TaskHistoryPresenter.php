@@ -107,6 +107,7 @@ class TaskHistoryPresenter
             'department_id' => $this->resolveEntityName($value, $context['departments']),
             'category_id' => $this->resolveEntityName($value, $context['categories']),
             'deadline' => $this->formatDeadline($value),
+            'postponed_until' => $this->formatDeadline($value),
             'description' => $this->truncateDescription($value),
             default => $value,
         };
@@ -142,13 +143,7 @@ class TaskHistoryPresenter
 
     private function formatDeadline(string $value): string
     {
-        $date = Carbon::parse($value);
-
-        if ($date->format('H:i:s') === '00:00:00') {
-            return $date->format('d.m.Y');
-        }
-
-        return $date->format('d.m.Y H:i');
+        return \App\Support\Deadline::format($value);
     }
 
     private function truncateDescription(string $value): string

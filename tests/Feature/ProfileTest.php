@@ -22,6 +22,7 @@ class ProfileTest extends TestCase
             ->assertSeeVolt('profile.update-profile-information-form')
             ->assertSeeVolt('profile.update-password-form')
             ->assertSeeVolt('profile.notification-preferences')
+            ->assertSeeVolt('profile.api-tokens')
             ->assertDontSee(__('Delete Account'));
     }
 

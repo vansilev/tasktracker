@@ -9,7 +9,8 @@ use Illuminate\Support\Str;
 
 class TelegramLinkService
 {
-    public const CODE_TTL_MINUTES = 30;
+    /** Short on purpose: whoever opens the link becomes this user for the bot, buttons included. */
+    public const CODE_TTL_MINUTES = 15;
 
     public function createLinkCode(User $user): TelegramLinkCode
     {
@@ -47,7 +48,7 @@ class TelegramLinkService
     }
 
     /**
-     * @return array{ok: bool, message_key: string, user?: User}
+     * @return array{ok: bool, message_key: string, user?: User, previous_chat_id?: ?string}
      */
     public function consumeStartPayload(string $chatId, ?string $payload, ?string $username = null): array
     {
@@ -79,6 +80,8 @@ class TelegramLinkService
             return ['ok' => false, 'message_key' => 'notification.telegram_link_invalid'];
         }
 
+        $previousChatId = $link->user->telegram_chat_id;
+
         DB::transaction(function () use ($link, $chatId, $normalizedUsername) {
             User::query()
                 ->where('telegram_chat_id', $chatId)
@@ -95,10 +98,17 @@ class TelegramLinkService
             TelegramLinkCode::query()->where('user_id', $link->user_id)->delete();
         });
 
+        // From the bot a linked chat can change tasks, so every (re)link leaves a trace.
+        app(AuditLogService::class)->log('telegram.linked', $link->user, $link->user, null, [
+            'chat' => '…'.substr($chatId, -4),
+            'relinked' => filled($previousChatId) && $previousChatId !== $chatId,
+        ]);
+
         return [
             'ok' => true,
             'message_key' => 'notification.telegram_link_success',
             'user' => $link->user->fresh(),
+            'previous_chat_id' => $previousChatId,
         ];
     }
 

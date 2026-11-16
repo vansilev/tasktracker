@@ -17,6 +17,7 @@ new class extends Component
         'task_deadline_approaching' => 'task.deadline_approaching',
         'task_overdue' => 'task.overdue',
         'task_review_sla_expired' => 'task.review_sla_expired',
+        'task_reminder' => 'task.reminder',
         'billing_due_7' => 'billing.due_7',
         'billing_due_3' => 'billing.due_3',
         'billing_overdue' => 'billing.overdue',
@@ -53,7 +54,7 @@ new class extends Component
 
         foreach (self::EVENTS as $eventKey => $eventDot) {
             foreach (self::CHANNELS as $channel) {
-                if ($channel === 'telegram' && ! $dmEnabled) {
+                if (! $this->channelEditable($eventKey, $channel)) {
                     continue;
                 }
 
@@ -76,6 +77,24 @@ new class extends Component
     public function telegramDmEnabled(): bool
     {
         return (bool) config('services.telegram.dm_enabled');
+    }
+
+    /**
+     * Morning reminders exist only as a personal Telegram message, and they stay personal even
+     * while the other notifications go to the group; everything else follows the DM switch.
+     */
+    public function channelEditable(string $eventKey, string $channel): bool
+    {
+        if ($eventKey === 'task_reminder') {
+            return $channel === 'telegram';
+        }
+
+        // Comments and mentions reach a person in Telegram personally whatever the DM switch says.
+        if ($channel === 'telegram' && in_array($eventKey, ['task_mentioned', 'task_commented'], true)) {
+            return true;
+        }
+
+        return $channel !== 'telegram' || $this->telegramDmEnabled();
     }
 
     /**
@@ -111,9 +130,9 @@ new class extends Component
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-100">
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('notification.event') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-600">{{ __('notification.event') }}</th>
                         @foreach ($this->channels() as $channel)
-                            <th class="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide text-center whitespace-nowrap">
+                            <th class="px-4 py-2 text-xs font-medium text-gray-600 text-center whitespace-nowrap">
                                 {{ __('notification.channels.'.$channel) }}
                             </th>
                         @endforeach
@@ -130,8 +149,9 @@ new class extends Component
                                     <input
                                         type="checkbox"
                                         wire:model="preferences.{{ $eventKey }}.{{ $channel }}"
-                                        @disabled($channel === 'telegram' && ! $this->telegramDmEnabled())
-                                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 disabled:opacity-40"
+                                        aria-label="{{ __('notification.events.'.$eventKey) }}: {{ __('notification.channels.'.$channel) }}"
+                                        @disabled(! $this->channelEditable($eventKey, $channel))
+                                        class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 disabled:opacity-40"
                                     />
                                 </td>
                             @endforeach
@@ -148,7 +168,7 @@ new class extends Component
         </p>
 
         <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+            <x-button variant="primary" type="submit">{{ __('Save') }}</x-button>
 
             <x-action-message class="me-3" on="notification-preferences-saved">
                 {{ __('Saved.') }}

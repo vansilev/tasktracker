@@ -62,15 +62,15 @@ new #[Layout('components.admin-layout')] class extends Component
         <h3 class="text-sm font-semibold text-gray-900 mb-3">{{ __('Add access role') }}</h3>
         <form wire:submit="create" class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div>
-                <x-input-label :value="__('Name')" class="text-xs" />
-                <x-text-input wire:model="name" class="w-full mt-1" />
+                <x-input-label for="f-name" :value="__('Name')" class="text-xs" />
+                <x-text-input id="f-name" wire:model="name" class="w-full mt-1" />
                 <x-input-error :messages="$errors->get('name')" class="mt-1" />
             </div>
             <div>
-                <x-input-label :value="__('Description')" class="text-xs" />
-                <x-text-input wire:model="description" class="w-full mt-1" />
+                <x-input-label for="f-description" :value="__('Description')" class="text-xs" />
+                <x-text-input id="f-description" wire:model="description" class="w-full mt-1" />
             </div>
-            <x-primary-button>{{ __('Create and configure') }}</x-primary-button>
+            <x-button variant="primary" type="submit">{{ __('Create and configure') }}</x-button>
         </form>
     </x-card>
 
@@ -79,12 +79,12 @@ new #[Layout('components.admin-layout')] class extends Component
             <table class="min-w-full divide-y divide-gray-100 text-sm">
                 <thead class="bg-gray-50/80">
                     <tr>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Name') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Users') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Permissions') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Visible depts') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Status') }}</th>
-                        <th class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">{{ __('Actions') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Name') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Users') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Permissions') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Visible depts') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium text-gray-600">{{ __('Status') }}</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-medium text-gray-600">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -105,12 +105,12 @@ new #[Layout('components.admin-layout')] class extends Component
                             <td class="px-4 py-2.5 text-right">
                                 <div class="inline-flex flex-wrap justify-end gap-1">
                                     <a href="{{ route('admin.roles.edit', $role) }}" wire:navigate>
-                                        <x-action-button variant="ghost" size="sm" type="button">{{ __('Configure') }}</x-action-button>
+                                        <x-button variant="ghost" size="sm" type="button">{{ __('Configure') }}</x-button>
                                     </a>
                                     @if ($role->is_active)
-                                        <x-action-button variant="danger" size="sm" wire:click="archive({{ $role->id }})">{{ __('Archive') }}</x-action-button>
+                                        <x-button type="button" variant="danger" size="sm" wire:click="archive({{ $role->id }})">{{ __('Archive') }}</x-button>
                                     @else
-                                        <x-action-button variant="ghost" size="sm" wire:click="restore({{ $role->id }})">{{ __('Restore') }}</x-action-button>
+                                        <x-button type="button" variant="ghost" size="sm" wire:click="restore({{ $role->id }})">{{ __('Restore') }}</x-button>
                                     @endif
                                 </div>
                             </td>
