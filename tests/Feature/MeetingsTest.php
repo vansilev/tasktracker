@@ -13,6 +13,7 @@ use App\Services\Meetings\MeetingImporter;
 use App\Services\Meetings\MeetingPeople;
 use App\Services\Meetings\MeetingTaskCreator;
 use App\Services\Meetings\MeetingTaskExtractor;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
@@ -389,6 +390,93 @@ class MeetingsTest extends TestCase
         $this->assertStringContainsString('no credits', (string) $meeting->fresh()->analysis_error);
         // A run that hung for more than 10 minutes no longer blocks the button.
         $this->assertFalse(Meeting::query()->create(['fireflies_id' => 'old', 'title' => 'x', 'started_at' => now(), 'analysis_started_at' => now()->subMinutes(11)])->isBeingAnalyzed());
+    }
+
+    /** Fireflies GraphQL stub: the list call and one-transcript calls, counted. */
+    private function fakeFireflies(array $ids, array &$fetched, ?string &$summary = 'Коротко'): void
+    {
+        config(['services.fireflies.api_key' => 'test']);
+        Http::fake(['api.fireflies.ai/*' => function ($request) use ($ids, &$fetched, &$summary) {
+            if (str_contains($request['query'], 'transcripts(')) {
+                return Http::response(['data' => ['transcripts' => array_map(fn ($id) => ['id' => $id, 'title' => $id, 'date' => 1], $ids)]]);
+            }
+            $id = $request['variables']['id'];
+            $fetched[] = $id;
+
+            return Http::response(['data' => ['transcript' => [
+                'id' => $id, 'title' => 'Meeting '.$id, 'date' => now()->subHour()->getTimestampMs(), 'duration' => 30,
+                'organizer_email' => 'assistant@tcsavant.com', 'meeting_link' => null,
+                'meeting_attendees' => [], 'sentences' => [['speaker_name' => 'A', 'text' => 'Привет', 'start_time' => 1, 'end_time' => 2]],
+                'summary' => ['keywords' => [], 'action_items' => null, 'overview' => null, 'short_summary' => $summary],
+            ]]]);
+        }]);
+    }
+
+    public function test_scheduled_import_fetches_only_new_meetings(): void
+    {
+        $fetched = [];
+        $this->meeting(['fireflies_id' => 'old', 'summary' => 'Готово']);
+        $this->fakeFireflies(['new-1', 'old', 'new-2'], $fetched);
+
+        $this->artisan('meetings:import --limit=10 --new-only')
+            ->expectsOutput('New meetings: 2')
+            ->assertSuccessful();
+
+        $this->assertSame(['new-1', 'new-2'], $fetched);
+        $this->assertSame(3, Meeting::query()->count());
+
+        // Next run: nothing new, nothing fetched, nothing printed.
+        $fetched = [];
+        $this->artisan('meetings:import --limit=10 --new-only')->doesntExpectOutputToContain('New meetings')->assertSuccessful();
+        $this->assertSame([], $fetched);
+    }
+
+    public function test_fresh_meeting_without_summary_is_fetched_again_until_fireflies_finishes(): void
+    {
+        $fetched = [];
+        $summary = null;
+        $this->fakeFireflies(['fresh'], $fetched, $summary);
+        $this->artisan('meetings:import --new-only')->assertSuccessful();
+        $this->assertNull(Meeting::query()->where('fireflies_id', 'fresh')->value('summary'));
+
+        $summary = 'Теперь готово';
+        $this->artisan('meetings:import --new-only')->assertSuccessful();
+        $this->assertSame('Теперь готово', Meeting::query()->where('fireflies_id', 'fresh')->value('summary'));
+        $this->assertSame(['fresh', 'fresh'], $fetched);
+
+        // An old meeting with no summary is not fetched forever.
+        Meeting::query()->where('fireflies_id', 'fresh')->update(['summary' => null, 'started_at' => now()->subDays(5)]);
+        $fetched = [];
+        $this->artisan('meetings:import --new-only')->assertSuccessful();
+        $this->assertSame([], $fetched);
+    }
+
+    public function test_scheduled_import_without_a_key_does_nothing(): void
+    {
+        config(['services.fireflies.api_key' => null]);
+        Http::fake();
+
+        $this->artisan('meetings:import --new-only')->assertSuccessful();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_scheduled_import_fails_loudly_when_fireflies_is_down(): void
+    {
+        config(['services.fireflies.api_key' => 'test']);
+        Http::fake(['api.fireflies.ai/*' => Http::response(['errors' => [['message' => 'Too many requests']]], 429)]);
+
+        $this->artisan('meetings:import --new-only')->expectsOutputToContain('Too many requests')->assertFailed();
+    }
+
+    public function test_import_is_scheduled_hourly_on_weekdays(): void
+    {
+        $event = collect(app(Schedule::class)->events())
+            ->first(fn ($e) => str_contains($e->command, 'meetings:import'));
+
+        $this->assertNotNull($event);
+        $this->assertStringContainsString('--new-only', $event->command);
+        $this->assertSame('5 * * * 1-5', $event->expression);
     }
 
     public function test_import_copies_a_fireflies_meeting_and_is_idempotent(): void

@@ -15,12 +15,20 @@ class MeetingImporter
     {
         $meetings = [];
         foreach ($this->fireflies->recent($limit) as $row) {
-            // A finished meeting does not change: fetch only what we do not have yet.
+            // A finished meeting does not change: fetch only what we do not have yet,
+            // plus fresh meetings whose summary Fireflies had not finished when we took them.
             $existing = Meeting::query()->where('fireflies_id', (string) $row['id'])->first();
-            $meetings[] = $existing && ! $refresh ? $existing : $this->import((string) $row['id']);
+            $meetings[] = $existing && ! $refresh && ! $this->stillProcessing($existing)
+                ? $existing
+                : $this->import((string) $row['id']);
         }
 
         return $meetings;
+    }
+
+    private function stillProcessing(Meeting $meeting): bool
+    {
+        return blank($meeting->summary) && $meeting->started_at->gt(now()->subDays(3));
     }
 
     public function import(string $firefliesId): Meeting
