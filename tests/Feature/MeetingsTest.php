@@ -9,6 +9,7 @@ use App\Models\Meeting;
 use App\Models\MeetingTaskDraft;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Meetings\FirefliesClient;
 use App\Services\Meetings\MeetingImporter;
 use App\Services\Meetings\MeetingPeople;
 use App\Services\Meetings\MeetingTaskCreator;
@@ -24,6 +25,13 @@ use Tests\TestCase;
 class MeetingsTest extends TestCase
 {
     use CreatesTaskTrackerFixtures;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Real keys in a developer's .env must never reach the tests.
+        config(['services.fireflies.api_key' => null, 'services.fireflies.extra_api_keys' => null, 'services.openai.api_key' => null]);
+    }
 
     private function meeting(array $overrides = []): Meeting
     {
@@ -467,6 +475,56 @@ class MeetingsTest extends TestCase
         Http::fake(['api.fireflies.ai/*' => Http::response(['errors' => [['message' => 'Too many requests']]], 429)]);
 
         $this->artisan('meetings:import --new-only')->expectsOutputToContain('Too many requests')->assertFailed();
+    }
+
+    public function test_meetings_are_collected_over_several_keys_without_duplicates(): void
+    {
+        config(['services.fireflies.api_key' => 'max', 'services.fireflies.extra_api_keys' => ' natalia , max ,']);
+        $calls = [];
+        Http::fake(['api.fireflies.ai/*' => function ($request) use (&$calls) {
+            $key = substr($request->header('Authorization')[0], 7);
+            if (str_contains($request['query'], 'transcripts(')) {
+                $calls[] = "list:{$key}";
+                $ids = $key === 'max' ? [['shared', 2]] : [['shared', 2], ['only-natalia', 3]];
+
+                return Http::response(['data' => ['transcripts' => array_map(fn ($r) => ['id' => $r[0], 'title' => $r[0], 'date' => $r[1]], $ids)]]);
+            }
+            $id = $request['variables']['id'];
+            $calls[] = "get:{$id}:{$key}";
+
+            return Http::response(['data' => ['transcript' => [
+                'id' => $id, 'title' => $id, 'date' => now()->getTimestampMs(), 'duration' => 10, 'organizer_email' => null, 'meeting_link' => null,
+                'meeting_attendees' => [], 'sentences' => [], 'summary' => ['short_summary' => 'ok'],
+            ]]]);
+        }]);
+
+        $this->assertSame(['max', 'natalia'], app(FirefliesClient::class)->keys());
+        $this->artisan('meetings:import --new-only')->expectsOutput('New meetings: 2')->assertSuccessful();
+
+        // Newest first, each meeting fetched once, with the key that listed it.
+        $this->assertSame(['list:max', 'list:natalia', 'get:only-natalia:natalia', 'get:shared:max'], $calls);
+        $this->assertSame(2, Meeting::query()->count());
+    }
+
+    public function test_one_failing_key_does_not_stop_the_others(): void
+    {
+        config(['services.fireflies.api_key' => 'revoked', 'services.fireflies.extra_api_keys' => 'natalia']);
+        Http::fake(['api.fireflies.ai/*' => function ($request) {
+            $key = substr($request->header('Authorization')[0], 7);
+            if ($key === 'revoked') {
+                return Http::response(['errors' => [['message' => 'Invalid API key']]], 401);
+            }
+            if (str_contains($request['query'], 'transcripts(')) {
+                return Http::response(['data' => ['transcripts' => [['id' => 'n1', 'title' => 'n1', 'date' => 1]]]]);
+            }
+
+            return Http::response(['data' => ['transcript' => [
+                'id' => 'n1', 'title' => 'n1', 'date' => now()->getTimestampMs(), 'duration' => 10, 'organizer_email' => null, 'meeting_link' => null,
+                'meeting_attendees' => [], 'sentences' => [], 'summary' => ['short_summary' => 'ok'],
+            ]]]);
+        }]);
+
+        $this->artisan('meetings:import --new-only')->expectsOutput('New meetings: 1')->assertSuccessful();
     }
 
     public function test_import_is_scheduled_hourly_on_weekdays(): void

@@ -48,6 +48,9 @@ return [
     // Meetings tab (task 456): transcripts come from Fireflies, tasks are drafted by OpenAI.
     'fireflies' => [
         'api_key' => env('FIREFLIES_API_KEY'),
+        // More accounts, comma-separated. A key sees only meetings its account recorded or was
+        // invited to, so the recording account (Свитенко) has to be here for the tracker to see them all.
+        'extra_api_keys' => env('FIREFLIES_API_KEYS'),
         'url' => env('FIREFLIES_API_URL', 'https://api.fireflies.ai/graphql'),
     ],
 
