@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\AnalyzeMeeting;
 use App\Models\Meeting;
 use App\Services\Meetings\FirefliesClient;
 use App\Services\Meetings\MeetingImporter;
@@ -15,7 +16,8 @@ class ImportMeetings extends Command
         {--limit=10 : How many latest Fireflies meetings to fetch}
         {--id= : Import one meeting by its Fireflies id}
         {--analyze : Also draft tasks with the model for meetings not analysed yet}
-        {--new-only : Print only the number of new meetings (for the scheduler)}';
+        {--new-only : Print only the number of new meetings (for the scheduler)}
+        {--analyze-new : Draft tasks for meetings that arrived in the last 3 hours and are not analysed yet}';
 
     protected $description = 'Copy meetings from Fireflies (read-only there) and optionally draft tasks from them.';
 
@@ -42,6 +44,11 @@ class ImportMeetings extends Command
         }
 
         $new = Meeting::query()->count() - $before;
+
+        if ($this->option('analyze-new')) {
+            $this->analyzeFresh($extractor);
+        }
+
         if ($this->option('new-only')) {
             if ($new > 0) {
                 $this->line("New meetings: {$new}");
@@ -66,5 +73,33 @@ class ImportMeetings extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Meetings that came in with the last few runs. Older ones (and everything imported before
+     * this switch) stay on the button: every analysis costs OpenAI credits. A failed run is
+     * retried by the next two hourly runs, then it waits for the button.
+     */
+    private function analyzeFresh(MeetingTaskExtractor $extractor): void
+    {
+        if (! $extractor->configured()) {
+            return;
+        }
+
+        $fresh = Meeting::query()
+            ->whereNull('analyzed_at')
+            ->where('created_at', '>=', now()->subHours(3))
+            ->orderBy('started_at')
+            ->get()
+            ->filter(fn (Meeting $m) => ! $m->isBeingAnalyzed() && count($m->sentences ?? []) > 0);
+
+        foreach ($fresh as $meeting) {
+            $meeting->update(['analysis_started_at' => now(), 'analysis_error' => null]);
+            (new AnalyzeMeeting($meeting->id))->handle($extractor);
+            $meeting->refresh();
+            $this->line($meeting->analysis_error
+                ? "Analysis failed: {$meeting->title}: {$meeting->analysis_error}"
+                : "Analysed: {$meeting->title} → {$meeting->drafts()->count()} drafts");
+        }
     }
 }

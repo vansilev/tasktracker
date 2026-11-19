@@ -527,6 +527,53 @@ class MeetingsTest extends TestCase
         $this->artisan('meetings:import --new-only')->expectsOutput('New meetings: 1')->assertSuccessful();
     }
 
+    public function test_new_meetings_are_drafted_automatically_but_old_ones_are_left_to_the_button(): void
+    {
+        config(['services.openai.api_key' => 'test']);
+        $fetched = [];
+        $summary = 'ok';
+        $this->fakeFireflies(['fresh'], $fetched, $summary);
+        // Imported yesterday and never analysed: stays on the button.
+        $old = $this->meeting(['fireflies_id' => 'old', 'summary' => 'ok']);
+        Meeting::query()->whereKey($old->id)->update(['created_at' => now()->subDay()]);
+        Http::fake(['api.openai.com/*' => Http::response(['choices' => [['message' => ['content' => json_encode(['speakers' => [], 'tasks' => [
+            ['title' => 'Сделать отчёт', 'details' => '', 'assignee_name' => null, 'assignee_user_id' => null, 'speaker' => 'A', 'deadline' => null, 'deadline_phrase' => null, 'quote' => 'q', 'start_seconds' => 1],
+        ]])]]]])]);
+
+        $this->artisan('meetings:import --new-only --analyze-new')
+            ->expectsOutput('New meetings: 1')
+            ->expectsOutputToContain('Analysed: Meeting fresh → 1 drafts')
+            ->assertSuccessful();
+
+        $fresh = Meeting::query()->where('fireflies_id', 'fresh')->first();
+        $this->assertNotNull($fresh->analyzed_at);
+        $this->assertNull($fresh->analysis_started_at);
+        $this->assertSame(1, $fresh->drafts()->count());
+        $this->assertNull($old->fresh()->analyzed_at);
+        // Drafts only: nothing becomes a task by itself.
+        $this->assertSame(0, Task::query()->count());
+        Http::assertSentCount(3); // Fireflies list + transcript + one OpenAI call
+
+        // The next run does not analyse it again.
+        $this->artisan('meetings:import --new-only --analyze-new')->doesntExpectOutputToContain('Analysed')->assertSuccessful();
+    }
+
+    public function test_failed_automatic_analysis_is_retried_only_while_the_meeting_is_fresh(): void
+    {
+        config(['services.openai.api_key' => 'test']);
+        $fetched = [];
+        $summary = 'ok';
+        $this->fakeFireflies(['fresh'], $fetched, $summary);
+        Http::fake(['api.openai.com/*' => Http::response(['error' => ['message' => 'no credits']], 429)]);
+
+        $this->artisan('meetings:import --new-only --analyze-new')->expectsOutputToContain('Analysis failed: Meeting fresh: OpenAI: no credits')->assertSuccessful();
+        $this->artisan('meetings:import --new-only --analyze-new')->expectsOutputToContain('Analysis failed')->assertSuccessful();
+
+        Meeting::query()->where('fireflies_id', 'fresh')->update(['created_at' => now()->subHours(4)]);
+        $this->artisan('meetings:import --new-only --analyze-new')->doesntExpectOutputToContain('Analysis')->assertSuccessful();
+        $this->assertNull(Meeting::query()->where('fireflies_id', 'fresh')->value('analysis_started_at'));
+    }
+
     public function test_import_is_scheduled_hourly_on_weekdays(): void
     {
         $event = collect(app(Schedule::class)->events())
@@ -534,7 +581,9 @@ class MeetingsTest extends TestCase
 
         $this->assertNotNull($event);
         $this->assertStringContainsString('--new-only', $event->command);
+        $this->assertStringContainsString('--analyze-new', $event->command);
         $this->assertSame('5 * * * 1-5', $event->expression);
+        $this->assertTrue($event->runInBackground);
     }
 
     public function test_import_copies_a_fireflies_meeting_and_is_idempotent(): void
